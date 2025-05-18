@@ -51,6 +51,7 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   const yearlyTypedTransactions = transactions.filter(tx => {
     try {
       const txYear = new Date(tx.date).getFullYear();
+      // Ensure receiptNumber is not null or undefined before calling endsWith
       return tx.receiptNumber && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
     } catch (e) {
       console.error("Error processing transaction for receipt number generation:", tx, e);
@@ -94,7 +95,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       party: "",
       date: new Date(),
       notes: "",
-      lowStockThreshold: undefined, // Initialize as undefined
+      lowStockThreshold: undefined, // Keep undefined for form state if it means "not set"
     },
   });
 
@@ -104,9 +105,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     if (type === 'receive' && equipmentNameValue) {
       const settings = getEquipmentSettings();
       const currentThreshold = settings[equipmentNameValue]?.lowStockThreshold;
-      form.setValue('lowStockThreshold', currentThreshold || undefined);
+      // Set to undefined if not found, so the input can be empty.
+      // The input component itself will handle `undefined` by rendering `''`.
+      form.setValue('lowStockThreshold', currentThreshold === null || currentThreshold === undefined ? undefined : currentThreshold);
     } else if (type === 'dispatch') {
-      // Clear the threshold if switching to dispatch or if equipment name is cleared
       form.setValue('lowStockThreshold', undefined);
     }
   }, [equipmentNameValue, type, form]);
@@ -119,7 +121,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     if (type === 'receive' && typeof values.lowStockThreshold === 'number' && values.lowStockThreshold > 0) {
       setEquipmentThreshold(values.equipmentName, values.lowStockThreshold);
+    } else if (type === 'receive' && values.lowStockThreshold === undefined) {
+        // If the field is optional and cleared, you might want to remove the setting or handle it.
+        // For now, we only set if a positive number is provided.
     }
+
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -180,7 +186,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 <FormItem>
                   <FormLabel>الكمية</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} min="1" />
+                    <Input type="number" placeholder="0" {...field} min="1" 
+                      onChange={event => field.onChange(+event.target.value)} // Ensure number conversion
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -198,7 +206,18 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       حد التنبيه للمخزون المنخفض (اختياري)
                     </FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="مثال: 5" {...field} min="1" onChange={event => field.onChange(+event.target.value)} />
+                      <Input 
+                        type="number" 
+                        placeholder="مثال: 5" 
+                        {...field} 
+                        value={field.value ?? ''} // Ensure input is controlled: value is never undefined
+                        onChange={event => {
+                          const value = event.target.value;
+                          // For optional number, set to undefined if empty, else convert to number
+                          field.onChange(value === '' ? undefined : +value);
+                        }}
+                        min="1" 
+                      />
                     </FormControl>
                     <FormDescription>
                       سيتم تنبيهك إذا انخفضت كمية هذا التجهيز عن هذا الحد.
@@ -341,6 +360,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       placeholder="أدخل أي ملاحظات إضافية هنا..."
                       className="resize-none"
                       {...field}
+                      value={field.value ?? ''} // Ensure textarea is also controlled
                     />
                   </FormControl>
                   <FormMessage />
@@ -357,3 +377,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
+
