@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Tag } from 'lucide-react'; // Removed FilterX, Search
+import { Download, FileText, Eraser, CalendarIcon, Tag } from 'lucide-react';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -35,15 +35,20 @@ export function HistoryTable() {
   const [filters, setFilters] = useState({
     party: '',
     equipmentName: '',
-    category: '', // New filter for category
+    category: '',
     dateRange: undefined as DateRange | undefined,
     type: 'all',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
+  const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    setAllTransactions(getTransactions());
+    const loadedTransactions = getTransactions();
+    setAllTransactions(loadedTransactions);
+
+    const categories = new Set(loadedTransactions.map(tx => tx.category).filter(Boolean) as string[]);
+    setUniqueCategories(Array.from(categories).sort());
   }, []);
 
   const filteredTransactions = useMemo(() => {
@@ -55,8 +60,8 @@ export function HistoryTable() {
     if (filters.equipmentName) {
       transactions = transactions.filter(tx => tx.equipmentName.toLowerCase().includes(filters.equipmentName.toLowerCase()));
     }
-    if (filters.category) {
-      transactions = transactions.filter(tx => (tx.category || '').toLowerCase().includes(filters.category.toLowerCase()));
+    if (filters.category && filters.category !== 'all') { // Ensure 'all' doesn't filter
+      transactions = transactions.filter(tx => (tx.category || '').toLowerCase() === filters.category.toLowerCase());
     }
     if (filters.dateRange?.from) {
       transactions = transactions.filter(tx => new Date(tx.date) >= (filters.dateRange?.from as Date));
@@ -105,7 +110,7 @@ export function HistoryTable() {
           <CardTitle className="text-2xl">مرشحات البحث</CardTitle>
           <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في سجل العمليات.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"> {/* Adjusted grid columns for new filter */}
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Input
             placeholder="البحث باسم الجهة..."
             value={filters.party}
@@ -120,13 +125,22 @@ export function HistoryTable() {
             className="h-10"
             aria-label="البحث باسم التجهيز"
           />
-          <Input
-            placeholder="البحث بصنف التجهيز..."
-            value={filters.category}
-            onChange={e => handleFilterChange('category', e.target.value)}
-            className="h-10"
-            aria-label="البحث بصنف التجهيز"
-          />
+          <Select
+            value={filters.category || 'all'} // Default to 'all' if empty
+            onValueChange={value => handleFilterChange('category', value === 'all' ? '' : value)}
+          >
+            <SelectTrigger className="h-10" aria-label="تصفية حسب صنف التجهيز">
+              <SelectValue placeholder="صنف التجهيز" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأصناف</SelectItem>
+              {uniqueCategories.map(category => (
+                <SelectItem key={category} value={category}>
+                  {category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -218,8 +232,8 @@ export function HistoryTable() {
                 <TableCell>
                   <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'}
                          className={cn(
-                            'font-semibold',
-                            tx.type === 'receive' ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200'
+                            'font-semibold px-2.5 py-1 text-xs', // Added more padding and specific text size
+                            tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
                          )}>
                     {tx.type === 'receive' ? 'استلام' : 'تسليم'}
                   </Badge>
@@ -268,7 +282,7 @@ export function HistoryTable() {
       </Card>
       ) : (
         <div className="text-center py-10">
-          <Tag className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Changed icon to Tag for "no matching items" */}
+          <Tag className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-muted-foreground text-lg">لا توجد عمليات تطابق معايير البحث الحالية.</p>
           <p className="text-sm text-muted-foreground">حاول تعديل المرشحات أو قم بإضافة عمليات جديدة.</p>
         </div>
@@ -276,3 +290,5 @@ export function HistoryTable() {
     </div>
   );
 }
+
+    
