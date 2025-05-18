@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowRightLeft, PlusCircle, FileText, Settings, Building } from 'lucide-react'; // Added Building
+import { Home, ArrowRightLeft, PlusCircle, FileText, Settings, Building, Package } from 'lucide-react'; // Added Package
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -16,7 +16,8 @@ const links = [
   { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle },
   { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
-  { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building }, // Updated link text
+  { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
+  { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package }, // New link for Equipment
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
