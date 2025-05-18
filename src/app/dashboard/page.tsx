@@ -57,7 +57,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">إجمالي التجهيزات المستلمة</CardTitle>
@@ -86,6 +86,23 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{uniqueItemsCount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">صنف تجهيز فريد حاليًا (بالاسم والصنف)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">تجهيزات بمخزون منخفض</CardTitle>
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{lowStockItems.length.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {lowStockItems.length === 0 ? "لا يوجد تجهيزات حاليًا تحت حد التنبيه" : 
+               lowStockItems.length === 1 ? "نوع تجهيز واحد وصل لحد التنبيه" :
+               lowStockItems.length === 2 ? "نوعان من التجهيزات وصلا لحد التنبيه" :
+               lowStockItems.length > 2 && lowStockItems.length <= 10 ? `${lowStockItems.length} أنواع تجهيزات وصلت لحد التنبيه` :
+               `${lowStockItems.length} نوع تجهيز وصل لحد التنبيه`
+              }
+            </p>
           </CardContent>
         </Card>
       </div>
