@@ -13,10 +13,9 @@ import {
 
 const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
-  // { name: 'تسليم تجهيزات', href: '/dashboard/dispatch', icon: ArrowRightLeft }, // Removed
+  { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
   { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
-  { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
