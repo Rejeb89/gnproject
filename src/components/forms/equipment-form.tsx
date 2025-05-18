@@ -83,10 +83,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [partySearchTerm, setPartySearchTerm] = useState("");
 
   useEffect(() => {
-    if (type === 'dispatch') {
-      setParties(getParties());
-    }
-  }, [type]);
+    setParties(getParties());
+  }, []);
 
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentFormSchema),
@@ -102,9 +100,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    if (type === 'dispatch') {
-      addParty(values.party); // Add party to store if it's new or update (addParty handles uniqueness)
-    }
+    addParty(values.party); // Add party to store if it's new or update (addParty handles uniqueness)
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -126,9 +122,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset(); 
-    if (type === 'dispatch') { // Refresh parties list after potential add
-      setParties(getParties());
-    }
+    setParties(getParties()); // Refresh parties list after potential add
     router.push('/dashboard/history');
   }
 
@@ -179,81 +173,75 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>{partyLabel}</FormLabel>
-                  {type === 'dispatch' ? (
-                    <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={partyPopoverOpen}
-                            className={cn(
-                              "w-full justify-between",
-                              !field.value && "text-muted-foreground"
+                  <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={partyPopoverOpen}
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? parties.find(p => p.name === field.value)?.name || field.value
+                            : `اختر أو أدخل ${partyLabel}...`}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder={`ابحث عن ${partyLabel}...`}
+                          value={partySearchTerm}
+                          onValueChange={setPartySearchTerm}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {partySearchTerm ? `لم يتم العثور على جهة باسم "${partySearchTerm}".` : "لا توجد جهات."}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {filteredParties.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.name}
+                                onSelect={() => {
+                                  form.setValue("party", p.name);
+                                  setPartyPopoverOpen(false);
+                                  setPartySearchTerm("");
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    p.name === field.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                            {partySearchTerm && !parties.some(p => p.name.toLowerCase() === partySearchTerm.toLowerCase()) && (
+                              <CommandItem
+                                value={partySearchTerm}
+                                onSelect={() => {
+                                  form.setValue("party", partySearchTerm);
+                                  setPartyPopoverOpen(false);
+                                  setPartySearchTerm("");
+                                }}
+                                className="text-primary"
+                              >
+                                <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
+                                إنشاء جهة جديدة: "{partySearchTerm}"
+                              </CommandItem>
                             )}
-                          >
-                            {field.value
-                              ? parties.find(p => p.name === field.value)?.name || field.value
-                              : `اختر أو أدخل ${partyLabel}...`}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command shouldFilter={false}>
-                          <CommandInput
-                            placeholder={`ابحث عن ${partyLabel}...`}
-                            value={partySearchTerm}
-                            onValueChange={setPartySearchTerm}
-                          />
-                          <CommandList>
-                            <CommandEmpty>
-                              {partySearchTerm ? `لم يتم العثور على جهة باسم "${partySearchTerm}".` : "لا توجد جهات."}
-                            </CommandEmpty>
-                            <CommandGroup>
-                              {filteredParties.map((p) => (
-                                <CommandItem
-                                  key={p.id}
-                                  value={p.name}
-                                  onSelect={() => {
-                                    form.setValue("party", p.name);
-                                    setPartyPopoverOpen(false);
-                                    setPartySearchTerm("");
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      p.name === field.value ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {p.name}
-                                </CommandItem>
-                              ))}
-                              {partySearchTerm && !parties.some(p => p.name.toLowerCase() === partySearchTerm.toLowerCase()) && (
-                                <CommandItem
-                                  value={partySearchTerm}
-                                  onSelect={() => {
-                                    form.setValue("party", partySearchTerm);
-                                    setPartyPopoverOpen(false);
-                                    setPartySearchTerm("");
-                                  }}
-                                  className="text-primary"
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
-                                  إنشاء جهة جديدة: "{partySearchTerm}"
-                                </CommandItem>
-                              )}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  ) : (
-                    <FormControl>
-                      <Input placeholder={`مثال: قسم الصيانة`} {...field} />
-                    </FormControl>
-                  )}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
@@ -327,11 +315,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
-
-// ShadCN Card components needed for the form styling
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Already imported above
-
-// Need to ensure cmdk is installed or vendored for Command components
-// If not, `npm install cmdk` might be needed and package.json updated
-// For now, assuming command.tsx includes necessary parts or cmdk is globally available to it.
-
