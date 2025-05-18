@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package, PlusCircle, ArrowRightLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -158,7 +158,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         }
       }
     } else if (type === 'dispatch') {
-      form.setValue('lowStockThreshold', undefined);
+      // form.setValue('lowStockThreshold', undefined); // This was causing the value to be reset incorrectly
       // If a full equipment item (name + category) is selected, populate category
       const selectedDispatchItem = availableEquipmentForDispatch.find(eq => eq.name === equipmentNameValue && eq.category === form.watch('category'));
       if (selectedDispatchItem && form.watch('category') !== selectedDispatchItem.category) {
@@ -188,8 +188,13 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           defaultLowStockThreshold: formThreshold,
         });
       } else {
-        const needsCategoryUpdate = formCategory !== existingDefinition.defaultCategory && formCategory !== undefined; // Only update if formCategory is provided
-        const needsThresholdUpdate = formThreshold !== existingDefinition.defaultLowStockThreshold && formThreshold !== undefined; // Only update if formThreshold is provided
+        // Check if the category from the form is different from the existing definition's default category
+        // and if the formCategory is actually provided (not empty or undefined).
+        const needsCategoryUpdate = formCategory !== undefined && formCategory !== existingDefinition.defaultCategory;
+        
+        // Check if the threshold from the form is different from the existing definition's default threshold
+        // and if the formThreshold is actually provided.
+        const needsThresholdUpdate = formThreshold !== undefined && formThreshold !== existingDefinition.defaultLowStockThreshold;
 
         if (needsCategoryUpdate || needsThresholdUpdate) {
           updateEquipmentDefinition({
@@ -199,7 +204,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           });
         } else if (formThreshold !== undefined && existingDefinition.defaultLowStockThreshold !== formThreshold) {
           // This case handles if only threshold is changed and it's different from an existing definition's threshold.
-          // The updateEquipmentDefinition already handles setEquipmentThreshold
+          // updateEquipmentDefinition now also handles setEquipmentThreshold via its internal logic.
+          // So, if threshold is set and different, we can still call update to ensure store consistency for settings.
            setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       }
