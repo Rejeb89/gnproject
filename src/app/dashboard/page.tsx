@@ -7,6 +7,15 @@ import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+
+const chartConfig = {
+  quantity: {
+    label: "الكمية",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -42,6 +51,11 @@ export default function DashboardPage() {
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsCount = stock.length; // Now counts unique name-category pairs
+
+  const chartData = stock.map(item => ({
+    name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
+    quantity: item.quantity,
+  }));
 
   return (
     <div className="space-y-6">
@@ -134,30 +148,43 @@ export default function DashboardPage() {
           <CardTitle>نظرة عامة على المخزون الحالي</CardTitle>
           <CardDescription>ملخص الكميات المتوفرة من كل تجهيز وصنفه.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4"> {/* Added padding top for chart spacing */}
           {stock.length > 0 ? (
-            <div className="max-h-96 overflow-y-auto">
-              <ul className="space-y-2">
-                {stock.map(item => (
-                  <li key={`${item.name}-${item.category || 'uncategorized'}`} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
-                    <div>
-                      <span className="font-medium">{item.name}</span>
-                      {item.category && (
-                        <span className="text-xs text-muted-foreground mr-2 px-1.5 py-0.5 bg-background rounded-full border">
-                          {item.category}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-lg font-semibold text-primary">{item.quantity.toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <BarChart accessibilityLayer data={chartData} margin={{ top: 20, right: 20, bottom: 70, left: 5 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                  angle={-45}
+                  textAnchor="end"
+                  interval={0}
+                  height={50} // Adjusted height for XAxis if needed, mostly controlled by margin.bottom
+                  tickFormatter={(value: string) => value.length > 25 ? `${value.substring(0, 22)}...` : value}
+                />
+                <YAxis
+                  tickFormatter={(value) => value.toLocaleString()}
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={70}
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent indicator="dot" hideLabel />}
+                />
+                <Bar dataKey="quantity" fill="var(--color-quantity)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
           ) : (
-            <p className="text-muted-foreground">لا يوجد تجهيزات في المخزون حاليًا.</p>
+            <p className="text-muted-foreground text-center py-8">لا يوجد تجهيزات في المخزون حاليًا.</p>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
