@@ -8,13 +8,13 @@ body {
 
 @layer base {
   :root {
-    --background: 207 93% 94%; /* Light Blue */
+    --background: 0 0% 100%; /* White */
     --foreground: 210 15% 20%; /* Darker Blue-Gray for text */
 
-    --card: 207 93% 98%; /* Slightly Lighter Blue or White */
+    --card: 0 0% 100%; /* White */
     --card-foreground: 210 15% 20%;
 
-    --popover: 207 93% 98%;
+    --popover: 0 0% 100%; /* White */
     --popover-foreground: 210 15% 20%;
 
     --primary: 207 88% 70%; /* Soft Blue */
@@ -44,7 +44,7 @@ body {
     --radius: 0.5rem;
 
     /* Sidebar specific colors */
-    --sidebar-background: 207 85% 91%; /* Slightly adjusted for distinctness */
+    --sidebar-background: 0 0% 96%; /* Light Gray */
     --sidebar-foreground: 210 15% 20%;
     --sidebar-primary: 207 88% 70%; 
     --sidebar-primary-foreground: 210 100% 10%;
