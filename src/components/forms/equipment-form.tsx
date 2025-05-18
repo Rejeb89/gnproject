@@ -16,14 +16,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale"; 
 import { useToast } from "@/hooks/use-toast";
 import type { Transaction, Party } from "@/lib/types";
-import { addTransaction, getTransactions, getParties, addParty } from "@/lib/store";
+import { addTransaction, getTransactions, getParties, addParty, getEquipmentSettings, setEquipmentThreshold } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -94,13 +94,32 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       party: "",
       date: new Date(),
       notes: "",
+      lowStockThreshold: undefined, // Initialize as undefined
     },
   });
+
+  const equipmentNameValue = form.watch("equipmentName");
+
+  useEffect(() => {
+    if (type === 'receive' && equipmentNameValue) {
+      const settings = getEquipmentSettings();
+      const currentThreshold = settings[equipmentNameValue]?.lowStockThreshold;
+      form.setValue('lowStockThreshold', currentThreshold || undefined);
+    } else if (type === 'dispatch') {
+      // Clear the threshold if switching to dispatch or if equipment name is cleared
+      form.setValue('lowStockThreshold', undefined);
+    }
+  }, [equipmentNameValue, type, form]);
+
 
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    addParty(values.party); // Add party to store if it's new or update (addParty handles uniqueness)
+    addParty(values.party); 
+
+    if (type === 'receive' && typeof values.lowStockThreshold === 'number' && values.lowStockThreshold > 0) {
+      setEquipmentThreshold(values.equipmentName, values.lowStockThreshold);
+    }
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -122,7 +141,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset(); 
-    setParties(getParties()); // Refresh parties list after potential add
+    setParties(getParties()); 
     router.push('/dashboard/history');
   }
 
@@ -167,6 +186,29 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 </FormItem>
               )}
             />
+
+            {type === 'receive' && (
+              <FormField
+                control={form.control}
+                name="lowStockThreshold"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <AlertTriangle className="ml-1 h-4 w-4 text-orange-500" />
+                      حد التنبيه للمخزون المنخفض (اختياري)
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="مثال: 5" {...field} min="1" onChange={event => field.onChange(+event.target.value)} />
+                    </FormControl>
+                    <FormDescription>
+                      سيتم تنبيهك إذا انخفضت كمية هذا التجهيز عن هذا الحد.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <FormField
               control={form.control}
               name="party"

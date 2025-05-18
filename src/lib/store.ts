@@ -1,8 +1,9 @@
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting } from '@/lib/types';
 
-const TRANSACTIONS_KEY = 'equipTrack_transactions_v1'; // Added versioning
-const PARTIES_KEY = 'equipTrack_parties_v1'; // Key for storing parties
+const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
+const PARTIES_KEY = 'equipTrack_parties_v1';
+const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for equipment settings
 
 export function getTransactions(): Transaction[] {
   if (typeof window === 'undefined') return [];
@@ -19,8 +20,6 @@ export function addTransaction(transaction: Transaction): void {
   if (typeof window === 'undefined') return;
   try {
     const transactions = getTransactions();
-    // Add to the beginning so new transactions appear first in raw list
-    // but sort by date for display if needed
     transactions.unshift(transaction); 
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
   } catch (error) {
@@ -30,9 +29,6 @@ export function addTransaction(transaction: Transaction): void {
 
 export function calculateStock(transactions: Transaction[]): Equipment[] {
   const stockMap = new Map<string, number>();
-
-  // Iterate transactions. Assuming transactions are in reverse chronological order (newest first)
-  // For stock calculation, process oldest first.
   const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   for (const tx of sortedTransactions) {
@@ -46,7 +42,7 @@ export function calculateStock(transactions: Transaction[]): Equipment[] {
   
   return Array.from(stockMap.entries())
     .map(([name, quantity]) => ({ name, quantity }))
-    .sort((a,b) => a.name.localeCompare(b.name)); // Sort by name for consistent display
+    .sort((a,b) => a.name.localeCompare(b.name));
 }
 
 export function getParties(): Party[] {
@@ -62,7 +58,6 @@ export function getParties(): Party[] {
 
 export function addParty(partyName: string): Party {
   if (typeof window === 'undefined') {
-    // Should not happen if called correctly, but as a safeguard
     const fallbackParty: Party = { id: crypto.randomUUID(), name: partyName };
     console.warn("addParty called on server, returning fallback. This may indicate an issue.");
     return fallbackParty;
@@ -89,11 +84,34 @@ export function addParty(partyName: string): Party {
   return newParty;
 }
 
+export function getEquipmentSettings(): Record<string, EquipmentSetting> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const data = localStorage.getItem(EQUIPMENT_SETTINGS_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch (error) {
+    console.error("Error reading equipment settings from localStorage:", error);
+    return {};
+  }
+}
+
+export function setEquipmentThreshold(equipmentName: string, threshold: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const settings = getEquipmentSettings();
+    settings[equipmentName] = { lowStockThreshold: threshold };
+    localStorage.setItem(EQUIPMENT_SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error("Error saving equipment threshold to localStorage:", error);
+  }
+}
+
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(TRANSACTIONS_KEY);
-    localStorage.removeItem(PARTIES_KEY); // Also clear parties
+    localStorage.removeItem(PARTIES_KEY);
+    localStorage.removeItem(EQUIPMENT_SETTINGS_KEY); // Also clear equipment settings
   } catch (error) {
     console.error("Error clearing data from localStorage:", error);
   }

@@ -18,3 +18,7 @@ export interface Party {
   id: string;
   name: string;
 }
+
+export interface EquipmentSetting {
+  lowStockThreshold: number;
+}

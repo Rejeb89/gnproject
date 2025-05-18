@@ -2,9 +2,9 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle } from 'lucide-react'; // Updated PlusCircle import
+import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle } from 'lucide-react';
 import type { Transaction, Equipment } from '@/lib/types';
-import { getTransactions, calculateStock } from '@/lib/store';
+import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
@@ -19,8 +19,19 @@ export default function DashboardPage() {
     const currentStock = calculateStock(loadedTransactions);
     setStock(currentStock);
 
-    const LOW_STOCK_THRESHOLD = 5;
-    setLowStockItems(currentStock.filter(item => item.quantity < LOW_STOCK_THRESHOLD && item.quantity > 0));
+    const equipmentSettings = getEquipmentSettings();
+    setLowStockItems(
+      currentStock.filter(item => {
+        const setting = equipmentSettings[item.name];
+        if (setting && typeof setting.lowStockThreshold === 'number') {
+          // Item is considered low stock if its quantity is > 0 and < its specific threshold
+          return item.quantity > 0 && item.quantity < setting.lowStockThreshold;
+        }
+        // Fallback for items without a specific threshold (optional, can be removed if only specific thresholds should trigger alerts)
+        // For now, let's only alert if a specific threshold is set and breached.
+        return false; 
+      })
+    );
   }, []);
 
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
@@ -45,7 +56,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">إجمالي التجهيزات المستلمة</CardTitle>
-            <PlusCircle className="h-5 w-5 text-muted-foreground" /> {/* Using Lucide icon */}
+            <PlusCircle className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalReceived.toLocaleString()}</div>
@@ -81,7 +92,7 @@ export default function DashboardPage() {
               <AlertTriangle className="h-6 w-6" />
               تنبيه نقص مخزون
             </CardTitle>
-            <CardDescription>التجهيزات التالية كميتها منخفضة في المستودع:</CardDescription>
+            <CardDescription>التجهيزات التالية كميتها منخفضة في المستودع (أقل من الحد المعين):</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-1 text-sm">
