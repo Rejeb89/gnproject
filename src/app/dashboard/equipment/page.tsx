@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link'; // Added Link
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle } from "lucide-react"; // Added CheckCircle, XCircle
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn } from "lucide-react"; // Added LogIn, kept PlusCircle for Add Definition
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -43,7 +44,7 @@ export default function EquipmentManagementPage() {
   const [editingDefinition, setEditingDefinition] = useState<EquipmentDefinition | null>(null);
   const [definitionToDelete, setDefinitionToDelete] = useState<EquipmentDefinition | null>(null);
   const [currentStock, setCurrentStock] = useState<Equipment[]>([]);
-  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]); // Store all transactions
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function EquipmentManagementPage() {
   const loadData = () => {
     setDefinitions(getEquipmentDefinitions().sort((a, b) => a.name.localeCompare(b.name)));
     const transactions = getTransactions();
-    setAllTransactions(transactions); // Store transactions in state
+    setAllTransactions(transactions);
     setCurrentStock(calculateStock(transactions));
   };
 
@@ -73,7 +74,6 @@ export default function EquipmentManagementPage() {
         updateEquipmentDefinition({ ...editingDefinition, ...values });
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث نوع التجهيز: ${values.name}` });
       } else {
-        // Check if equipment name already exists
         if (definitions.some(def => def.name.toLowerCase() === values.name.toLowerCase())) {
             toast({
                 title: "خطأ في الإضافة",
@@ -94,7 +94,6 @@ export default function EquipmentManagementPage() {
   };
 
   const handleDeleteDefinition = (definition: EquipmentDefinition) => {
-    // const transactions = getTransactions(); // Already in allTransactions state
     const isUsed = allTransactions.some(tx => tx.equipmentName === definition.name);
 
     if (isUsed) {
@@ -132,12 +131,20 @@ export default function EquipmentManagementPage() {
       }
     }}>
       <div className="container mx-auto py-8 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
-          <Button onClick={handleOpenAddDialog}>
-            <PlusCircle className="ml-2 h-5 w-5" />
-            إضافة نوع تجهيز جديد
-          </Button>
+          <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
+            <Button asChild variant="outline">
+              <Link href="/dashboard/receive">
+                <LogIn className="ml-2 h-5 w-5" /> {/* Using LogIn for receive */}
+                تسجيل استلام جديد
+              </Link>
+            </Button>
+            <Button onClick={handleOpenAddDialog}>
+              <PlusCircle className="ml-2 h-5 w-5" />
+              إضافة نوع تجهيز جديد
+            </Button>
+          </div>
         </div>
 
         <Card className="shadow-lg">
@@ -259,4 +266,3 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
-    
