@@ -72,14 +72,6 @@ export default function DashboardPage() {
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
 
-  const legendPayload = displayChartData.map(item => ({
-    value: item.name, // Used by formatter
-    color: item.fill, // Used for icon color
-    type: 'circle' as const, // Explicitly type for Recharts
-    payload: item, // Make original item available to formatter
-  }));
-
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -208,24 +200,21 @@ export default function DashboardPage() {
                   ))}
                 </RadialBar>
                 <Legend
-                  payload={legendPayload} // Use the generated payload
                   iconSize={10}
-                  // iconType="circle" // Type is now in legendPayload items
+                  iconType="circle"
                   layout="vertical"
                   verticalAlign="middle"
                   align="right"
                   formatter={(value, entry) => {
-                    // 'entry.payload' here is the item from 'legendPayload', which itself has a 'payload' property
-                    // that is the original item from 'displayChartData'.
-                    const originalDisplayItem = entry.payload?.payload as { name: string; quantity: number; fill: string };
-                    if (originalDisplayItem) {
-                        return (
-                            <span className="text-muted-foreground text-sm">
-                            {originalDisplayItem.name} ({originalDisplayItem.quantity.toLocaleString()})
-                            </span>
-                        );
+                    const itemData = entry.payload as { name: string; quantity: number; fill: string };
+                    if (itemData && typeof itemData.quantity === 'number') {
+                      return (
+                        <span className="text-muted-foreground text-sm">
+                          {value} ({itemData.quantity.toLocaleString()})
+                        </span>
+                      );
                     }
-                    return null; 
+                    return <span className="text-muted-foreground text-sm">{value}</span>;
                   }}
                   wrapperStyle={{paddingLeft: "20px"}}
                 />
@@ -253,5 +242,4 @@ export default function DashboardPage() {
     </div>
   );
 }
-
     
