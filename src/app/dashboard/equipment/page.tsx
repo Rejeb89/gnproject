@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, Boxes } from "lucide-react";
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle } from "lucide-react"; // Added CheckCircle, XCircle
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils"; // Added import for cn
+import { cn } from "@/lib/utils";
 
 export default function EquipmentManagementPage() {
   const [definitions, setDefinitions] = useState<EquipmentDefinition[]>([]);
@@ -43,6 +43,7 @@ export default function EquipmentManagementPage() {
   const [editingDefinition, setEditingDefinition] = useState<EquipmentDefinition | null>(null);
   const [definitionToDelete, setDefinitionToDelete] = useState<EquipmentDefinition | null>(null);
   const [currentStock, setCurrentStock] = useState<Equipment[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]); // Store all transactions
   const { toast } = useToast();
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function EquipmentManagementPage() {
   const loadData = () => {
     setDefinitions(getEquipmentDefinitions().sort((a, b) => a.name.localeCompare(b.name)));
     const transactions = getTransactions();
+    setAllTransactions(transactions); // Store transactions in state
     setCurrentStock(calculateStock(transactions));
   };
 
@@ -92,8 +94,8 @@ export default function EquipmentManagementPage() {
   };
 
   const handleDeleteDefinition = (definition: EquipmentDefinition) => {
-    const transactions = getTransactions();
-    const isUsed = transactions.some(tx => tx.equipmentName === definition.name);
+    // const transactions = getTransactions(); // Already in allTransactions state
+    const isUsed = allTransactions.some(tx => tx.equipmentName === definition.name);
 
     if (isUsed) {
       toast({
@@ -145,7 +147,7 @@ export default function EquipmentManagementPage() {
               قائمة أنواع التجهيزات المعرفة
             </CardTitle>
             <CardDescription>
-              إدارة الأنواع المختلفة للتجهيزات الموجودة في النظام.
+              إدارة الأنواع المختلفة للتجهيزات الموجودة في النظام، مع بيان الكمية الحالية وحالة الاستلام.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -156,6 +158,7 @@ export default function EquipmentManagementPage() {
                     <TableHead>اسم نوع التجهيز</TableHead>
                     <TableHead>الصنف الافتراضي</TableHead>
                     <TableHead className="text-center">الكمية الحالية</TableHead>
+                    <TableHead className="text-center">تم استلامه؟</TableHead>
                     <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
                     <TableHead>وحدة القياس</TableHead>
                     <TableHead className="text-center">إجراءات</TableHead>
@@ -164,6 +167,7 @@ export default function EquipmentManagementPage() {
                 <TableBody>
                   {definitions.map((def) => {
                     const currentQuantity = getQuantityForDefinition(def.name);
+                    const hasBeenReceived = allTransactions.some(tx => tx.equipmentName === def.name && tx.type === 'receive');
                     return (
                       <TableRow key={def.id}>
                         <TableCell className="font-medium">{def.name}</TableCell>
@@ -175,6 +179,13 @@ export default function EquipmentManagementPage() {
                           )}>
                             {currentQuantity.toLocaleString()}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {hasBeenReceived ? (
+                            <CheckCircle className="h-5 w-5 text-green-600 inline-block" title="نعم، تم استلامه"/>
+                          ) : (
+                            <XCircle className="h-5 w-5 text-muted-foreground inline-block" title="لا، لم يتم استلامه بعد"/>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
                         <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
@@ -248,5 +259,4 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
-
     
