@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle, Tag, PieChartIcon, BarChartIcon } from 'lucide-react'; // Added PieChartIcon for clarity
+import { ArrowRightLeft, ListChecks, AlertTriangle, Package, Tag, BarChartIcon } from 'lucide-react';
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
@@ -14,7 +14,6 @@ const chartConfig = {
   quantity: {
     label: "الكمية",
   },
-  // We can add individual items to config if needed for legend, but colors are dynamic
 } satisfies ChartConfig;
 
 const BAR_COLORS = [
@@ -58,7 +57,7 @@ export default function DashboardPage() {
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
     const chartDataFiltered = currentStock
-      .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) // Ensure quantity > 0 for chart
+      .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) 
       .map((item, index) => ({
         name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
         quantity: item.quantity,
@@ -72,15 +71,22 @@ export default function DashboardPage() {
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
 
+  const legendPayload = displayChartData.map(item => ({
+    value: `${item.name} (${item.quantity.toLocaleString()})`,
+    type: 'circle' as const, // Explicitly type for iconType compatibility
+    id: item.name,
+    color: item.fill,
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold tracking-tight">لوحة التحكم</h1>
         <div className="flex gap-2">
-          <Button asChild>
+          <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
             <Link href="/dashboard/receive">تسجيل استلام جديد</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild variant="destructive">
             <Link href="/dashboard/dispatch">تسليم تجهيزات</Link> 
           </Button>
         </div>
@@ -90,7 +96,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">إجمالي التجهيزات المستلمة</CardTitle>
-            <PlusCircle className="h-5 w-5 text-muted-foreground" />
+            <Package className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalReceived.toLocaleString()}</div>
@@ -161,7 +167,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChartIcon className="h-6 w-6 text-primary" /> {/* Changed icon */}
+            <BarChartIcon className="h-6 w-6 text-primary" />
             توزيع التجهيزات ذات المخزون المنخفض
           </CardTitle>
           <CardDescription>رسم بياني شعاعي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
@@ -200,22 +206,12 @@ export default function DashboardPage() {
                   ))}
                 </RadialBar>
                 <Legend
+                  payload={legendPayload}
                   iconSize={10}
                   iconType="circle"
                   layout="vertical"
                   verticalAlign="middle"
                   align="right"
-                  formatter={(value, entry) => {
-                    const itemData = entry.payload as { name: string; quantity: number; fill: string };
-                    if (itemData && typeof itemData.quantity === 'number') {
-                      return (
-                        <span className="text-muted-foreground text-sm">
-                          {value} ({itemData.quantity.toLocaleString()})
-                        </span>
-                      );
-                    }
-                    return <span className="text-muted-foreground text-sm">{value}</span>;
-                  }}
                   wrapperStyle={{paddingLeft: "20px"}}
                 />
                 <ChartTooltip
@@ -223,10 +219,10 @@ export default function DashboardPage() {
                   content={<ChartTooltipContent 
                     indicator="dot" 
                     nameKey="name" 
-                    labelKey="quantity"
-                    formatter={(value, name, props) => (
+                    labelKey="quantity" // This refers to the key in the original data for the tooltip to pick up as "label"
+                    formatter={(value, name, props) => ( // value is quantity, name is "quantity", props.payload.name is the actual equipment name
                       <div className="flex flex-col">
-                        <span className="font-semibold">{props.payload?.name}</span>
+                        <span className="font-semibold">{props.payload?.name}</span> 
                         <span>الكمية: {Number(value).toLocaleString()}</span>
                       </div>
                     )}
