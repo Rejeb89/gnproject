@@ -153,12 +153,19 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         if (currentFormThreshold === undefined && definition.defaultLowStockThreshold !== undefined) {
           form.setValue('lowStockThreshold', definition.defaultLowStockThreshold);
         } else if (currentFormThreshold === undefined) {
+          // Fallback to equipment settings if definition has no threshold but settings store might.
           const settings = getEquipmentSettings();
-          form.setValue('lowStockThreshold', settings[equipmentNameValue]?.lowStockThreshold ?? undefined);
+          // Check if settings[equipmentNameValue] exists and then access lowStockThreshold
+          const equipmentSetting = settings[equipmentNameValue];
+          if (equipmentSetting && typeof equipmentSetting.lowStockThreshold === 'number') {
+            form.setValue('lowStockThreshold', equipmentSetting.lowStockThreshold);
+          } else {
+             form.setValue('lowStockThreshold', undefined); // Ensure it's undefined if no setting found
+          }
         }
       }
     }
-  }, [equipmentNameValue, type, form, allEquipmentDefinitions, availableEquipmentForDispatch]);
+  }, [equipmentNameValue, type, form, allEquipmentDefinitions]);
 
 
   function onSubmit(values: EquipmentFormValues) {
@@ -170,7 +177,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       const definitions = getEquipmentDefinitions();
       const existingDefinition = definitions.find(def => def.name.toLowerCase() === values.equipmentName.toLowerCase());
       
-      const formCategory = values.category || undefined;
+      const formCategory = values.category || undefined; // Ensure empty string becomes undefined
       const formThreshold = values.lowStockThreshold;
 
       if (!existingDefinition) {
@@ -179,18 +186,35 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           defaultCategory: formCategory,
           defaultLowStockThreshold: formThreshold,
         });
+         // Since it's a new definition, also explicitly set its threshold in general settings if provided
+        if (formThreshold !== undefined) {
+            setEquipmentThreshold(values.equipmentName, formThreshold);
+        }
       } else {
-        const needsCategoryUpdate = formCategory !== undefined && formCategory !== existingDefinition.defaultCategory;
-        const needsThresholdUpdate = formThreshold !== undefined && formThreshold !== existingDefinition.defaultLowStockThreshold;
+        // Equipment definition exists, update it if necessary
+        let definitionNeedsUpdate = false;
+        const updatedDefinitionData: Partial<EquipmentDefinition> = {};
 
-        if (needsCategoryUpdate || needsThresholdUpdate) {
-          updateEquipmentDefinition({
-            ...existingDefinition,
-            defaultCategory: needsCategoryUpdate ? formCategory : existingDefinition.defaultCategory,
-            defaultLowStockThreshold: needsThresholdUpdate ? formThreshold : existingDefinition.defaultLowStockThreshold,
-          });
-        } else if (formThreshold !== undefined && existingDefinition.defaultLowStockThreshold !== formThreshold) {
-           setEquipmentThreshold(values.equipmentName, formThreshold);
+        if (formCategory !== undefined && formCategory !== (existingDefinition.defaultCategory || undefined)) {
+            updatedDefinitionData.defaultCategory = formCategory;
+            definitionNeedsUpdate = true;
+        }
+        if (formThreshold !== undefined && formThreshold !== (existingDefinition.defaultLowStockThreshold || undefined) ) {
+            updatedDefinitionData.defaultLowStockThreshold = formThreshold;
+            definitionNeedsUpdate = true;
+        }
+
+        if (definitionNeedsUpdate) {
+             updateEquipmentDefinition({
+                ...existingDefinition,
+                ...updatedDefinitionData,
+            });
+        }
+        // Always ensure the specific equipment setting (used for dashboard alert) is updated
+        // if a threshold is provided in the form. This covers cases where the default on the definition
+        // might not have been set, or is being overridden for this specific instance's name.
+        if (formThreshold !== undefined) {
+            setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       }
     }
@@ -237,7 +261,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     : uniqueEquipmentNamesForDispatch;
 
   const categoriesForSelectedEquipmentName = equipmentNameValue
-    ? Array.from(new Set(availableEquipmentForDispatch.filter(item => item.name === equipmentNameValue).map(item => item.category || 'N/A')))
+    ? Array.from(new Set(availableEquipmentForDispatch.filter(item => item.name === equipmentNameValue && item.quantity > 0).map(item => item.category || 'N/A')))
     : [];
 
 
@@ -308,7 +332,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           <CommandInput
                             placeholder="ابحث عن اسم التجهيز..."
                             value={equipmentNameSearchTerm}
-                            onValueValueChange={(search) => {
+                            onValueChange={(search) => { // Corrected prop
                               setEquipmentNameSearchTerm(search);
                             }}
                           />
@@ -323,9 +347,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   value={name}
                                   onSelect={() => {
                                     form.setValue("equipmentName", name);
-                                    setEquipmentNamePopoverOpen(false);
-                                    setEquipmentNameSearchTerm("");
-                                    
+                                    form.setValue("category", ""); // Reset category on new equipment name selection
                                     const itemsWithSelectedName = availableEquipmentForDispatch.filter(
                                       item => item.name === name && item.quantity > 0
                                     );
@@ -335,9 +357,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 
                                     if (uniqueCategories.length === 1) {
                                       form.setValue("category", uniqueCategories[0] || ""); 
-                                    } else {
-                                      form.setValue("category", ""); 
                                     }
+                                    setEquipmentNamePopoverOpen(false);
+                                    setEquipmentNameSearchTerm("");
                                   }}
                                 >
                                   <Check
@@ -402,6 +424,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                     value={cat === 'N/A' ? '' : cat}
                                     onSelect={() => {
                                       form.setValue("category", cat === 'N/A' ? '' : cat);
+                                      // Close popover for category selection
+                                      const popoverTrigger = document.activeElement as HTMLElement;
+                                      if (popoverTrigger) popoverTrigger.blur();
                                     }}
                                   >
                                     <Check
@@ -473,9 +498,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         type="number"
                         placeholder="مثال: 5"
                         {...field}
-                        value={field.value ?? ''}
+                        value={field.value ?? ''} // Ensure value is not undefined
                         onChange={event => {
                           const value = event.target.value;
+                          // Allow clearing the input, which should set value to undefined for optional Zod schema
                           field.onChange(value === '' ? undefined : +value);
                         }}
                         min="1"
@@ -644,3 +670,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
+
