@@ -82,7 +82,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/receive">تسجيل استلام جديد</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/dashboard/dispatch">تسجيل تسليم جديد</Link>
+            <Link href="/dashboard/dispatch">تسليم تجهيزات جديدة</Link> 
           </Button>
         </div>
       </div>

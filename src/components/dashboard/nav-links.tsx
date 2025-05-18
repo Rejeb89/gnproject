@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowRightLeft, FileText, Settings, Building, Package } from 'lucide-react'; // Removed PlusCircle as it's no longer directly in sidebar for 'receive'
+import { Home, ArrowRightLeft, FileText, Settings, Building, Package, LogIn } from 'lucide-react'; // Added LogIn
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -14,7 +14,7 @@ import {
 const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
   // { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle }, // Removed this link
-  { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
+  { name: 'تسليم تجهيزات', href: '/dashboard/dispatch', icon: ArrowRightLeft }, // Changed
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
   { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
   { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
