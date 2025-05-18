@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link'; // Import Link
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download } from "lucide-react"; // Added Send and Download for potential icons
+import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download, Eye } from "lucide-react";
 import type { Party, Transaction } from "@/lib/types";
 import { getParties, addParty, updateParty, deleteParty, getTransactions } from "@/lib/store";
 import { PartyForm, type PartyFormValues } from "@/components/forms/party-form";
@@ -149,11 +150,11 @@ export default function PartiesPage() {
               كل الجهات
             </TabsTrigger>
             <TabsTrigger value="senders">
-              <Send className="ml-2 h-4 w-4" /> {/* Using Send icon for senders */}
+              <Send className="ml-2 h-4 w-4" /> 
               الجهات المرسِلة
             </TabsTrigger>
             <TabsTrigger value="receivers">
-              <Download className="ml-2 h-4 w-4" /> {/* Using Download icon for receivers */}
+              <Download className="ml-2 h-4 w-4" />
               الجهات المستلِمة
             </TabsTrigger>
           </TabsList>
@@ -186,7 +187,12 @@ export default function PartiesPage() {
                       <TableBody>
                         {partiesToDisplay.map((party) => (
                           <TableRow key={party.id}>
-                            <TableCell className="font-medium">{party.name}</TableCell>
+                            <TableCell className="font-medium">
+                              <Link href={`/dashboard/parties/${party.id}`} className="text-primary hover:underline hover:text-primary/80 flex items-center gap-2">
+                                <Eye className="h-4 w-4" />
+                                {party.name}
+                              </Link>
+                            </TableCell>
                             <TableCell className="text-center space-x-1 rtl:space-x-reverse">
                               <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
                                 <Edit2 className="h-4 w-4 text-blue-600" />
@@ -264,5 +270,4 @@ export default function PartiesPage() {
     </AlertDialog>
   );
 }
-
     
