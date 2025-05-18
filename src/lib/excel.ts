@@ -1,3 +1,4 @@
+
 "use client"; // This module is client-side only
 
 import * as XLSX from 'xlsx';
@@ -9,6 +10,7 @@ interface ExcelTransactionRow {
   "المعرف": string;
   "نوع العملية": string;
   "اسم التجهيز": string;
+  "صنف التجهيز"?: string; // Added category
   "الكمية": number;
   "الجهة": string;
   "التاريخ": string;
@@ -23,6 +25,7 @@ export function exportTransactionsToExcel(transactions: Transaction[]): void {
     "المعرف": tx.id,
     "نوع العملية": tx.type === 'receive' ? 'استلام' : 'تسليم',
     "اسم التجهيز": tx.equipmentName,
+    "صنف التجهيز": tx.category || '', // Added category
     "الكمية": tx.quantity,
     "الجهة": tx.party,
     "التاريخ": format(new Date(tx.date), "yyyy/MM/dd HH:mm", { locale: arSA }),
@@ -31,13 +34,13 @@ export function exportTransactionsToExcel(transactions: Transaction[]): void {
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
-  
-  // Set column widths (optional, for better readability)
-  // Widths are in character units.
+
+  // Set column widths
   const columnWidths = [
     { wch: 38 }, // ID
     { wch: 15 }, // Type
     { wch: 30 }, // Equipment Name
+    { wch: 20 }, // Category
     { wch: 10 }, // Quantity
     { wch: 30 }, // Party
     { wch: 20 }, // Date
@@ -49,7 +52,6 @@ export function exportTransactionsToExcel(transactions: Transaction[]): void {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل العمليات');
 
-  // Generate Excel file and trigger download
   const today = format(new Date(), "yyyy-MM-dd");
-  XLSX.writeFile(workbook, `EquipTrack_سجل_العمليات_${today}.xlsx`);
+  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_سجل_العمليات_${today}.xlsx`); // Updated file name
 }

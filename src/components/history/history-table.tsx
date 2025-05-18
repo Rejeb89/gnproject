@@ -11,22 +11,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableCaption,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, FilterX, Search, CalendarIcon, Eraser } from 'lucide-react';
+import { Download, FileText, Eraser, CalendarIcon, Tag } from 'lucide-react'; // Removed FilterX, Search
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { generateReceiptPdf } from '@/lib/pdf';
 import { exportTransactionsToExcel } from '@/lib/excel';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils'; // Added import for cn
+import { Badge } from "@/components/ui/badge";
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -35,8 +35,9 @@ export function HistoryTable() {
   const [filters, setFilters] = useState({
     party: '',
     equipmentName: '',
+    category: '', // New filter for category
     dateRange: undefined as DateRange | undefined,
-    type: 'all', // 'all', 'receive', 'dispatch'
+    type: 'all',
   });
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
@@ -44,9 +45,9 @@ export function HistoryTable() {
   useEffect(() => {
     setAllTransactions(getTransactions());
   }, []);
-  
+
   const filteredTransactions = useMemo(() => {
-    let transactions = [...allTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by newest first for display
+    let transactions = [...allTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     if (filters.party) {
       transactions = transactions.filter(tx => tx.party.toLowerCase().includes(filters.party.toLowerCase()));
@@ -54,11 +55,13 @@ export function HistoryTable() {
     if (filters.equipmentName) {
       transactions = transactions.filter(tx => tx.equipmentName.toLowerCase().includes(filters.equipmentName.toLowerCase()));
     }
+    if (filters.category) {
+      transactions = transactions.filter(tx => (tx.category || '').toLowerCase().includes(filters.category.toLowerCase()));
+    }
     if (filters.dateRange?.from) {
       transactions = transactions.filter(tx => new Date(tx.date) >= (filters.dateRange?.from as Date));
     }
     if (filters.dateRange?.to) {
-      // Adjust 'to' date to include the whole day
       const toDate = new Date(filters.dateRange.to);
       toDate.setHours(23, 59, 59, 999);
       transactions = transactions.filter(tx => new Date(tx.date) <= toDate);
@@ -78,11 +81,11 @@ export function HistoryTable() {
 
   const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   };
 
   const resetFilters = () => {
-    setFilters({ party: '', equipmentName: '', dateRange: undefined, type: 'all' });
+    setFilters({ party: '', equipmentName: '', category: '', dateRange: undefined, type: 'all' });
     setCurrentPage(1);
   };
 
@@ -102,7 +105,7 @@ export function HistoryTable() {
           <CardTitle className="text-2xl">مرشحات البحث</CardTitle>
           <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في سجل العمليات.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"> {/* Adjusted grid columns for new filter */}
           <Input
             placeholder="البحث باسم الجهة..."
             value={filters.party}
@@ -116,6 +119,13 @@ export function HistoryTable() {
             onChange={e => handleFilterChange('equipmentName', e.target.value)}
             className="h-10"
             aria-label="البحث باسم التجهيز"
+          />
+          <Input
+            placeholder="البحث بصنف التجهيز..."
+            value={filters.category}
+            onChange={e => handleFilterChange('category', e.target.value)}
+            className="h-10"
+            aria-label="البحث بصنف التجهيز"
           />
           <Popover>
             <PopoverTrigger asChild>
@@ -193,6 +203,7 @@ export function HistoryTable() {
             <TableRow>
               <TableHead>نوع العملية</TableHead>
               <TableHead>اسم التجهيز</TableHead>
+              <TableHead>صنف التجهيز</TableHead>
               <TableHead className="text-center">الكمية</TableHead>
               <TableHead>الجهة</TableHead>
               <TableHead>التاريخ</TableHead>
@@ -205,7 +216,7 @@ export function HistoryTable() {
             {paginatedTransactions.map(tx => (
               <TableRow key={tx.id}>
                 <TableCell>
-                  <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'} 
+                  <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'}
                          className={cn(
                             'font-semibold',
                             tx.type === 'receive' ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200'
@@ -214,6 +225,7 @@ export function HistoryTable() {
                   </Badge>
                 </TableCell>
                 <TableCell className="font-medium">{tx.equipmentName}</TableCell>
+                <TableCell>{tx.category || '-'}</TableCell>
                 <TableCell className="text-center">{tx.quantity.toLocaleString()}</TableCell>
                 <TableCell>{tx.party}</TableCell>
                 <TableCell>{format(new Date(tx.date), 'PPpp', { locale: arSA })}</TableCell>
@@ -256,7 +268,7 @@ export function HistoryTable() {
       </Card>
       ) : (
         <div className="text-center py-10">
-          <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <Tag className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Changed icon to Tag for "no matching items" */}
           <p className="text-muted-foreground text-lg">لا توجد عمليات تطابق معايير البحث الحالية.</p>
           <p className="text-sm text-muted-foreground">حاول تعديل المرشحات أو قم بإضافة عمليات جديدة.</p>
         </div>
@@ -264,7 +276,3 @@ export function HistoryTable() {
     </div>
   );
 }
-
-// ShadCN Card components needed for the form styling
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-

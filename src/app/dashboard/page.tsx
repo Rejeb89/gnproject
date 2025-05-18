@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle } from 'lucide-react';
+import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle, Tag } from 'lucide-react';
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stock, setStock] = useState<Equipment[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]); // Holds items that are low in stock
 
   useEffect(() => {
     const loadedTransactions = getTransactions();
@@ -20,23 +20,28 @@ export default function DashboardPage() {
     setStock(currentStock);
 
     const equipmentSettings = getEquipmentSettings();
+    // Calculate aggregated stock per equipment name for low stock checking
+    const aggregatedStockByName: Record<string, number> = {};
+    currentStock.forEach(item => {
+      aggregatedStockByName[item.name] = (aggregatedStockByName[item.name] || 0) + item.quantity;
+    });
+
     setLowStockItems(
-      currentStock.filter(item => {
-        const setting = equipmentSettings[item.name];
-        if (setting && typeof setting.lowStockThreshold === 'number') {
-          // Item is considered low stock if its quantity is > 0 and < its specific threshold
-          return item.quantity > 0 && item.quantity < setting.lowStockThreshold;
-        }
-        // Fallback for items without a specific threshold (optional, can be removed if only specific thresholds should trigger alerts)
-        // For now, let's only alert if a specific threshold is set and breached.
-        return false; 
-      })
+      Object.entries(aggregatedStockByName)
+        .map(([name, totalQuantity]) => ({ name, quantity: totalQuantity }))
+        .filter(item => {
+          const setting = equipmentSettings[item.name];
+          if (setting && typeof setting.lowStockThreshold === 'number') {
+            return item.quantity > 0 && item.quantity < setting.lowStockThreshold;
+          }
+          return false;
+        })
     );
   }, []);
 
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
-  const uniqueItemsCount = stock.length;
+  const uniqueItemsCount = stock.length; // Now counts unique name-category pairs
 
   return (
     <div className="space-y-6">
@@ -80,7 +85,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{uniqueItemsCount.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">نوع تجهيز فريد حاليًا</p>
+            <p className="text-xs text-muted-foreground">صنف تجهيز فريد حاليًا (بالاسم والصنف)</p>
           </CardContent>
         </Card>
       </div>
@@ -92,14 +97,14 @@ export default function DashboardPage() {
               <AlertTriangle className="h-6 w-6" />
               تنبيه نقص مخزون
             </CardTitle>
-            <CardDescription>التجهيزات التالية كميتها منخفضة في المستودع (أقل من الحد المعين):</CardDescription>
+            <CardDescription>التجهيزات التالية مجموع كمياتها (بكل أصنافها) منخفض في المستودع (أقل من الحد المعين لاسم التجهيز):</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-1 text-sm">
               {lowStockItems.map(item => (
                 <li key={item.name} className="flex justify-between">
                   <span>{item.name}</span>
-                  <span className="font-semibold text-destructive">{item.quantity.toLocaleString()} وحدات متبقية</span>
+                  <span className="font-semibold text-destructive">{item.quantity.toLocaleString()} وحدات متبقية (إجمالي)</span>
                 </li>
               ))}
             </ul>
@@ -110,15 +115,22 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>نظرة عامة على المخزون الحالي</CardTitle>
-          <CardDescription>ملخص الكميات المتوفرة من كل تجهيز.</CardDescription>
+          <CardDescription>ملخص الكميات المتوفرة من كل تجهيز وصنفه.</CardDescription>
         </CardHeader>
         <CardContent>
           {stock.length > 0 ? (
             <div className="max-h-96 overflow-y-auto">
               <ul className="space-y-2">
                 {stock.map(item => (
-                  <li key={item.name} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
-                    <span className="font-medium">{item.name}</span>
+                  <li key={`${item.name}-${item.category || 'uncategorized'}`} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                    <div>
+                      <span className="font-medium">{item.name}</span>
+                      {item.category && (
+                        <span className="text-xs text-muted-foreground mr-2 px-1.5 py-0.5 bg-background rounded-full border">
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-lg font-semibold text-primary">{item.quantity.toLocaleString()}</span>
                   </li>
                 ))}

@@ -16,11 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { arSA } from "date-fns/locale"; 
+import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import type { Transaction, Party } from "@/lib/types";
 import { addTransaction, getTransactions, getParties, addParty, getEquipmentSettings, setEquipmentThreshold } from "@/lib/store";
@@ -40,28 +40,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface EquipmentFormProps {
   type: 'receive' | 'dispatch';
   formTitle: string;
-  partyLabel: string; 
+  partyLabel: string;
   submitButtonText: string;
 }
 
 function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   const currentYear = new Date().getFullYear();
   const transactions = getTransactions();
-  
+
   const yearlyTypedTransactions = transactions.filter(tx => {
     try {
       const txYear = new Date(tx.date).getFullYear();
-      // Ensure receiptNumber is not null or undefined before calling endsWith
       return tx.receiptNumber && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
     } catch (e) {
       console.error("Error processing transaction for receipt number generation:", tx, e);
-      return false; 
+      return false;
     }
   });
 
   let maxSeq = 0;
   yearlyTypedTransactions.forEach(tx => {
-    if (tx.receiptNumber) { 
+    if (tx.receiptNumber) {
       const parts = tx.receiptNumber.split('-');
       if (parts.length === 2) {
         const seq = parseInt(parts[0], 10);
@@ -91,11 +90,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     resolver: zodResolver(equipmentFormSchema),
     defaultValues: {
       equipmentName: "",
+      category: "", // Default category to empty string
       quantity: 1,
       party: "",
       date: new Date(),
       notes: "",
-      lowStockThreshold: undefined, // Keep undefined for form state if it means "not set"
+      lowStockThreshold: undefined,
     },
   });
 
@@ -105,8 +105,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     if (type === 'receive' && equipmentNameValue) {
       const settings = getEquipmentSettings();
       const currentThreshold = settings[equipmentNameValue]?.lowStockThreshold;
-      // Set to undefined if not found, so the input can be empty.
-      // The input component itself will handle `undefined` by rendering `''`.
       form.setValue('lowStockThreshold', currentThreshold === null || currentThreshold === undefined ? undefined : currentThreshold);
     } else if (type === 'dispatch') {
       form.setValue('lowStockThreshold', undefined);
@@ -117,20 +115,17 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    addParty(values.party); 
+    addParty(values.party);
 
     if (type === 'receive' && typeof values.lowStockThreshold === 'number' && values.lowStockThreshold > 0) {
       setEquipmentThreshold(values.equipmentName, values.lowStockThreshold);
-    } else if (type === 'receive' && values.lowStockThreshold === undefined) {
-        // If the field is optional and cleared, you might want to remove the setting or handle it.
-        // For now, we only set if a positive number is provided.
     }
-
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
       type,
       equipmentName: values.equipmentName,
+      category: values.category || undefined, // Save as undefined if empty
       quantity: values.quantity,
       party: values.party,
       date: values.date.toISOString(),
@@ -142,12 +137,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     toast({
       title: "تمت العملية بنجاح",
-      description: `تم تسجيل ${type === 'receive' ? 'استلام' : 'تسليم'} التجهيز: ${values.equipmentName}. رقم الوصل: ${generatedReceiptNumber}`,
-      variant: "default", 
+      description: `تم تسجيل ${type === 'receive' ? 'استلام' : 'تسليم'} التجهيز: ${values.equipmentName} ${values.category ? '('+values.category+')' : ''}. رقم الوصل: ${generatedReceiptNumber}`,
+      variant: "default",
     });
 
-    form.reset(); 
-    setParties(getParties()); 
+    form.reset();
+    setParties(getParties());
     router.push('/dashboard/history');
   }
 
@@ -181,13 +176,32 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
             />
             <FormField
               control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    <Tag className="ml-1 h-4 w-4 text-muted-foreground" />
+                    صنف التجهيز (اختياري)
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="مثال: مكتبي، محمول، شبكات" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormDescription>
+                    لتصنيف هذا النوع من التجهيزات (إن وجد).
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="quantity"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>الكمية</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} min="1" 
-                      onChange={event => field.onChange(+event.target.value)} // Ensure number conversion
+                    <Input type="number" placeholder="0" {...field} min="1"
+                      onChange={event => field.onChange(+event.target.value)}
                     />
                   </FormControl>
                   <FormMessage />
@@ -203,24 +217,23 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                   <FormItem>
                     <FormLabel className="flex items-center">
                       <AlertTriangle className="ml-1 h-4 w-4 text-orange-500" />
-                      حد التنبيه للمخزون المنخفض (اختياري)
+                      حد التنبيه للمخزون المنخفض (لاسم التجهيز هذا)
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="مثال: 5" 
-                        {...field} 
-                        value={field.value ?? ''} // Ensure input is controlled: value is never undefined
+                      <Input
+                        type="number"
+                        placeholder="مثال: 5"
+                        {...field}
+                        value={field.value ?? ''}
                         onChange={event => {
                           const value = event.target.value;
-                          // For optional number, set to undefined if empty, else convert to number
                           field.onChange(value === '' ? undefined : +value);
                         }}
-                        min="1" 
+                        min="1"
                       />
                     </FormControl>
                     <FormDescription>
-                      سيتم تنبيهك إذا انخفضت كمية هذا التجهيز عن هذا الحد.
+                      سيتم تنبيهك إذا انخفض إجمالي كمية هذا التجهيز (بكل أصنافه) عن هذا الحد.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -319,7 +332,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full pl-3 pr-1 text-right font-normal justify-between", 
+                            "w-full pl-3 pr-1 text-right font-normal justify-between",
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -328,7 +341,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           ) : (
                             <span>اختر تاريخًا</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> 
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -360,7 +373,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       placeholder="أدخل أي ملاحظات إضافية هنا..."
                       className="resize-none"
                       {...field}
-                      value={field.value ?? ''} // Ensure textarea is also controlled
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -368,7 +381,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               )}
             />
             <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <Save className="ml-2 h-4 w-4" /> 
+              <Save className="ml-2 h-4 w-4" />
               {submitButtonText}
             </Button>
           </form>
@@ -377,4 +390,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
-

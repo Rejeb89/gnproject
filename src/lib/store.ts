@@ -1,3 +1,4 @@
+
 // This file should only be imported and used on the client-side.
 import type { Transaction, Equipment, Party, EquipmentSetting } from '@/lib/types';
 
@@ -20,7 +21,7 @@ export function addTransaction(transaction: Transaction): void {
   if (typeof window === 'undefined') return;
   try {
     const transactions = getTransactions();
-    transactions.unshift(transaction); 
+    transactions.unshift(transaction);
     localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
   } catch (error) {
     console.error("Error saving transaction to localStorage:", error);
@@ -28,21 +29,33 @@ export function addTransaction(transaction: Transaction): void {
 }
 
 export function calculateStock(transactions: Transaction[]): Equipment[] {
-  const stockMap = new Map<string, number>();
+  const stockMap = new Map<string, number>(); // Key: "equipmentName-category", Value: quantity
   const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   for (const tx of sortedTransactions) {
-    const currentQuantity = stockMap.get(tx.equipmentName) || 0;
+    const categoryKey = tx.category || 'N/A'; // Use 'N/A' or similar for items without a category
+    const stockKey = `${tx.equipmentName}-${categoryKey}`;
+    const currentQuantity = stockMap.get(stockKey) || 0;
+
     if (tx.type === 'receive') {
-      stockMap.set(tx.equipmentName, currentQuantity + tx.quantity);
+      stockMap.set(stockKey, currentQuantity + tx.quantity);
     } else if (tx.type === 'dispatch') {
-      stockMap.set(tx.equipmentName, currentQuantity - tx.quantity);
+      stockMap.set(stockKey, currentQuantity - tx.quantity);
     }
   }
-  
+
   return Array.from(stockMap.entries())
-    .map(([name, quantity]) => ({ name, quantity }))
-    .sort((a,b) => a.name.localeCompare(b.name));
+    .map(([key, quantity]) => {
+      const parts = key.split('-');
+      const category = parts.length > 1 ? parts.pop() : undefined;
+      const name = parts.join('-'); // In case equipment name itself had a hyphen
+      return { name, category: category === 'N/A' ? undefined : category, quantity };
+    })
+    .sort((a,b) => {
+      const nameCompare = a.name.localeCompare(b.name);
+      if (nameCompare !== 0) return nameCompare;
+      return (a.category || '').localeCompare(b.category || '');
+    });
 }
 
 export function getParties(): Party[] {
@@ -62,19 +75,19 @@ export function addParty(partyName: string): Party {
     console.warn("addParty called on server, returning fallback. This may indicate an issue.");
     return fallbackParty;
   }
-  
+
   const parties = getParties();
   const existingParty = parties.find(p => p.name.toLowerCase() === partyName.toLowerCase());
-  
+
   if (existingParty) {
     return existingParty;
   }
-  
+
   const newParty: Party = {
     id: crypto.randomUUID(),
     name: partyName,
   };
-  
+
   parties.push(newParty);
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
