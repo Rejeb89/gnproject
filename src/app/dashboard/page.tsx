@@ -2,18 +2,19 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle, Tag } from 'lucide-react';
+import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle, Tag, PieChartIcon, BarChartIcon } from 'lucide-react'; // Added PieChartIcon for clarity
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts';
+import { RadialBarChart, RadialBar, Legend, PolarAngleAxis, Cell } from 'recharts'; // Changed imports for RadialBarChart
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 const chartConfig = {
   quantity: {
     label: "الكمية",
   },
+  // We can add individual items to config if needed for legend, but colors are dynamic
 } satisfies ChartConfig;
 
 const BAR_COLORS = [
@@ -26,9 +27,9 @@ const BAR_COLORS = [
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stock, setStock] = useState<Equipment[]>([]); // Holds all stock items {name, category, quantity}
-  const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]); // Holds items (by name, aggregated quantity) that are low in stock for the alert card
-  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]); // Data specifically for the chart (low stock items by name-category)
+  const [stock, setStock] = useState<Equipment[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
+  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
 
   useEffect(() => {
     const loadedTransactions = getTransactions();
@@ -54,14 +55,13 @@ export default function DashboardPage() {
       });
     setLowStockItems(lowStockItemsForAlert);
 
-    // Prepare data for the chart: items from 'currentStock' whose 'name' is in 'lowStockItemsForAlert'
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
     const chartDataFiltered = currentStock
-      .filter(item => namesOfLowStockItems.has(item.name)) // Filter currentStock to get only items whose NAME is low
+      .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) // Ensure quantity > 0 for chart
       .map((item, index) => ({
-        name: `${item.name}${item.category ? ` (${item.category})` : ''}`, // Display name (category)
-        quantity: item.quantity, // Display the actual quantity of this specific name-category pair
+        name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
+        quantity: item.quantity,
         fill: BAR_COLORS[index % BAR_COLORS.length],
       }));
     setDisplayChartData(chartDataFiltered);
@@ -82,7 +82,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/receive">تسجيل استلام جديد</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/dashboard/dispatch">تسليم تجهيزات جديدة</Link> 
+            <Link href="/dashboard/dispatch">تسليم تجهيزات</Link> 
           </Button>
         </div>
       </div>
@@ -161,43 +161,73 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>التجهيزات ذات المخزون المنخفض</CardTitle>
-          <CardDescription>رسم بياني يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <BarChartIcon className="h-6 w-6 text-primary" /> {/* Changed icon */}
+            توزيع التجهيزات ذات المخزون المنخفض
+          </CardTitle>
+          <CardDescription>رسم بياني شعاعي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {displayChartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="h-[400px] w-full">
-              <BarChart accessibilityLayer data={displayChartData} margin={{ top: 20, right: 20, bottom: 70, left: 5 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis
+            <ChartContainer config={chartConfig} className="h-[450px] w-full aspect-square">
+              <RadialBarChart
+                data={displayChartData}
+                innerRadius="30%"
+                outerRadius="100%"
+                startAngle={90} // Start from top
+                endAngle={90 + 360} // Full circle
+                cy="50%" // Center vertically
+              >
+                <PolarAngleAxis
+                  type="category"
                   dataKey="name"
-                  tickLine={false}
+                  tick={false} // Hide ticks on axis, names will be in legend
                   axisLine={false}
-                  tickMargin={10}
-                  angle={-45}
-                  textAnchor="end"
-                  interval={0}
-                  height={50} 
-                  tickFormatter={(value: string) => value.length > 25 ? `${value.substring(0, 22)}...` : value}
                 />
-                <YAxis
-                  tickFormatter={(value) => value.toLocaleString()}
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  width={70}
+                <RadialBar
+                  minAngle={15}
+                  background={{ fill: 'hsl(var(--muted))' }}
+                  clockWise
+                  dataKey="quantity"
+                  label={{
+                    position: 'insideStart',
+                    fill: 'hsl(var(--foreground))',
+                    fontSize: '0.75rem',
+                    formatter: (value: number) => value.toLocaleString(),
+                  }}
+                >
+                  {displayChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} className="stroke-transparent focus:outline-none" strokeWidth={2} />
+                  ))}
+                </RadialBar>
+                <Legend
+                  iconSize={10}
+                  iconType="circle"
+                  layout="vertical"
+                  verticalAlign="middle"
+                  align="right"
+                  formatter={(value, entry) => (
+                    <span className="text-muted-foreground text-sm">
+                      {entry.payload?.name} ({entry.payload?.quantity.toLocaleString()})
+                    </span>
+                  )}
+                  wrapperStyle={{paddingLeft: "20px"}}
                 />
                 <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent indicator="dot" hideLabel />}
+                  cursor={{ strokeDasharray: '3 3', fill: "hsl(var(--accent) / 0.2)" }}
+                  content={<ChartTooltipContent 
+                    indicator="dot" 
+                    nameKey="name" 
+                    labelKey="quantity"
+                    formatter={(value, name, props) => (
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{props.payload?.name}</span>
+                        <span>الكمية: {Number(value).toLocaleString()}</span>
+                      </div>
+                    )}
+                  />}
                 />
-                <Bar dataKey="quantity" radius={[4, 4, 0, 0]}>
-                  {displayChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
+              </RadialBarChart>
             </ChartContainer>
           ) : (
             <p className="text-muted-foreground text-center py-8">لا توجد تجهيزات بمخزون منخفض لعرضها حاليًا.</p>
@@ -207,3 +237,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
