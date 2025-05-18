@@ -116,111 +116,116 @@ export default function EquipmentManagementPage() {
 
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
-        <Button onClick={handleOpenAddDialog}>
-          <PlusCircle className="ml-2 h-5 w-5" />
-          إضافة نوع تجهيز جديد
-        </Button>
-      </div>
+    <AlertDialog open={!!definitionToDelete} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        setDefinitionToDelete(null);
+      }
+    }}>
+      <div className="container mx-auto py-8 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
+          <Button onClick={handleOpenAddDialog}>
+            <PlusCircle className="ml-2 h-5 w-5" />
+            إضافة نوع تجهيز جديد
+          </Button>
+        </div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-6 w-6" />
-            قائمة أنواع التجهيزات المعرفة
-          </CardTitle>
-          <CardDescription>
-            إدارة الأنواع المختلفة للتجهيزات الموجودة في النظام.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {definitions.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>اسم نوع التجهيز</TableHead>
-                  <TableHead>الصنف الافتراضي</TableHead>
-                  <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
-                  <TableHead>وحدة القياس</TableHead>
-                  <TableHead className="text-center">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {definitions.map((def) => (
-                  <TableRow key={def.id}>
-                    <TableCell className="font-medium">{def.name}</TableCell>
-                    <TableCell>{def.defaultCategory || '-'}</TableCell>
-                    <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
-                    <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
-                    <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
-                        <Edit2 className="h-4 w-4 text-blue-600" />
-                      </Button>
-                       <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
-                           <Trash2 className="h-4 w-4 text-destructive" />
-                         </Button>
-                       </AlertDialogTrigger>
-                    </TableCell>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-6 w-6" />
+              قائمة أنواع التجهيزات المعرفة
+            </CardTitle>
+            <CardDescription>
+              إدارة الأنواع المختلفة للتجهيزات الموجودة في النظام.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {definitions.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>اسم نوع التجهيز</TableHead>
+                    <TableHead>الصنف الافتراضي</TableHead>
+                    <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
+                    <TableHead>وحدة القياس</TableHead>
+                    <TableHead className="text-center">إجراءات</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <PackageSearch className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-lg">لم يتم تعريف أي أنواع تجهيزات بعد.</p>
-              <p>ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك.</p>
-            </div>
+                </TableHeader>
+                <TableBody>
+                  {definitions.map((def) => (
+                    <TableRow key={def.id}>
+                      <TableCell className="font-medium">{def.name}</TableCell>
+                      <TableCell>{def.defaultCategory || '-'}</TableCell>
+                      <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
+                      <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
+                      <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
+                          <Edit2 className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <PackageSearch className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg">لم يتم تعريف أي أنواع تجهيزات بعد.</p>
+                <p>ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك.</p>
+              </div>
+            )}
+          </CardContent>
+          {definitions.length > 0 && (
+            <CardFooter className="text-sm text-muted-foreground">
+              يتم عرض {definitions.length} {definitions.length === 1 ? 'نوع تجهيز معرف' : definitions.length === 2 ? 'نوعي تجهيز معرفين' : definitions.length <=10 ? 'أنواع تجهيزات معرفة' : 'نوع تجهيز معرف'}.
+            </CardFooter>
           )}
-        </CardContent>
-         {definitions.length > 0 && (
-          <CardFooter className="text-sm text-muted-foreground">
-            يتم عرض {definitions.length} {definitions.length === 1 ? 'نوع تجهيز معرف' : definitions.length === 2 ? 'نوعي تجهيز معرفين' : definitions.length <=10 ? 'أنواع تجهيزات معرفة' : 'نوع تجهيز معرف'}.
-          </CardFooter>
+        </Card>
+
+        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>{editingDefinition ? 'تعديل نوع التجهيز' : 'إضافة نوع تجهيز جديد'}</DialogTitle>
+              <DialogDescription>
+                {editingDefinition ? 'قم بتحديث تفاصيل نوع التجهيز.' : 'أدخل تفاصيل نوع التجهيز الجديد.'}
+              </DialogDescription>
+            </DialogHeader>
+            <EquipmentDefinitionForm
+              onSubmit={handleFormSubmit}
+              initialData={editingDefinition}
+              existingNames={definitions.map(d => d.name).filter(name => name !== editingDefinition?.name)} // Pass existing names excluding the current one if editing
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* AlertDialogContent is now a child of the main AlertDialog. Its visibility is controlled by the 'open' prop. */}
+        {definitionToDelete && (
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                  هل أنت متأكد أنك تريد حذف نوع التجهيز "{definitionToDelete.name}"؟
+                  لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                  onClick={() => handleDeleteDefinition(definitionToDelete)}
+                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              >
+                  نعم، قم بالحذف
+              </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
         )}
-      </Card>
-
-      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-        <DialogContent className="sm:max-w-[525px]">
-          <DialogHeader>
-            <DialogTitle>{editingDefinition ? 'تعديل نوع التجهيز' : 'إضافة نوع تجهيز جديد'}</DialogTitle>
-            <DialogDescription>
-              {editingDefinition ? 'قم بتحديث تفاصيل نوع التجهيز.' : 'أدخل تفاصيل نوع التجهيز الجديد.'}
-            </DialogDescription>
-          </DialogHeader>
-          <EquipmentDefinitionForm
-            onSubmit={handleFormSubmit}
-            initialData={editingDefinition}
-            existingNames={definitions.map(d => d.name).filter(name => name !== editingDefinition?.name)} // Pass existing names excluding the current one if editing
-          />
-        </DialogContent>
-      </Dialog>
-
-      {definitionToDelete && (
-        <AlertDialog open={!!definitionToDelete} onOpenChange={() => setDefinitionToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-                <AlertDialogDescription>
-                    هل أنت متأكد أنك تريد حذف نوع التجهيز "{definitionToDelete.name}"؟
-                    لا يمكن التراجع عن هذا الإجراء.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setDefinitionToDelete(null)}>إلغاء</AlertDialogCancel>
-                <AlertDialogAction
-                    onClick={() => handleDeleteDefinition(definitionToDelete)}
-                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                >
-                    نعم، قم بالحذف
-                </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
+      </div>
+    </AlertDialog>
   );
 }
