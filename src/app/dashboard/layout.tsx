@@ -1,4 +1,9 @@
+
+"use client"; // Required for useEffect and useRouter
+
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -15,6 +20,27 @@ import { UserNav } from '@/components/dashboard/user-nav';
 import { Separator } from '@/components/ui/separator';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    // محاكاة التحقق من المصادقة (غير آمنة للاستخدام الفعلي)
+    // لاحقًا، سيتم استبدال هذا بمنطق تحقق المصادقة الفعلي (مثل Firebase Auth)
+    const isAuthenticated = localStorage.getItem('isAuthenticated');
+    if (isAuthenticated !== 'true') {
+      router.replace('/login');
+    }
+  }, [router]);
+
+  // إذا لم تتم المصادقة بعد، يمكن عرض شاشة تحميل أو لا شيء
+  // لمنع وميض المحتوى المحمي قبل إعادة التوجيه.
+  if (typeof window !== 'undefined' && localStorage.getItem('isAuthenticated') !== 'true') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>جارٍ التحقق من المصادقة...</p>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen={true} > {/* Sidebar open by default */}
       <Sidebar collapsible="icon" side="right" variant="sidebar"> {/* Sidebar on the right for RTL */}

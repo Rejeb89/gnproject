@@ -1,3 +1,4 @@
+
 "use client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, UserCircle, Trash2 } from "lucide-react";
+import { Settings, UserCircle, Trash2, LogOut } from "lucide-react"; // Added LogOut
 import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/store";
 import {
@@ -23,13 +24,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { useRouter } from 'next/navigation'; // Added useRouter
+import { useEffect, useState } from "react";
 
 
 export function UserNav() {
   const { toast } = useToast();
-  const userName = "المستخدم المحلي";
-  const userInitials = userName.substring(0, 1) + (userName.split(' ')[1]?.substring(0,1) || '');
+  const router = useRouter(); // Initialize router
+  const [userName, setUserName] = useState("المستخدم");
+  const [userInitials, setUserInitials] = useState("UL");
+
+
+  useEffect(() => {
+    // جلب اسم المستخدم من localStorage عند تحميل المكون
+    const storedUserName = localStorage.getItem('userName');
+    if (storedUserName) {
+      setUserName(storedUserName);
+      const initials = storedUserName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+      setUserInitials(initials);
+    } else {
+      // إذا لم يكن هناك اسم مستخدم، قد يعني أن المستخدم غير مسجل دخوله
+      // أو أن هذا هو السلوك الافتراضي قبل تسجيل الدخول
+      setUserName("المستخدم المحلي");
+      setUserInitials("م ل");
+    }
+  }, []);
 
 
   const handleClearData = () => {
@@ -37,10 +57,20 @@ export function UserNav() {
     toast({
       title: "تم مسح البيانات",
       description: "تم مسح جميع بيانات التطبيق بنجاح.",
-      variant: "default", // Or use accent if defined for success
+      variant: "default", 
     });
-    // Optionally, refresh the page or redirect to re-initialize views
     window.location.reload();
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated'); // إزالة علامة المصادقة
+    localStorage.removeItem('userRole'); 
+    localStorage.removeItem('userName'); 
+    toast({
+      title: "تم تسجيل الخروج",
+      description: "تم تسجيل خروجك من النظام بنجاح.",
+    });
+    router.push('/login'); // توجيه المستخدم إلى صفحة تسجيل الدخول
   };
 
   return (
@@ -66,8 +96,8 @@ export function UserNav() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled> {/* Settings can be implemented later */}
-              <Settings className="ml-2 h-4 w-4" /> {/* Adjusted margin for RTL */}
+            <DropdownMenuItem disabled> 
+              <Settings className="ml-2 h-4 w-4" /> 
               <span>الإعدادات</span>
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -78,6 +108,11 @@ export function UserNav() {
                 <span>مسح كل البيانات</span>
             </DropdownMenuItem>
           </AlertDialogTrigger>
+          <DropdownMenuSeparator />
+           <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="ml-2 h-4 w-4" />
+              <span>تسجيل الخروج</span>
+            </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <AlertDialogContent>
