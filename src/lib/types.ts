@@ -25,3 +25,11 @@ export interface Party {
 export interface EquipmentSetting {
   lowStockThreshold: number;
 }
+
+export interface EquipmentDefinition {
+  id: string;
+  name: string;
+  defaultCategory?: string;
+  defaultLowStockThreshold?: number;
+  unitOfMeasurement?: string;
+}
