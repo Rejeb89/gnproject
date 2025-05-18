@@ -37,7 +37,7 @@ import {
 } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Command,
   CommandEmpty,
@@ -110,6 +110,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [equipmentNamePopoverOpen, setEquipmentNamePopoverOpen] = useState(false);
   const [equipmentNameSearchTerm, setEquipmentNameSearchTerm] = useState("");
   const [availableEquipmentForDispatch, setAvailableEquipmentForDispatch] = useState<Equipment[]>([]);
+  
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
 
   useEffect(() => {
@@ -135,8 +137,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   });
 
   const equipmentNameValue = form.watch("equipmentName");
+  const categoryValue = form.watch("category");
+
   const selectedEquipmentForDispatch = availableEquipmentForDispatch.find(
-    (eq) => eq.name === equipmentNameValue && eq.category === form.watch("category")
+    (eq) => eq.name === equipmentNameValue && (eq.category || "") === (categoryValue || "")
   );
 
 
@@ -153,14 +157,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         if (currentFormThreshold === undefined && definition.defaultLowStockThreshold !== undefined) {
           form.setValue('lowStockThreshold', definition.defaultLowStockThreshold);
         } else if (currentFormThreshold === undefined) {
-          // Fallback to equipment settings if definition has no threshold but settings store might.
           const settings = getEquipmentSettings();
-          // Check if settings[equipmentNameValue] exists and then access lowStockThreshold
           const equipmentSetting = settings[equipmentNameValue];
           if (equipmentSetting && typeof equipmentSetting.lowStockThreshold === 'number') {
             form.setValue('lowStockThreshold', equipmentSetting.lowStockThreshold);
           } else {
-             form.setValue('lowStockThreshold', undefined); // Ensure it's undefined if no setting found
+             form.setValue('lowStockThreshold', undefined);
           }
         }
       }
@@ -177,7 +179,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       const definitions = getEquipmentDefinitions();
       const existingDefinition = definitions.find(def => def.name.toLowerCase() === values.equipmentName.toLowerCase());
       
-      const formCategory = values.category || undefined; // Ensure empty string becomes undefined
+      const formCategory = values.category || undefined;
       const formThreshold = values.lowStockThreshold;
 
       if (!existingDefinition) {
@@ -186,12 +188,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           defaultCategory: formCategory,
           defaultLowStockThreshold: formThreshold,
         });
-         // Since it's a new definition, also explicitly set its threshold in general settings if provided
         if (formThreshold !== undefined) {
             setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       } else {
-        // Equipment definition exists, update it if necessary
         let definitionNeedsUpdate = false;
         const updatedDefinitionData: Partial<EquipmentDefinition> = {};
 
@@ -210,9 +210,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 ...updatedDefinitionData,
             });
         }
-        // Always ensure the specific equipment setting (used for dashboard alert) is updated
-        // if a threshold is provided in the form. This covers cases where the default on the definition
-        // might not have been set, or is being overridden for this specific instance's name.
         if (formThreshold !== undefined) {
             setEquipmentThreshold(values.equipmentName, formThreshold);
         }
@@ -260,9 +257,16 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     ? uniqueEquipmentNamesForDispatch.filter(name => name.toLowerCase().includes(equipmentNameSearchTerm.toLowerCase()))
     : uniqueEquipmentNamesForDispatch;
 
-  const categoriesForSelectedEquipmentName = equipmentNameValue
-    ? Array.from(new Set(availableEquipmentForDispatch.filter(item => item.name === equipmentNameValue && item.quantity > 0).map(item => item.category || 'N/A')))
-    : [];
+  const categoriesForSelectedEquipmentName = useMemo(() => {
+    if (!equipmentNameValue || type !== 'dispatch') return [];
+    return Array.from(
+      new Set(
+        availableEquipmentForDispatch
+          .filter(item => item.name === equipmentNameValue && item.quantity > 0)
+          .map(item => item.category || 'N/A') // Treat undefined/empty as 'N/A' for unique list
+      )
+    ).sort();
+  }, [equipmentNameValue, availableEquipmentForDispatch, type]);
 
 
   return (
@@ -322,7 +326,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                             )}
                             onClick={() => setEquipmentNamePopoverOpen(!equipmentNamePopoverOpen)}
                           >
-                            {field.value || "اختر أو أدخل اسم التجهيز..."}
+                            {field.value || "اختر اسم التجهيز..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </FormControl>
@@ -332,9 +336,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           <CommandInput
                             placeholder="ابحث عن اسم التجهيز..."
                             value={equipmentNameSearchTerm}
-                            onValueChange={(search) => { // Corrected prop
-                              setEquipmentNameSearchTerm(search);
-                            }}
+                            onValueChange={setEquipmentNameSearchTerm}
                           />
                           <CommandList>
                             <CommandEmpty>
@@ -347,7 +349,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   value={name}
                                   onSelect={() => {
                                     form.setValue("equipmentName", name);
-                                    form.setValue("category", ""); // Reset category on new equipment name selection
+                                    form.setValue("category", ""); 
                                     const itemsWithSelectedName = availableEquipmentForDispatch.filter(
                                       item => item.name === name && item.quantity > 0
                                     );
@@ -393,29 +395,30 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                   </FormLabel>
                   {type === 'receive' && (
                     <FormControl>
-                      <Input placeholder="مثال: مكتبي، محمول، شبكات" {...field} value={field.value ?? ''} />
+                      <Input placeholder="مثال: مكتبي, محمول, شبكات" {...field} value={field.value ?? ''} />
                     </FormControl>
                   )}
                   {type === 'dispatch' && equipmentNameValue && categoriesForSelectedEquipmentName.length > 0 && (
-                     <Popover>
+                     <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
                               role="combobox"
+                              aria-expanded={categoryPopoverOpen}
                               className={cn(
                                 "w-full justify-between",
-                                !field.value && "text-muted-foreground"
+                                !field.value && categoriesForSelectedEquipmentName.length > 1 && "text-muted-foreground" 
                               )}
                             >
-                              {field.value || "اختر الصنف..."}
+                              {field.value ? (field.value === 'N/A' ? '(بدون صنف)' : field.value) : "اختر الصنف..."}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                           <Command>
-                            <CommandList>
+                            <CommandList> {/* Removed CommandInput as category list is usually short */}
                               <CommandEmpty>لا توجد أصناف لهذا التجهيز.</CommandEmpty>
                               <CommandGroup>
                                 {categoriesForSelectedEquipmentName.map((cat) => (
@@ -424,9 +427,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                     value={cat === 'N/A' ? '' : cat}
                                     onSelect={() => {
                                       form.setValue("category", cat === 'N/A' ? '' : cat);
-                                      // Close popover for category selection
-                                      const popoverTrigger = document.activeElement as HTMLElement;
-                                      if (popoverTrigger) popoverTrigger.blur();
+                                      setCategoryPopoverOpen(false);
                                     }}
                                   >
                                     <Check
@@ -444,9 +445,15 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         </PopoverContent>
                       </Popover>
                   )}
-                   {type === 'dispatch' && (!equipmentNameValue || categoriesForSelectedEquipmentName.length === 0) && (
+                   {type === 'dispatch' && (!equipmentNameValue || (equipmentNameValue && categoriesForSelectedEquipmentName.length === 0 && availableEquipmentForDispatch.some(i => i.name === equipmentNameValue))) && (
                      <FormControl>
-                        <Input placeholder="اختر اسم التجهيز أولاً" {...field} value={field.value ?? ''} readOnly disabled/>
+                        <Input 
+                            placeholder={!equipmentNameValue ? "اختر اسم التجهيز أولاً" : "(بدون صنف)"} 
+                            value={!equipmentNameValue ? "" : (field.value ? (field.value === 'N/A' ? '(بدون صنف)' : field.value) : '(بدون صنف)')} 
+                            readOnly 
+                            disabled={!equipmentNameValue}
+                            className={!equipmentNameValue ? "text-muted-foreground" : ""}
+                        />
                      </FormControl>
                   )}
                   <FormDescription>
@@ -478,6 +485,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       الكمية المتوفرة من {selectedEquipmentForDispatch.name} ({selectedEquipmentForDispatch.category || 'بدون صنف'}): {selectedEquipmentForDispatch.quantity.toLocaleString()}
                     </FormDescription>
                   )}
+                   {type === 'dispatch' && equipmentNameValue && !selectedEquipmentForDispatch && categoryValue && (
+                    <FormDescription className="text-destructive">
+                        لا توجد كمية متوفرة من {equipmentNameValue} بهذا الصنف المحدد.
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -498,10 +510,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         type="number"
                         placeholder="مثال: 5"
                         {...field}
-                        value={field.value ?? ''} // Ensure value is not undefined
+                        value={field.value ?? ''} 
                         onChange={event => {
                           const value = event.target.value;
-                          // Allow clearing the input, which should set value to undefined for optional Zod schema
                           field.onChange(value === '' ? undefined : +value);
                         }}
                         min="1"
@@ -546,9 +557,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <CommandInput
                           placeholder={`ابحث عن ${partyLabel}...`}
                           value={partySearchTerm}
-                          onValueChange={(search) => {
-                            setPartySearchTerm(search);
-                          }}
+                          onValueChange={setPartySearchTerm}
                         />
                         <CommandList>
                           <CommandEmpty>
@@ -671,3 +680,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   );
 }
 
+    
