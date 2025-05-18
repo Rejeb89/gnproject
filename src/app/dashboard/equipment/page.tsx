@@ -134,7 +134,7 @@ export default function EquipmentManagementPage() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
           <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
-            <Button asChild>
+            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Link href="/dashboard/receive">
                 <LogIn className="ml-2 h-5 w-5" />
                 تسجيل استلام جديد
