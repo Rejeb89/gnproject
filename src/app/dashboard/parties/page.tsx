@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,9 +19,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Building, Edit2, Trash2, Users } from "lucide-react";
-import type { Party } from "@/lib/types";
-import { getParties, addParty, updateParty, deleteParty } from "@/lib/store";
+import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download } from "lucide-react"; // Added Send and Download for potential icons
+import type { Party, Transaction } from "@/lib/types";
+import { getParties, addParty, updateParty, deleteParty, getTransactions } from "@/lib/store";
 import { PartyForm, type PartyFormValues } from "@/components/forms/party-form";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,21 +35,43 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type PartyViewType = "all" | "senders" | "receivers";
 
 export default function PartiesPage() {
-  const [parties, setParties] = useState<Party[]>([]);
+  const [allParties, setAllParties] = useState<Party[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyToDelete, setPartyToDelete] = useState<Party | null>(null);
+  const [activeTab, setActiveTab] = useState<PartyViewType>("all");
   const { toast } = useToast();
 
   useEffect(() => {
-    loadParties();
+    loadPartiesAndTransactions();
   }, []);
 
-  const loadParties = () => {
-    setParties(getParties());
+  const loadPartiesAndTransactions = () => {
+    setAllParties(getParties());
+    setTransactions(getTransactions());
   };
+
+  const sendingParties = useMemo(() => {
+    const senderNames = new Set(transactions.filter(tx => tx.type === 'receive').map(tx => tx.party));
+    return allParties.filter(p => senderNames.has(p.name));
+  }, [allParties, transactions]);
+
+  const receivingParties = useMemo(() => {
+    const receiverNames = new Set(transactions.filter(tx => tx.type === 'dispatch').map(tx => tx.party));
+    return allParties.filter(p => receiverNames.has(p.name));
+  }, [allParties, transactions]);
+
+  const partiesToDisplay = useMemo(() => {
+    if (activeTab === "senders") return sendingParties;
+    if (activeTab === "receivers") return receivingParties;
+    return allParties;
+  }, [activeTab, allParties, sendingParties, receivingParties]);
 
   const handleOpenAddDialog = () => {
     setEditingParty(null);
@@ -63,26 +85,23 @@ export default function PartiesPage() {
 
   const handleFormSubmit = (values: PartyFormValues) => {
     if (editingParty) {
-      // Edit existing party
       const result = updateParty(editingParty.id, values.name);
       if (result.success) {
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث اسم الجهة إلى: ${values.name}` });
-        loadParties();
+        loadPartiesAndTransactions();
         setIsFormDialogOpen(false);
       } else {
         toast({ title: "خطأ في التحديث", description: result.message || "لم يتم تحديث الجهة.", variant: "destructive" });
       }
     } else {
-      // Add new party
-      // Check for uniqueness before adding (PartyForm already does this via existingNames prop)
-      const existingParty = parties.find(p => p.name.toLowerCase() === values.name.toLowerCase());
+      const existingParty = allParties.find(p => p.name.toLowerCase() === values.name.toLowerCase());
       if (existingParty) {
         toast({ title: "خطأ في الإضافة", description: `الجهة بالاسم "${values.name}" موجودة بالفعل.`, variant: "destructive" });
         return;
       }
       addParty(values.name);
       toast({ title: "تمت الإضافة بنجاح", description: `تم إضافة الجهة: ${values.name}` });
-      loadParties();
+      loadPartiesAndTransactions();
       setIsFormDialogOpen(false);
     }
   };
@@ -93,11 +112,23 @@ export default function PartiesPage() {
     const result = deleteParty(partyToDelete.id);
     if (result.success) {
       toast({ title: "تم الحذف بنجاح", description: `تم حذف الجهة: ${partyToDelete.name}` });
-      loadParties();
+      loadPartiesAndTransactions();
     } else {
       toast({ title: "لا يمكن الحذف", description: result.message || "لم يتم حذف الجهة.", variant: "destructive" });
     }
-    setPartyToDelete(null); // Close AlertDialog
+    setPartyToDelete(null);
+  };
+
+  const getTabTitle = (tab: PartyViewType) => {
+    if (tab === "senders") return "الجهات المرسِلة";
+    if (tab === "receivers") return "الجهات المستلِمة";
+    return "كل الجهات المسجلة";
+  };
+  
+  const getEmptyStateMessage = (tab: PartyViewType) => {
+    if (tab === "senders") return "لا توجد جهات قامت بإرسال تجهيزات بعد.";
+    if (tab === "receivers") return "لا توجد جهات قامت باستلام تجهيزات بعد.";
+    return "لم يتم تسجيل أي جهات بعد. ابدأ بإضافة جهة جديدة.";
   };
 
   return (
@@ -111,57 +142,87 @@ export default function PartiesPage() {
           </Button>
         </div>
 
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-6 w-6" />
-              قائمة الجهات المسجلة
-            </CardTitle>
-            <CardDescription>
-              إدارة الجهات (المرسلة والمستلمة) المتعامل معها في النظام.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {parties.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>اسم الجهة</TableHead>
-                    <TableHead className="text-center">إجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {parties.map((party) => (
-                    <TableRow key={party.id}>
-                      <TableCell className="font-medium">{party.name}</TableCell>
-                      <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
-                          <Edit2 className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-10 text-muted-foreground">
-                <Users className="mx-auto h-12 w-12 mb-4" />
-                <p className="text-lg">لم يتم تسجيل أي جهات بعد.</p>
-                <p>ابدأ بإضافة جهة جديدة.</p>
-              </div>
-            )}
-          </CardContent>
-          {parties.length > 0 && (
-            <CardFooter className="text-sm text-muted-foreground">
-              يتم عرض {parties.length} {parties.length === 1 ? 'جهة مسجلة' : parties.length === 2 ? 'جهتين مسجلتين' : parties.length <= 10 ? 'جهات مسجلة' : 'جهة مسجلة'}.
-            </CardFooter>
-          )}
-        </Card>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PartyViewType)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">
+              <Building className="ml-2 h-4 w-4" />
+              كل الجهات
+            </TabsTrigger>
+            <TabsTrigger value="senders">
+              <Send className="ml-2 h-4 w-4" /> {/* Using Send icon for senders */}
+              الجهات المرسِلة
+            </TabsTrigger>
+            <TabsTrigger value="receivers">
+              <Download className="ml-2 h-4 w-4" /> {/* Using Download icon for receivers */}
+              الجهات المستلِمة
+            </TabsTrigger>
+          </TabsList>
+
+          {["all", "senders", "receivers"].map((tabValue) => (
+            <TabsContent key={tabValue} value={tabValue as PartyViewType}>
+              <Card className="shadow-lg mt-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {activeTab === "all" && <Building className="h-6 w-6" />}
+                    {activeTab === "senders" && <Send className="h-6 w-6" />}
+                    {activeTab === "receivers" && <Download className="h-6 w-6" />}
+                    {getTabTitle(activeTab)}
+                  </CardTitle>
+                  <CardDescription>
+                    {activeTab === "all" && "إدارة جميع الجهات المتعامل معها في النظام."}
+                    {activeTab === "senders" && "قائمة بالجهات التي قامت بإرسال تجهيزات إلى المخزن."}
+                    {activeTab === "receivers" && "قائمة بالجهات التي قامت باستلام تجهيزات من المخزن."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {partiesToDisplay.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>اسم الجهة</TableHead>
+                          <TableHead className="text-center">إجراءات</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {partiesToDisplay.map((party) => (
+                          <TableRow key={party.id}>
+                            <TableCell className="font-medium">{party.name}</TableCell>
+                            <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
+                                <Edit2 className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-10 text-muted-foreground">
+                      <Users className="mx-auto h-12 w-12 mb-4" />
+                      <p className="text-lg">{getEmptyStateMessage(activeTab)}</p>
+                    </div>
+                  )}
+                </CardContent>
+                {partiesToDisplay.length > 0 && (
+                  <CardFooter className="text-sm text-muted-foreground">
+                    يتم عرض {partiesToDisplay.length}{" "}
+                    {partiesToDisplay.length === 1 ? 'جهة' : 
+                     partiesToDisplay.length === 2 ? 'جهتين' : 
+                     partiesToDisplay.length > 2 && partiesToDisplay.length <= 10 ? 'جهات' : 'جهة'}
+                    {activeTab === "all" && " مسجلة"}
+                    {activeTab === "senders" && " مرسِلة"}
+                    {activeTab === "receivers" && " مستلِمة"}.
+                  </CardFooter>
+                )}
+              </Card>
+            </TabsContent>
+          ))}
+        </Tabs>
 
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
@@ -174,7 +235,7 @@ export default function PartiesPage() {
             <PartyForm
               onSubmit={handleFormSubmit}
               initialData={editingParty}
-              existingPartyNames={parties.map(p => p.name).filter(name => name !== editingParty?.name)}
+              existingPartyNames={allParties.map(p => p.name).filter(name => name !== editingParty?.name)}
             />
           </DialogContent>
         </Dialog>
@@ -203,3 +264,5 @@ export default function PartiesPage() {
     </AlertDialog>
   );
 }
+
+    
