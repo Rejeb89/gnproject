@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowRightLeft, PlusCircle, FileText, Settings } from 'lucide-react'; // Changed History to FileText
+import { Home, ArrowRightLeft, PlusCircle, FileText, Settings, Building } from 'lucide-react'; // Added Building
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -14,7 +15,8 @@ const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
   { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle },
   { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
-  { name: 'التقارير', href: '/dashboard/reports', icon: FileText }, // Changed name and icon
+  { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
+  { name: 'الجهات المستلمة', href: '/dashboard/parties', icon: Building }, // New link
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -31,12 +33,12 @@ export function NavLinks() {
               asChild
               isActive={isActive}
               className={cn(
-                "justify-start", 
+                "justify-start",
                 isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
               tooltip={{ children: link.name, className: "text-xs p-1" }}
             >
-              <Link href={link.href} className="flex items-center gap-3"> 
+              <Link href={link.href} className="flex items-center gap-3">
                 <link.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">{link.name}</span>
               </Link>
