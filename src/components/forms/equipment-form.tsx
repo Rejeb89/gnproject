@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +23,7 @@ import { format } from "date-fns";
 import { arSA } from "date-fns/locale"; // For Arabic date formatting
 import { useToast } from "@/hooks/use-toast";
 import type { Transaction } from "@/lib/types";
-import { addTransaction } from "@/lib/store";
+import { addTransaction, getTransactions } from "@/lib/store"; // Import getTransactions
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
 
@@ -32,6 +33,34 @@ interface EquipmentFormProps {
   formTitle: string;
   partyLabel: string; // "الجهة المرسلة" or "الجهة المستلمة"
   submitButtonText: string;
+}
+
+function generateReceiptNumber(): string {
+  const currentYear = new Date().getFullYear();
+  const transactions = getTransactions();
+  
+  const yearlyTransactions = transactions.filter(tx => {
+    try {
+      const txYear = new Date(tx.date).getFullYear();
+      return txYear === currentYear && tx.receiptNumber.endsWith(`-${currentYear}`);
+    } catch (e) {
+      return false; // Handle invalid date format if any
+    }
+  });
+
+  let maxSeq = 0;
+  yearlyTransactions.forEach(tx => {
+    const parts = tx.receiptNumber.split('-');
+    if (parts.length === 2) {
+      const seq = parseInt(parts[0], 10);
+      if (!isNaN(seq) && seq > maxSeq) {
+        maxSeq = seq;
+      }
+    }
+  });
+
+  const nextSeq = maxSeq + 1;
+  return `${String(nextSeq).padStart(3, '0')}-${currentYear}`;
 }
 
 export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }: EquipmentFormProps) {
@@ -45,12 +74,13 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       quantity: 1,
       party: "",
       date: new Date(),
-      receiptNumber: "",
       notes: "",
     },
   });
 
   function onSubmit(values: EquipmentFormValues) {
+    const generatedReceiptNumber = generateReceiptNumber();
+
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
       type,
@@ -58,7 +88,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       quantity: values.quantity,
       party: values.party,
       date: values.date.toISOString(),
-      receiptNumber: values.receiptNumber,
+      receiptNumber: generatedReceiptNumber, // Use generated number
       notes: values.notes,
     };
 
@@ -66,12 +96,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     toast({
       title: "تمت العملية بنجاح",
-      description: `تم تسجيل ${type === 'receive' ? 'استلام' : 'تسليم'} التجهيز: ${values.equipmentName}.`,
-      variant: "default", // Use accent if defined for success actions.
+      description: `تم تسجيل ${type === 'receive' ? 'استلام' : 'تسليم'} التجهيز: ${values.equipmentName}. رقم الوصل: ${generatedReceiptNumber}`,
+      variant: "default", 
     });
 
-    form.reset(); // Reset form after submission
-    // Optionally redirect or update UI
+    form.reset(); 
     router.push('/dashboard/history');
   }
 
@@ -80,7 +109,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       <CardHeader>
         <CardTitle className="text-2xl">{formTitle}</CardTitle>
         <CardDescription>
-          يرجى ملء جميع الحقول المطلوبة لتسجيل العملية.
+          يرجى ملء جميع الحقول المطلوبة لتسجيل العملية. رقم الوصل سيتم إنشاؤه تلقائياً.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -106,7 +135,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 <FormItem>
                   <FormLabel>الكمية</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} />
+                    <Input type="number" placeholder="0" {...field} min="1" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -137,7 +166,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full pl-3 pr-1 text-right font-normal justify-between", // Adjusted padding for RTL
+                            "w-full pl-3 pr-1 text-right font-normal justify-between", 
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -146,7 +175,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           ) : (
                             <span>اختر تاريخًا</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> {/* Adjusted margin for RTL */}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> 
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -167,19 +196,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="receiptNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>رقم الوصل</FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: 2024-001" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Receipt number field is removed from UI */}
             <FormField
               control={form.control}
               name="notes"
@@ -198,7 +215,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               )}
             />
             <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-              <Save className="ml-2 h-4 w-4" /> {/* Adjusted margin for RTL */}
+              <Save className="ml-2 h-4 w-4" /> 
               {submitButtonText}
             </Button>
           </form>
@@ -210,3 +227,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
 // ShadCN Card components needed for the form styling
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+

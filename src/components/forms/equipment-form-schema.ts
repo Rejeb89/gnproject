@@ -5,7 +5,7 @@ export const equipmentFormSchema = z.object({
   quantity: z.coerce.number().int().positive({ message: "الكمية يجب أن تكون رقماً صحيحاً موجباً." }),
   party: z.string().min(1, { message: "اسم الجهة مطلوب." }),
   date: z.date({ required_error: "التاريخ مطلوب." }),
-  receiptNumber: z.string().min(1, { message: "رقم الوصل مطلوب." }),
+  // receiptNumber is now auto-generated
   notes: z.string().optional(),
 });
 
