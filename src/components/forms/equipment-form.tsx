@@ -23,12 +23,12 @@ import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import type { Transaction, Party, EquipmentDefinition, Equipment } from "@/lib/types";
-import { 
-  addTransaction, 
-  getTransactions, 
-  getParties, 
-  addParty, 
-  getEquipmentSettings, 
+import {
+  addTransaction,
+  getTransactions,
+  getParties,
+  addParty,
+  getEquipmentSettings,
   setEquipmentThreshold,
   getEquipmentDefinitions,
   addEquipmentDefinition,
@@ -110,8 +110,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [equipmentNamePopoverOpen, setEquipmentNamePopoverOpen] = useState(false);
   const [equipmentNameSearchTerm, setEquipmentNameSearchTerm] = useState("");
   const [availableEquipmentForDispatch, setAvailableEquipmentForDispatch] = useState<Equipment[]>([]);
-  
-  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
 
 
   useEffect(() => {
@@ -127,7 +125,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     resolver: zodResolver(equipmentFormSchema),
     defaultValues: {
       equipmentName: "",
-      category: "", 
+      category: "",
       quantity: 1,
       party: "",
       date: new Date(),
@@ -173,12 +171,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    addParty(values.party); 
+    addParty(values.party);
 
     if (type === 'receive') {
       const definitions = getEquipmentDefinitions();
       const existingDefinition = definitions.find(def => def.name.toLowerCase() === values.equipmentName.toLowerCase());
-      
+
       const formCategory = values.category || undefined;
       const formThreshold = values.lowStockThreshold;
 
@@ -220,7 +218,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       id: crypto.randomUUID(),
       type,
       equipmentName: values.equipmentName,
-      category: values.category || undefined, 
+      category: values.category || undefined,
       quantity: values.quantity,
       party: values.party,
       date: values.date.toISOString(),
@@ -237,7 +235,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset();
-    setParties(getParties()); 
+    setParties(getParties());
     setAllEquipmentDefinitions(getEquipmentDefinitions());
     if (type === 'dispatch') {
       const currentStock = calculateStock(getTransactions());
@@ -251,22 +249,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const filteredParties = partySearchTerm
     ? parties.filter(p => p.name.toLowerCase().includes(partySearchTerm.toLowerCase()))
     : parties;
-  
+
   const uniqueEquipmentNamesForDispatch = Array.from(new Set(availableEquipmentForDispatch.map(item => item.name)));
   const filteredEquipmentNamesForDispatch = equipmentNameSearchTerm
     ? uniqueEquipmentNamesForDispatch.filter(name => name.toLowerCase().includes(equipmentNameSearchTerm.toLowerCase()))
     : uniqueEquipmentNamesForDispatch;
-
-  const categoriesForSelectedEquipmentName = useMemo(() => {
-    if (!equipmentNameValue || type !== 'dispatch') return [];
-    return Array.from(
-      new Set(
-        availableEquipmentForDispatch
-          .filter(item => item.name === equipmentNameValue && item.quantity > 0)
-          .map(item => item.category || 'N/A') // Treat undefined/empty as 'N/A' for unique list
-      )
-    ).sort();
-  }, [equipmentNameValue, availableEquipmentForDispatch, type]);
 
 
   return (
@@ -283,7 +270,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
+
             {type === 'receive' && (
               <FormField
                 control={form.control}
@@ -349,16 +336,16 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   value={name}
                                   onSelect={() => {
                                     form.setValue("equipmentName", name);
-                                    form.setValue("category", ""); 
+                                    form.setValue("category", "");
                                     const itemsWithSelectedName = availableEquipmentForDispatch.filter(
                                       item => item.name === name && item.quantity > 0
                                     );
                                     const uniqueCategories = Array.from(
                                       new Set(itemsWithSelectedName.map(item => item.category))
                                     );
-                                
+
                                     if (uniqueCategories.length === 1) {
-                                      form.setValue("category", uniqueCategories[0] || ""); 
+                                      form.setValue("category", uniqueCategories[0] || "");
                                     }
                                     setEquipmentNamePopoverOpen(false);
                                     setEquipmentNameSearchTerm("");
@@ -383,7 +370,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 )}
               />
             )}
-            
+
             <FormField
               control={form.control}
               name="category"
@@ -398,66 +385,19 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       <Input placeholder="مثال: مكتبي, محمول, شبكات" {...field} value={field.value ?? ''} />
                     </FormControl>
                   )}
-                  {type === 'dispatch' && equipmentNameValue && categoriesForSelectedEquipmentName.length > 0 && (
-                     <Popover open={categoryPopoverOpen} onOpenChange={setCategoryPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={categoryPopoverOpen}
-                              className={cn(
-                                "w-full justify-between",
-                                !field.value && categoriesForSelectedEquipmentName.length > 1 && "text-muted-foreground" 
-                              )}
-                            >
-                              {field.value ? (field.value === 'N/A' ? '(بدون صنف)' : field.value) : "اختر الصنف..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandList> {/* Removed CommandInput as category list is usually short */}
-                              <CommandEmpty>لا توجد أصناف لهذا التجهيز.</CommandEmpty>
-                              <CommandGroup>
-                                {categoriesForSelectedEquipmentName.map((cat) => (
-                                  <CommandItem
-                                    key={cat}
-                                    value={cat === 'N/A' ? '' : cat}
-                                    onSelect={() => {
-                                      form.setValue("category", cat === 'N/A' ? '' : cat);
-                                      setCategoryPopoverOpen(false);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        (cat === 'N/A' ? '' : cat) === field.value ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {cat === 'N/A' ? '(بدون صنف)' : cat}
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                  )}
-                   {type === 'dispatch' && (!equipmentNameValue || (equipmentNameValue && categoriesForSelectedEquipmentName.length === 0 && availableEquipmentForDispatch.some(i => i.name === equipmentNameValue))) && (
+                  {type === 'dispatch' && (
                      <FormControl>
-                        <Input 
-                            placeholder={!equipmentNameValue ? "اختر اسم التجهيز أولاً" : "(بدون صنف)"} 
-                            value={!equipmentNameValue ? "" : (field.value ? (field.value === 'N/A' ? '(بدون صنف)' : field.value) : '(بدون صنف)')} 
-                            readOnly 
+                        <Input
+                            placeholder="الصنف (يُملأ تلقائيًا إذا وحيد)"
+                            {...field}
+                            value={field.value ?? ''}
                             disabled={!equipmentNameValue}
                             className={!equipmentNameValue ? "text-muted-foreground" : ""}
                         />
                      </FormControl>
                   )}
                   <FormDescription>
-                    {type === 'receive' ? "لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "اختر صنف التجهيز المراد تسليمه."}
+                    {type === 'receive' ? "لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "أدخل صنف التجهيز، أو سيتم تحديده تلقائيًا إذا كان للتجهيز المختار صنف واحد متوفر."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -471,10 +411,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 <FormItem>
                   <FormLabel>الكمية</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="0" 
-                      {...field} 
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      {...field}
                       min="1"
                       max={type === 'dispatch' && selectedEquipmentForDispatch ? selectedEquipmentForDispatch.quantity : undefined}
                       onChange={event => field.onChange(+event.target.value)}
@@ -510,7 +450,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         type="number"
                         placeholder="مثال: 5"
                         {...field}
-                        value={field.value ?? ''} 
+                        value={field.value ?? ''}
                         onChange={event => {
                           const value = event.target.value;
                           field.onChange(value === '' ? undefined : +value);
