@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft } from "lucide-react"; // Added ArrowRightLeft
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft } from "lucide-react";
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -134,16 +134,16 @@ export default function EquipmentManagementPage() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
           <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link href="/dashboard/receive">
                 <LogIn className="ml-2 h-5 w-5" />
                 تسجيل استلام جديد
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="destructive">
               <Link href="/dashboard/dispatch">
                 <ArrowRightLeft className="ml-2 h-5 w-5" />
-                تسليم تجهيزات جديدة
+                تسليم تجهيزات
               </Link>
             </Button>
             <Button onClick={handleOpenAddDialog}>
@@ -272,3 +272,5 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+
+    
