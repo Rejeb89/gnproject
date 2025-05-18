@@ -1,4 +1,3 @@
-
 "use client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, UserCircle, Trash2, LogOut } from "lucide-react"; // Added LogOut
+import { Settings, UserCircle, Trash2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { clearAllData } from "@/lib/store";
 import {
@@ -25,27 +24,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useRouter } from 'next/navigation'; // Added useRouter
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 
 export function UserNav() {
   const { toast } = useToast();
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
   const [userName, setUserName] = useState("المستخدم");
   const [userInitials, setUserInitials] = useState("UL");
 
 
   useEffect(() => {
-    // جلب اسم المستخدم من localStorage عند تحميل المكون
     const storedUserName = localStorage.getItem('userName');
     if (storedUserName) {
       setUserName(storedUserName);
       const initials = storedUserName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
       setUserInitials(initials);
     } else {
-      // إذا لم يكن هناك اسم مستخدم، قد يعني أن المستخدم غير مسجل دخوله
-      // أو أن هذا هو السلوك الافتراضي قبل تسجيل الدخول
       setUserName("المستخدم المحلي");
       setUserInitials("م ل");
     }
@@ -63,14 +60,14 @@ export function UserNav() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated'); // إزالة علامة المصادقة
+    localStorage.removeItem('isAuthenticated'); 
     localStorage.removeItem('userRole'); 
     localStorage.removeItem('userName'); 
     toast({
       title: "تم تسجيل الخروج",
       description: "تم تسجيل خروجك من النظام بنجاح.",
     });
-    router.push('/login'); // توجيه المستخدم إلى صفحة تسجيل الدخول
+    router.push('/login'); 
   };
 
   return (
@@ -96,9 +93,11 @@ export function UserNav() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled> 
-              <Settings className="ml-2 h-4 w-4" /> 
-              <span>الإعدادات</span>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings">
+                <Settings className="ml-2 h-4 w-4" />
+                <span>الإعدادات</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

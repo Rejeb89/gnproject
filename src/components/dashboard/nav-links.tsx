@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowRightLeft, PlusCircle, History, FileText } from 'lucide-react';
+import { Home, ArrowRightLeft, PlusCircle, History, Settings } from 'lucide-react'; // Added Settings
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -15,6 +15,7 @@ const links = [
   { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle },
   { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
   { name: 'سجل العمليات', href: '/dashboard/history', icon: History },
+  { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings }, // New Settings link
 ];
 
 export function NavLinks() {
@@ -30,12 +31,12 @@ export function NavLinks() {
               asChild
               isActive={isActive}
               className={cn(
-                "justify-start", // Keep text left-aligned for icon then text layout in RTL
+                "justify-start", 
                 isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
               tooltip={{ children: link.name, className: "text-xs p-1" }}
             >
-              <Link href={link.href} className="flex items-center gap-3"> {/* gap-3 for RTL consistency */}
+              <Link href={link.href} className="flex items-center gap-3"> 
                 <link.icon className="h-5 w-5" />
                 <span className="group-data-[collapsible=icon]:hidden">{link.name}</span>
               </Link>
