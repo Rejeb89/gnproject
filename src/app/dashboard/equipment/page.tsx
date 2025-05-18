@@ -18,12 +18,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch } from "lucide-react";
-import type { EquipmentDefinition } from "@/lib/types";
-import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions } from "@/lib/store";
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, Boxes } from "lucide-react";
+import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
+import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -43,14 +41,17 @@ export default function EquipmentManagementPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingDefinition, setEditingDefinition] = useState<EquipmentDefinition | null>(null);
   const [definitionToDelete, setDefinitionToDelete] = useState<EquipmentDefinition | null>(null);
+  const [currentStock, setCurrentStock] = useState<Equipment[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadDefinitions();
+    loadData();
   }, []);
 
-  const loadDefinitions = () => {
+  const loadData = () => {
     setDefinitions(getEquipmentDefinitions().sort((a, b) => a.name.localeCompare(b.name)));
+    const transactions = getTransactions();
+    setCurrentStock(calculateStock(transactions));
   };
 
   const handleOpenAddDialog = () => {
@@ -81,7 +82,7 @@ export default function EquipmentManagementPage() {
         addEquipmentDefinition(values);
         toast({ title: "تمت الإضافة بنجاح", description: `تم إضافة نوع التجهيز: ${values.name}` });
       }
-      loadDefinitions();
+      loadData();
       setIsFormDialogOpen(false);
     } catch (error) {
       console.error("Error saving equipment definition:", error);
@@ -106,12 +107,18 @@ export default function EquipmentManagementPage() {
     try {
       deleteEquipmentDefinition(definition.id);
       toast({ title: "تم الحذف بنجاح", description: `تم حذف نوع التجهيز: ${definition.name}` });
-      loadDefinitions();
+      loadData();
     } catch (error) {
       console.error("Error deleting equipment definition:", error);
       toast({ title: "حدث خطأ", description: "لم يتم حذف نوع التجهيز.", variant: "destructive" });
     }
     setDefinitionToDelete(null);
+  };
+
+  const getQuantityForDefinition = (definitionName: string): number => {
+    return currentStock
+      .filter(stockItem => stockItem.name === definitionName)
+      .reduce((total, item) => total + item.quantity, 0);
   };
 
 
@@ -147,30 +154,42 @@ export default function EquipmentManagementPage() {
                   <TableRow>
                     <TableHead>اسم نوع التجهيز</TableHead>
                     <TableHead>الصنف الافتراضي</TableHead>
+                    <TableHead className="text-center">الكمية الحالية</TableHead>
                     <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
                     <TableHead>وحدة القياس</TableHead>
                     <TableHead className="text-center">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {definitions.map((def) => (
-                    <TableRow key={def.id}>
-                      <TableCell className="font-medium">{def.name}</TableCell>
-                      <TableCell>{def.defaultCategory || '-'}</TableCell>
-                      <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
-                      <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
-                      <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
-                          <Edit2 className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                  {definitions.map((def) => {
+                    const currentQuantity = getQuantityForDefinition(def.name);
+                    return (
+                      <TableRow key={def.id}>
+                        <TableCell className="font-medium">{def.name}</TableCell>
+                        <TableCell>{def.defaultCategory || '-'}</TableCell>
+                        <TableCell className="text-center font-semibold">
+                          <span className={cn(
+                            currentQuantity <= (def.defaultLowStockThreshold || 0) && currentQuantity > 0 ? "text-destructive" :
+                            currentQuantity === 0 ? "text-muted-foreground" : ""
+                          )}>
+                            {currentQuantity.toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
+                        <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
+                        <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                          <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
+                            <Edit2 className="h-4 w-4 text-blue-600" />
                           </Button>
-                        </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             ) : (
@@ -199,12 +218,11 @@ export default function EquipmentManagementPage() {
             <EquipmentDefinitionForm
               onSubmit={handleFormSubmit}
               initialData={editingDefinition}
-              existingNames={definitions.map(d => d.name).filter(name => name !== editingDefinition?.name)} // Pass existing names excluding the current one if editing
+              existingNames={definitions.map(d => d.name).filter(name => name !== editingDefinition?.name)}
             />
           </DialogContent>
         </Dialog>
 
-        {/* AlertDialogContent is now a child of the main AlertDialog. Its visibility is controlled by the 'open' prop. */}
         {definitionToDelete && (
           <AlertDialogContent>
               <AlertDialogHeader>
@@ -229,3 +247,5 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+
+    
