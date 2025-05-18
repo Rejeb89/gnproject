@@ -66,7 +66,7 @@ export function getParties(): Party[] {
   if (typeof window === 'undefined') return [];
   try {
     const data = localStorage.getItem(PARTIES_KEY);
-    return data ? JSON.parse(data) : [];
+    return data ? (JSON.parse(data) as Party[]).sort((a, b) => a.name.localeCompare(b.name)) : [];
   } catch (error) {
     console.error("Error reading parties from localStorage:", error);
     return [];
@@ -93,6 +93,7 @@ export function addParty(partyName: string): Party {
   };
 
   parties.push(newParty);
+  parties.sort((a, b) => a.name.localeCompare(b.name)); // Keep sorted
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
   } catch (error) {
@@ -100,6 +101,81 @@ export function addParty(partyName: string): Party {
   }
   return newParty;
 }
+
+export function updateParty(partyId: string, newName: string): { success: boolean, message?: string } {
+  if (typeof window === 'undefined') return { success: false, message: "لا يمكن تحديث الجهة من الخادم." };
+  
+  if (!newName.trim()) {
+    return { success: false, message: "اسم الجهة لا يمكن أن يكون فارغًا." };
+  }
+
+  const parties = getParties();
+  const partyIndex = parties.findIndex(p => p.id === partyId);
+
+  if (partyIndex === -1) {
+    return { success: false, message: "الجهة غير موجودة." };
+  }
+
+  // Check for uniqueness, excluding the current party being edited
+  if (parties.some(p => p.id !== partyId && p.name.toLowerCase() === newName.trim().toLowerCase())) {
+    return { success: false, message: `اسم الجهة "${newName.trim()}" موجود بالفعل.` };
+  }
+
+  const oldName = parties[partyIndex].name;
+  parties[partyIndex].name = newName.trim();
+  parties.sort((a, b) => a.name.localeCompare(b.name)); // Keep sorted
+
+  try {
+    localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
+
+    // Update party name in transactions
+    const transactions = getTransactions();
+    let transactionsUpdated = false;
+    const updatedTransactions = transactions.map(tx => {
+      if (tx.party === oldName) {
+        transactionsUpdated = true;
+        return { ...tx, party: newName.trim() };
+      }
+      return tx;
+    });
+
+    if (transactionsUpdated) {
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updatedTransactions));
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating party or transactions in localStorage:", error);
+    return { success: false, message: "حدث خطأ أثناء تحديث الجهة." };
+  }
+}
+
+export function deleteParty(partyId: string): { success: boolean, message?: string } {
+  if (typeof window === 'undefined') return { success: false, message: "لا يمكن حذف الجهة من الخادم." };
+
+  const parties = getParties();
+  const partyToDelete = parties.find(p => p.id === partyId);
+
+  if (!partyToDelete) {
+    return { success: false, message: "الجهة غير موجودة." };
+  }
+
+  const transactions = getTransactions();
+  const isPartyUsed = transactions.some(tx => tx.party === partyToDelete.name);
+
+  if (isPartyUsed) {
+    return { success: false, message: `لا يمكن حذف الجهة "${partyToDelete.name}" لأنها مستخدمة في معاملات قائمة.` };
+  }
+
+  const updatedParties = parties.filter(p => p.id !== partyId);
+  try {
+    localStorage.setItem(PARTIES_KEY, JSON.stringify(updatedParties));
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting party from localStorage:", error);
+    return { success: false, message: "حدث خطأ أثناء حذف الجهة." };
+  }
+}
+
 
 // Equipment Settings (Low Stock Threshold)
 export function getEquipmentSettings(): Record<string, EquipmentSetting> {
@@ -181,25 +257,20 @@ export function deleteEquipmentDefinition(definitionId: string): boolean {
   const definitionToDelete = definitions.find(d => d.id === definitionId);
 
   if (!definitionToDelete) return false; // Not found
-
-  // Basic check: Ensure no transactions use this equipment definition's name.
-  // A more robust check might be needed depending on how strictly this is enforced.
-  // For now, we check against the 'name' of the equipment definition.
+  
   const transactions = getTransactions();
   const isUsed = transactions.some(tx => tx.equipmentName === definitionToDelete.name);
 
   if (isUsed) {
-    // Optionally, you might want to prevent deletion or handle it differently.
-    // For now, we'll allow deletion but you could return false or throw an error.
-    // console.warn(`Cannot delete equipment definition "${definitionToDelete.name}" as it is used in transactions.`);
-    // return false; 
+     // This case is handled in the UI now, but as a safeguard:
+    console.warn(`Attempted to delete equipment definition "${definitionToDelete.name}" which is used in transactions. Store function prevented direct deletion if it were called without UI check.`);
+    // For safety, you might return false or throw an error here if this function were to be called directly
+    // without the UI pre-check. However, the page now handles this.
   }
 
   definitions = definitions.filter(d => d.id !== definitionId);
   localStorage.setItem(EQUIPMENT_DEFINITIONS_KEY, JSON.stringify(definitions));
   
-  // Optionally, remove its low stock threshold setting if it's no longer defined
-  // setEquipmentThreshold(definitionToDelete.name, undefined); // This will delete the setting
   return true;
 }
 
