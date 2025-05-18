@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Tag, Users } from 'lucide-react';
+import { Download, FileText, Eraser, CalendarIcon, Tag, Users, ChevronsUpDown, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -27,6 +27,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -44,6 +52,10 @@ export function HistoryTable() {
   const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
   const [uniqueParties, setUniqueParties] = useState<string[]>([]);
 
+  const [partyPopoverOpen, setPartyPopoverOpen] = useState(false);
+  const [partySearchTerm, setPartySearchTerm] = useState("");
+
+
   useEffect(() => {
     const loadedTransactions = getTransactions();
     setAllTransactions(loadedTransactions);
@@ -58,13 +70,13 @@ export function HistoryTable() {
   const filteredTransactions = useMemo(() => {
     let transactions = [...allTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    if (filters.party && filters.party !== 'all') { // Ensure 'all' doesn't filter
+    if (filters.party) {
       transactions = transactions.filter(tx => (tx.party || '').toLowerCase() === filters.party.toLowerCase());
     }
     if (filters.equipmentName) {
       transactions = transactions.filter(tx => tx.equipmentName.toLowerCase().includes(filters.equipmentName.toLowerCase()));
     }
-    if (filters.category && filters.category !== 'all') { // Ensure 'all' doesn't filter
+    if (filters.category) {
       transactions = transactions.filter(tx => (tx.category || '').toLowerCase() === filters.category.toLowerCase());
     }
     if (filters.dateRange?.from) {
@@ -95,6 +107,7 @@ export function HistoryTable() {
 
   const resetFilters = () => {
     setFilters({ party: '', equipmentName: '', category: '', dateRange: undefined, type: 'all' });
+    setPartySearchTerm('');
     setCurrentPage(1);
   };
 
@@ -106,6 +119,12 @@ export function HistoryTable() {
     exportTransactionsToExcel(filteredTransactions);
     toast({ title: "تم تصدير البيانات بنجاح", description: "تم إنشاء ملف Excel."});
   };
+  
+  const partiesForCombobox = [{ value: "", label: "كل الجهات" }, ...uniqueParties.map(p => ({ value: p, label: p }))];
+  
+  const filteredPartiesForCombobox = partySearchTerm
+    ? partiesForCombobox.filter(p => p.label.toLowerCase().includes(partySearchTerm.toLowerCase()))
+    : partiesForCombobox;
 
   return (
     <div className="space-y-6">
@@ -115,22 +134,56 @@ export function HistoryTable() {
           <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في سجل العمليات.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Select
-            value={filters.party || 'all'}
-            onValueChange={value => handleFilterChange('party', value === 'all' ? '' : value)}
-          >
-            <SelectTrigger className="h-10" aria-label="تصفية حسب الجهة">
-              <SelectValue placeholder="اسم الجهة" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الجهات</SelectItem>
-              {uniqueParties.map(party => (
-                <SelectItem key={party} value={party}>
-                  {party}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={partyPopoverOpen}
+                className="w-full justify-between h-10"
+              >
+                {filters.party
+                  ? partiesForCombobox.find(p => p.value === filters.party)?.label
+                  : "اختر الجهة..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="ابحث عن جهة..."
+                  value={partySearchTerm}
+                  onValueChange={setPartySearchTerm}
+                />
+                <CommandList>
+                  <CommandEmpty>لم يتم العثور على جهة.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredPartiesForCombobox.map((p) => (
+                      <CommandItem
+                        key={p.value}
+                        value={p.label}
+                        onSelect={(currentValue) => {
+                          const selectedParty = partiesForCombobox.find(party => party.label.toLowerCase() === currentValue.toLowerCase());
+                          handleFilterChange('party', selectedParty ? selectedParty.value : '');
+                          setPartyPopoverOpen(false);
+                          setPartySearchTerm(selectedParty && selectedParty.value !== "" ? selectedParty.label : "");
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            filters.party === p.value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {p.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
           <Input
             placeholder="البحث باسم التجهيز..."
             value={filters.equipmentName}
@@ -139,7 +192,7 @@ export function HistoryTable() {
             aria-label="البحث باسم التجهيز"
           />
           <Select
-            value={filters.category || 'all'} 
+            value={filters.category} 
             onValueChange={value => handleFilterChange('category', value === 'all' ? '' : value)}
           >
             <SelectTrigger className="h-10" aria-label="تصفية حسب صنف التجهيز">
@@ -295,7 +348,7 @@ export function HistoryTable() {
       </Card>
       ) : (
         <div className="text-center py-10">
-          <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" /> {/* Changed icon to Users */}
+          <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-muted-foreground text-lg">لا توجد عمليات تطابق معايير البحث الحالية.</p>
           <p className="text-sm text-muted-foreground">حاول تعديل المرشحات أو قم بإضافة عمليات جديدة.</p>
         </div>
@@ -303,3 +356,6 @@ export function HistoryTable() {
     </div>
   );
 }
+
+
+    
