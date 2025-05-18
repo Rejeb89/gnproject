@@ -7,7 +7,7 @@ import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { RadialBarChart, RadialBar, Legend, PolarAngleAxis, Cell } from 'recharts'; // Changed imports for RadialBarChart
+import { RadialBarChart, RadialBar, Legend, PolarAngleAxis, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 const chartConfig = {
@@ -71,6 +71,13 @@ export default function DashboardPage() {
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
+
+  const legendPayload = displayChartData.map(item => ({
+    value: item.name, // Used by formatter
+    color: item.fill, // Used for icon color
+    type: 'circle' as const, // Explicitly type for Recharts
+    payload: item, // Make original item available to formatter
+  }));
 
 
   return (
@@ -174,14 +181,14 @@ export default function DashboardPage() {
                 data={displayChartData}
                 innerRadius="30%"
                 outerRadius="100%"
-                startAngle={90} // Start from top
-                endAngle={90 + 360} // Full circle
-                cy="50%" // Center vertically
+                startAngle={90} 
+                endAngle={90 + 360} 
+                cy="50%" 
               >
                 <PolarAngleAxis
                   type="category"
                   dataKey="name"
-                  tick={false} // Hide ticks on axis, names will be in legend
+                  tick={false} 
                   axisLine={false}
                 />
                 <RadialBar
@@ -201,16 +208,25 @@ export default function DashboardPage() {
                   ))}
                 </RadialBar>
                 <Legend
+                  payload={legendPayload} // Use the generated payload
                   iconSize={10}
-                  iconType="circle"
+                  // iconType="circle" // Type is now in legendPayload items
                   layout="vertical"
                   verticalAlign="middle"
                   align="right"
-                  formatter={(value, entry) => (
-                    <span className="text-muted-foreground text-sm">
-                      {entry.payload?.name} ({entry.payload?.quantity.toLocaleString()})
-                    </span>
-                  )}
+                  formatter={(value, entry) => {
+                    // 'entry.payload' here is the item from 'legendPayload', which itself has a 'payload' property
+                    // that is the original item from 'displayChartData'.
+                    const originalDisplayItem = entry.payload?.payload as { name: string; quantity: number; fill: string };
+                    if (originalDisplayItem) {
+                        return (
+                            <span className="text-muted-foreground text-sm">
+                            {originalDisplayItem.name} ({originalDisplayItem.quantity.toLocaleString()})
+                            </span>
+                        );
+                    }
+                    return null; 
+                  }}
                   wrapperStyle={{paddingLeft: "20px"}}
                 />
                 <ChartTooltip
