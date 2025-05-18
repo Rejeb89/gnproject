@@ -35,26 +35,31 @@ interface EquipmentFormProps {
   submitButtonText: string;
 }
 
-function generateReceiptNumber(): string {
+function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   const currentYear = new Date().getFullYear();
   const transactions = getTransactions();
   
-  const yearlyTransactions = transactions.filter(tx => {
+  const yearlyTypedTransactions = transactions.filter(tx => {
     try {
       const txYear = new Date(tx.date).getFullYear();
-      return txYear === currentYear && tx.receiptNumber.endsWith(`-${currentYear}`);
+      // Filter by type AND year
+      return tx.receiptNumber && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
     } catch (e) {
-      return false; // Handle invalid date format if any
+      // Handle invalid date format if any, or if receiptNumber is unexpectedly missing
+      console.error("Error processing transaction for receipt number generation:", tx, e);
+      return false; 
     }
   });
 
   let maxSeq = 0;
-  yearlyTransactions.forEach(tx => {
-    const parts = tx.receiptNumber.split('-');
-    if (parts.length === 2) {
-      const seq = parseInt(parts[0], 10);
-      if (!isNaN(seq) && seq > maxSeq) {
-        maxSeq = seq;
+  yearlyTypedTransactions.forEach(tx => {
+    if (tx.receiptNumber) { // Ensure receiptNumber exists
+      const parts = tx.receiptNumber.split('-');
+      if (parts.length === 2) {
+        const seq = parseInt(parts[0], 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
       }
     }
   });
@@ -79,7 +84,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   });
 
   function onSubmit(values: EquipmentFormValues) {
-    const generatedReceiptNumber = generateReceiptNumber();
+    // Pass the transaction type to generateReceiptNumber
+    const generatedReceiptNumber = generateReceiptNumber(type);
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -227,4 +233,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
 // ShadCN Card components needed for the form styling
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
