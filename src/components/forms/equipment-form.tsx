@@ -22,8 +22,18 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Transaction, Party } from "@/lib/types";
-import { addTransaction, getTransactions, getParties, addParty, getEquipmentSettings, setEquipmentThreshold } from "@/lib/store";
+import type { Transaction, Party, EquipmentDefinition } from "@/lib/types";
+import { 
+  addTransaction, 
+  getTransactions, 
+  getParties, 
+  addParty, 
+  getEquipmentSettings, 
+  setEquipmentThreshold,
+  getEquipmentDefinitions,
+  addEquipmentDefinition,
+  updateEquipmentDefinition
+} from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -79,11 +89,14 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const { toast } = useToast();
   const router = useRouter();
   const [parties, setParties] = useState<Party[]>([]);
+  const [allEquipmentDefinitions, setAllEquipmentDefinitions] = useState<EquipmentDefinition[]>([]);
   const [partyPopoverOpen, setPartyPopoverOpen] = useState(false);
   const [partySearchTerm, setPartySearchTerm] = useState("");
 
   useEffect(() => {
+    // Load parties and definitions once on mount
     setParties(getParties());
+    setAllEquipmentDefinitions(getEquipmentDefinitions());
   }, []);
 
   const form = useForm<EquipmentFormValues>({
@@ -102,14 +115,32 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const equipmentNameValue = form.watch("equipmentName");
 
   useEffect(() => {
-    if (type === 'receive' && equipmentNameValue) {
-      const settings = getEquipmentSettings();
-      const currentThreshold = settings[equipmentNameValue]?.lowStockThreshold;
-      form.setValue('lowStockThreshold', currentThreshold === null || currentThreshold === undefined ? undefined : currentThreshold);
+    if (equipmentNameValue && type === 'receive') {
+      const definition = allEquipmentDefinitions.find(def => def.name.toLowerCase() === equipmentNameValue.toLowerCase());
+      const currentFormCategory = form.getValues('category');
+      const currentFormThreshold = form.getValues('lowStockThreshold');
+
+      if (definition) {
+        // Pre-fill category only if form category is empty/not set and definition has one
+        if ((currentFormCategory === "" || currentFormCategory === undefined) && definition.defaultCategory) {
+          form.setValue('category', definition.defaultCategory);
+        }
+        // Pre-fill threshold only if form threshold is undefined and definition has one
+        if (currentFormThreshold === undefined && definition.defaultLowStockThreshold !== undefined) {
+          form.setValue('lowStockThreshold', definition.defaultLowStockThreshold);
+        } else if (currentFormThreshold === undefined) {
+          // If definition exists but has no default threshold, check general equipment settings.
+          // This ensures the threshold field reflects any previously set specific threshold for this item name.
+          const settings = getEquipmentSettings();
+          form.setValue('lowStockThreshold', settings[equipmentNameValue]?.lowStockThreshold ?? undefined);
+        }
+      }
+      // If no definition, user is defining a new item, so fields are based on their input or form defaults.
     } else if (type === 'dispatch') {
+      // For dispatch, ensure lowStockThreshold is not set/relevant in the form
       form.setValue('lowStockThreshold', undefined);
     }
-  }, [equipmentNameValue, type, form]);
+  }, [equipmentNameValue, type, form, allEquipmentDefinitions]);
 
 
   function onSubmit(values: EquipmentFormValues) {
@@ -117,8 +148,38 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     addParty(values.party);
 
-    if (type === 'receive' && typeof values.lowStockThreshold === 'number' && values.lowStockThreshold > 0) {
-      setEquipmentThreshold(values.equipmentName, values.lowStockThreshold);
+    if (type === 'receive') {
+      const definitions = getEquipmentDefinitions(); // Get latest definitions
+      const existingDefinition = definitions.find(def => def.name.toLowerCase() === values.equipmentName.toLowerCase());
+      
+      const formCategory = values.category || undefined;
+      const formThreshold = values.lowStockThreshold;
+
+      if (!existingDefinition) {
+        // New equipment name being received - create a definition for it.
+        // The lowStockThreshold and category from the form will become its defaults.
+        addEquipmentDefinition({
+          name: values.equipmentName,
+          defaultCategory: formCategory,
+          defaultLowStockThreshold: formThreshold,
+          // unitOfMeasurement can be added later if needed for new definitions
+        });
+        // addEquipmentDefinition also calls setEquipmentThreshold internally with defaultLowStockThreshold
+      } else {
+        // Existing equipment definition.
+        // Check if category or threshold from form differs from definition's defaults.
+        const needsCategoryUpdate = formCategory !== existingDefinition.defaultCategory;
+        const needsThresholdUpdate = formThreshold !== existingDefinition.defaultLowStockThreshold;
+
+        if (needsCategoryUpdate || needsThresholdUpdate) {
+          updateEquipmentDefinition({
+            ...existingDefinition, // Spread existing to preserve id and unitOfMeasurement
+            defaultCategory: formCategory, // Update with form value
+            defaultLowStockThreshold: formThreshold, // Update with form value
+          });
+          // updateEquipmentDefinition also calls setEquipmentThreshold internally
+        }
+      }
     }
 
     const newTransaction: Transaction = {
@@ -142,8 +203,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset();
-    setParties(getParties());
-    router.push('/dashboard/reports'); // Changed from /dashboard/history
+    setParties(getParties()); // Refresh parties list for next form use
+    setAllEquipmentDefinitions(getEquipmentDefinitions()); // Refresh definitions list for next form use
+    router.push('/dashboard/reports');
   }
 
   const filteredParties = partySearchTerm
@@ -187,7 +249,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                     <Input placeholder="مثال: مكتبي، محمول، شبكات" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormDescription>
-                    لتصنيف هذا النوع من التجهيزات (إن وجد).
+                    لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -233,7 +295,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       />
                     </FormControl>
                     <FormDescription>
-                      سيتم تنبيهك إذا انخفض إجمالي كمية هذا التجهيز (بكل أصنافه) عن هذا الحد.
+                      سيتم تنبيهك إذا انخفض إجمالي كمية هذا التجهيز (بكل أصنافه) عن هذا الحد. سيصبح هذا الحد هو الافتراضي إذا كان هذا اسم تجهيز جديد.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -390,3 +452,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
+
