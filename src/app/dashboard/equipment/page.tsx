@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
+const NO_CATEGORY_VALUE = "_EMPTY_CATEGORY_";
+
 export default function EquipmentManagementPage() {
   const [definitions, setDefinitions] = useState<EquipmentDefinition[]>([]);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -78,7 +80,10 @@ export default function EquipmentManagementPage() {
   const filteredDefinitions = useMemo(() => {
     return definitions.filter(def => {
       const nameMatch = nameFilter === "" || def.name.toLowerCase().includes(nameFilter.toLowerCase());
-      const categoryMatch = categoryFilter === "" || (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase();
+      const categoryMatch =
+        categoryFilter === "" ? true : // "all" selected
+        categoryFilter === NO_CATEGORY_VALUE ? !def.defaultCategory : // "no category" selected (handles undefined or empty string)
+        (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase(); // specific category selected
       return nameMatch && categoryMatch;
     });
   }, [definitions, nameFilter, categoryFilter]);
@@ -206,7 +211,7 @@ export default function EquipmentManagementPage() {
                     {category}
                   </SelectItem>
                 ))}
-                <SelectItem value="">(بدون صنف افتراضي)</SelectItem> 
+                <SelectItem value={NO_CATEGORY_VALUE}>(بدون صنف افتراضي)</SelectItem> 
               </SelectContent>
             </Select>
           </CardContent>
@@ -336,6 +341,8 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+    
+
     
 
     
