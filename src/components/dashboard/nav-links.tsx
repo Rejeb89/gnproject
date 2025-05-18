@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ArrowRightLeft, PlusCircle, History, Settings } from 'lucide-react'; // Added Settings
+import { Home, ArrowRightLeft, PlusCircle, FileText, Settings } from 'lucide-react'; // Changed History to FileText
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -14,8 +14,8 @@ const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
   { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle },
   { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
-  { name: 'سجل العمليات', href: '/dashboard/history', icon: History },
-  { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings }, // New Settings link
+  { name: 'التقارير', href: '/dashboard/reports', icon: FileText }, // Changed name and icon
+  { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
 export function NavLinks() {

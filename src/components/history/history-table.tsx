@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Tag, Users, ChevronsUpDown, Check } from 'lucide-react';
+import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -131,7 +131,7 @@ export function HistoryTable() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl">مرشحات البحث</CardTitle>
-          <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في سجل العمليات.</CardDescription>
+          <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في التقارير.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
@@ -267,7 +267,7 @@ export function HistoryTable() {
       </Card>
 
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">نتائج السجل ({filteredTransactions.length} عملية)</h2>
+        <h2 className="text-xl font-semibold">نتائج التقارير ({filteredTransactions.length} عملية)</h2>
         <Button onClick={handleExportExcel} variant="outline" className="bg-accent hover:bg-accent/90 text-accent-foreground">
           <Download className="ml-2 h-4 w-4" />
           تصدير إلى Excel
@@ -356,6 +356,3 @@ export function HistoryTable() {
     </div>
   );
 }
-
-
-    

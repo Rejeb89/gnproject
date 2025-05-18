@@ -90,7 +90,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     resolver: zodResolver(equipmentFormSchema),
     defaultValues: {
       equipmentName: "",
-      category: "", // Default category to empty string
+      category: "", 
       quantity: 1,
       party: "",
       date: new Date(),
@@ -125,7 +125,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       id: crypto.randomUUID(),
       type,
       equipmentName: values.equipmentName,
-      category: values.category || undefined, // Save as undefined if empty
+      category: values.category || undefined, 
       quantity: values.quantity,
       party: values.party,
       date: values.date.toISOString(),
@@ -143,7 +143,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     form.reset();
     setParties(getParties());
-    router.push('/dashboard/history');
+    router.push('/dashboard/reports'); // Changed from /dashboard/history
   }
 
   const filteredParties = partySearchTerm

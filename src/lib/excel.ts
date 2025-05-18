@@ -50,8 +50,8 @@ export function exportTransactionsToExcel(transactions: Transaction[]): void {
   worksheet['!cols'] = columnWidths;
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'سجل العمليات');
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'التقارير'); // Changed sheet name
 
   const today = format(new Date(), "yyyy-MM-dd");
-  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_سجل_العمليات_${today}.xlsx`); // Updated file name
+  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_التقارير_${today}.xlsx`); // Changed file name part
 }
