@@ -111,6 +111,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [equipmentNameSearchTerm, setEquipmentNameSearchTerm] = useState("");
   const [availableEquipmentForDispatch, setAvailableEquipmentForDispatch] = useState<Equipment[]>([]);
 
+  // State for category combobox
+  const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState("");
+  const [uniqueExistingCategories, setUniqueExistingCategories] = useState<string[]>([]);
+
 
   useEffect(() => {
     setParties(getParties());
@@ -120,6 +125,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       setAvailableEquipmentForDispatch(currentStock.filter(item => item.quantity > 0));
     }
   }, [type]);
+
+  useEffect(() => {
+    const categories = Array.from(new Set(allEquipmentDefinitions.map(def => def.defaultCategory).filter(Boolean) as string[]));
+    setUniqueExistingCategories(categories.sort());
+  }, [allEquipmentDefinitions]);
 
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentFormSchema),
@@ -151,6 +161,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       if (definition) {
         if ((currentFormCategory === "" || currentFormCategory === undefined) && definition.defaultCategory) {
           form.setValue('category', definition.defaultCategory);
+          setCategorySearchTerm(definition.defaultCategory); // Sync search term for combobox
         }
         if (currentFormThreshold === undefined && definition.defaultLowStockThreshold !== undefined) {
           form.setValue('lowStockThreshold', definition.defaultLowStockThreshold);
@@ -208,7 +219,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 ...updatedDefinitionData,
             });
         }
-        if (formThreshold !== undefined) {
+        if (formThreshold !== undefined) { // Always update threshold if provided, even if it matches default
             setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       }
@@ -236,13 +247,16 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
     form.reset();
     setParties(getParties());
-    setAllEquipmentDefinitions(getEquipmentDefinitions());
+    const newDefs = getEquipmentDefinitions(); // Re-fetch definitions
+    setAllEquipmentDefinitions(newDefs); // This will trigger the useEffect to update uniqueExistingCategories
+    
     if (type === 'dispatch') {
       const currentStock = calculateStock(getTransactions());
       setAvailableEquipmentForDispatch(currentStock.filter(item => item.quantity > 0));
     }
     setPartySearchTerm("");
     setEquipmentNameSearchTerm("");
+    setCategorySearchTerm(""); // Reset category search term
     router.push('/dashboard/reports');
   }
 
@@ -336,7 +350,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   value={name}
                                   onSelect={() => {
                                     form.setValue("equipmentName", name);
-                                    form.setValue("category", "");
+                                    form.setValue("category", ""); // Reset category
+                                    setCategorySearchTerm(""); // Reset category search
                                     const itemsWithSelectedName = availableEquipmentForDispatch.filter(
                                       item => item.name === name && item.quantity > 0
                                     );
@@ -346,9 +361,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
                                     if (uniqueCategories.length === 1) {
                                       form.setValue("category", uniqueCategories[0] || "");
+                                      setCategorySearchTerm(uniqueCategories[0] || "");
                                     }
                                     setEquipmentNamePopoverOpen(false);
-                                    setEquipmentNameSearchTerm("");
+                                    setEquipmentNameSearchTerm(name); // Keep selected name in search for next open
                                   }}
                                 >
                                   <Check
@@ -375,29 +391,111 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               control={form.control}
               name="category"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel className="flex items-center">
                     <Tag className="ml-1 h-4 w-4 text-muted-foreground" />
                     صنف التجهيز (اختياري)
                   </FormLabel>
-                  {type === 'receive' && (
-                    <FormControl>
-                      <Input placeholder="مثال: مكتبي, محمول, شبكات" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                  )}
-                  {type === 'dispatch' && (
+                  {type === 'receive' ? (
+                    <Popover 
+                      open={categoryPopoverOpen} 
+                      onOpenChange={(isOpen) => {
+                        setCategoryPopoverOpen(isOpen);
+                        if (isOpen && field.value) {
+                            setCategorySearchTerm(field.value);
+                        } else if (!isOpen) {
+                            setCategorySearchTerm(field.value || "");
+                        }
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={categoryPopoverOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value || "اختر أو أدخل الصنف..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="ابحث عن صنف أو أنشئ جديدًا..."
+                            value={categorySearchTerm}
+                            onValueChange={(search) => {
+                              setCategorySearchTerm(search);
+                              form.setValue("category", search, { shouldValidate: true });
+                            }}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {categorySearchTerm ? `لم يتم العثور على صنف "${categorySearchTerm}".` : "لا توجد أصناف معرفة مسبقًا."}
+                              {categorySearchTerm && !uniqueExistingCategories.some(cat => cat.toLowerCase() === categorySearchTerm.toLowerCase()) && (
+                                " يمكنك إضافته كـ \"إضافة صنف جديد\"."
+                              )}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {uniqueExistingCategories
+                                .filter(cat => cat.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                                .map((cat) => (
+                                  <CommandItem
+                                    key={cat}
+                                    value={cat}
+                                    onSelect={() => {
+                                      form.setValue("category", cat, { shouldValidate: true });
+                                      setCategoryPopoverOpen(false);
+                                      setCategorySearchTerm(cat); 
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        cat === field.value ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {cat}
+                                  </CommandItem>
+                                ))}
+                              {categorySearchTerm && !uniqueExistingCategories.some(cat => cat.toLowerCase() === categorySearchTerm.toLowerCase()) && (
+                                <CommandItem
+                                  key={categorySearchTerm} 
+                                  value={categorySearchTerm}
+                                  onSelect={() => {
+                                    form.setValue("category", categorySearchTerm, { shouldValidate: true });
+                                    setCategoryPopoverOpen(false);
+                                    setCategorySearchTerm(categorySearchTerm);
+                                  }}
+                                  className="text-primary"
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
+                                  إضافة صنف جديد: "{categorySearchTerm}"
+                                </CommandItem>
+                              )}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : ( // type === 'dispatch'
                      <FormControl>
                         <Input
                             placeholder="الصنف (يُملأ تلقائيًا إذا وحيد)"
                             {...field}
                             value={field.value ?? ''}
-                            disabled={!equipmentNameValue}
+                            disabled={!equipmentNameValue} 
                             className={!equipmentNameValue ? "text-muted-foreground" : ""}
                         />
                      </FormControl>
                   )}
                   <FormDescription>
-                    {type === 'receive' ? "لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "أدخل صنف التجهيز، أو سيتم تحديده تلقائيًا إذا كان للتجهيز المختار صنف واحد متوفر."}
+                    {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "أدخل صنف التجهيز، أو سيتم تحديده تلقائيًا إذا كان للتجهيز المختار صنف واحد متوفر."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -417,7 +515,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       {...field}
                       min="1"
                       max={type === 'dispatch' && selectedEquipmentForDispatch ? selectedEquipmentForDispatch.quantity : undefined}
-                      onChange={event => field.onChange(+event.target.value)}
+                      onChange={event => field.onChange(event.target.value === '' ? undefined : +event.target.value)}
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   {type === 'dispatch' && selectedEquipmentForDispatch && (
@@ -473,7 +572,14 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>{partyLabel}</FormLabel>
-                  <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
+                  <Popover open={partyPopoverOpen} onOpenChange={(isOpen) => {
+                      setPartyPopoverOpen(isOpen);
+                      if(isOpen && field.value) {
+                        setPartySearchTerm(field.value);
+                      } else if (!isOpen) {
+                        setPartySearchTerm(field.value || "");
+                      }
+                  }}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -497,7 +603,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <CommandInput
                           placeholder={`ابحث عن ${partyLabel}...`}
                           value={partySearchTerm}
-                          onValueChange={setPartySearchTerm}
+                          onValueChange={(search) => {
+                            setPartySearchTerm(search);
+                            form.setValue("party", search, {shouldValidate: true});
+                          }}
                         />
                         <CommandList>
                           <CommandEmpty>
@@ -512,9 +621,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 key={p.id}
                                 value={p.name}
                                 onSelect={() => {
-                                  form.setValue("party", p.name);
+                                  form.setValue("party", p.name, {shouldValidate: true});
                                   setPartyPopoverOpen(false);
-                                  setPartySearchTerm("");
+                                  setPartySearchTerm(p.name);
                                 }}
                               >
                                 <Check
@@ -530,9 +639,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                               <CommandItem
                                 value={partySearchTerm}
                                 onSelect={() => {
-                                  form.setValue("party", partySearchTerm);
+                                  form.setValue("party", partySearchTerm, {shouldValidate: true});
                                   setPartyPopoverOpen(false);
-                                  setPartySearchTerm("");
+                                  setPartySearchTerm(partySearchTerm);
                                 }}
                                 className="text-primary"
                               >
