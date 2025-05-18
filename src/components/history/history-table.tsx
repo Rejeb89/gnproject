@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check } from 'lucide-react';
-import { format } from 'date-fns';
+import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check, CalendarClock, FileDown } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import { generateReceiptPdf } from '@/lib/pdf';
@@ -35,8 +35,59 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ITEMS_PER_PAGE = 10;
+
+const getPeriodDateRange = (periodType: string): { from: Date, to: Date } => {
+  const now = new Date();
+  let fromDate, toDate;
+
+  switch (periodType) {
+    case 'current_week':
+      fromDate = startOfWeek(now, { weekStartsOn: 0, locale: arSA }); // Sunday
+      toDate = endOfWeek(now, { weekStartsOn: 0, locale: arSA });
+      break;
+    case 'last_week':
+      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 0, locale: arSA });
+      fromDate = lastWeekStart;
+      toDate = endOfWeek(lastWeekStart, { weekStartsOn: 0, locale: arSA });
+      break;
+    case 'current_month':
+      fromDate = startOfMonth(now);
+      toDate = endOfMonth(now);
+      break;
+    case 'last_month':
+      const lastMonthStart = startOfMonth(subMonths(now, 1));
+      fromDate = lastMonthStart;
+      toDate = endOfMonth(lastMonthStart);
+      break;
+    case 'current_year':
+      fromDate = startOfYear(now);
+      toDate = endOfYear(now);
+      break;
+    case 'last_year':
+      const lastYearStart = startOfYear(subYears(now, 1));
+      fromDate = lastYearStart;
+      toDate = endOfYear(lastYearStart);
+      break;
+    default:
+      // Should not happen with predefined types
+      fromDate = now;
+      toDate = now;
+      console.error('Invalid period type:', periodType);
+  }
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(23, 59, 59, 999);
+  return { from: fromDate, to: toDate };
+};
+
 
 export function HistoryTable() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
@@ -111,15 +162,49 @@ export function HistoryTable() {
     setCurrentPage(1);
   };
 
-  const handleExportExcel = () => {
+  const handleExportCurrentResults = () => {
     if (filteredTransactions.length === 0) {
       toast({ title: "لا توجد بيانات للتصدير", variant: "destructive" });
       return;
     }
-    exportTransactionsToExcel(filteredTransactions);
-    toast({ title: "تم تصدير البيانات بنجاح", description: "تم إنشاء ملف Excel."});
+    exportTransactionsToExcel(filteredTransactions, "النتائج_الحالية");
+    toast({ title: "تم تصدير البيانات بنجاح", description: "تم إنشاء ملف Excel بالنتائج الحالية."});
   };
   
+  const handlePeriodicExport = (periodType: string, periodName: string) => {
+    const dateRangeForPeriod = getPeriodDateRange(periodType);
+    
+    let transactionsToExport = allTransactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      let matchesDate = true;
+      if (dateRangeForPeriod.from) matchesDate = matchesDate && txDate >= dateRangeForPeriod.from;
+      if (dateRangeForPeriod.to) matchesDate = matchesDate && txDate <= dateRangeForPeriod.to;
+      if (!matchesDate) return false;
+
+      let matchesOtherFilters = true;
+      if (filters.party) {
+        matchesOtherFilters = matchesOtherFilters && (tx.party || '').toLowerCase() === filters.party.toLowerCase();
+      }
+      if (filters.equipmentName) {
+        matchesOtherFilters = matchesOtherFilters && tx.equipmentName.toLowerCase().includes(filters.equipmentName.toLowerCase());
+      }
+      if (filters.category) {
+        matchesOtherFilters = matchesOtherFilters && (tx.category || '').toLowerCase() === filters.category.toLowerCase();
+      }
+      if (filters.type !== 'all') {
+        matchesOtherFilters = matchesOtherFilters && tx.type === filters.type;
+      }
+      return matchesOtherFilters;
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (transactionsToExport.length === 0) {
+      toast({ title: `لا توجد بيانات لتقرير ${periodName}`, variant: "destructive" });
+      return;
+    }
+    exportTransactionsToExcel(transactionsToExport, periodName);
+    toast({ title: `تم تصدير تقرير ${periodName} بنجاح`, description: "تم إنشاء ملف Excel." });
+  };
+
   const partiesForCombobox = [{ value: "", label: "كل الجهات" }, ...uniqueParties.map(p => ({ value: p, label: p }))];
   
   const filteredPartiesForCombobox = partySearchTerm
@@ -266,12 +351,44 @@ export function HistoryTable() {
         </CardFooter>
       </Card>
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h2 className="text-xl font-semibold">نتائج التقارير ({filteredTransactions.length} عملية)</h2>
-        <Button onClick={handleExportExcel} variant="outline" className="bg-accent hover:bg-accent/90 text-accent-foreground">
-          <Download className="ml-2 h-4 w-4" />
-          تصدير إلى Excel
-        </Button>
+        <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
+            <Button onClick={handleExportCurrentResults} variant="outline" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Download className="ml-2 h-4 w-4" />
+                تصدير النتائج الحالية
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        <CalendarClock className="ml-2 h-4 w-4" />
+                        تقارير دورية
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('current_week', 'الأسبوع_الحالي')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير الأسبوع الحالي
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('last_week', 'الأسبوع_الماضي')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير الأسبوع الماضي
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('current_month', 'الشهر_الحالي')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير الشهر الحالي
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('last_month', 'الشهر_الماضي')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير الشهر الماضي
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('current_year', 'السنة_الحالية')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير السنة الحالية
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePeriodicExport('last_year', 'السنة_الماضية')}>
+                        <FileDown className="ml-2 h-4 w-4" /> تقرير السنة الماضية
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       </div>
 
       {filteredTransactions.length > 0 ? (
@@ -356,3 +473,4 @@ export function HistoryTable() {
     </div>
   );
 }
+

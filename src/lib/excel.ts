@@ -18,14 +18,14 @@ interface ExcelTransactionRow {
   "ملاحظات"?: string;
 }
 
-export function exportTransactionsToExcel(transactions: Transaction[]): void {
+export function exportTransactionsToExcel(transactions: Transaction[], reportTitle?: string): void {
   if (typeof window === 'undefined' || transactions.length === 0) return;
 
   const dataForExcel: ExcelTransactionRow[] = transactions.map(tx => ({
     "المعرف": tx.id,
     "نوع العملية": tx.type === 'receive' ? 'استلام' : 'تسليم',
     "اسم التجهيز": tx.equipmentName,
-    "صنف التجهيز": tx.category || '', // Added category
+    "صنف التجهيز": tx.category || '', 
     "الكمية": tx.quantity,
     "الجهة": tx.party,
     "التاريخ": format(new Date(tx.date), "yyyy/MM/dd HH:mm", { locale: arSA }),
@@ -50,8 +50,10 @@ export function exportTransactionsToExcel(transactions: Transaction[]): void {
   worksheet['!cols'] = columnWidths;
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'التقارير'); // Changed sheet name
+  XLSX.utils.book_append_sheet(workbook, worksheet, reportTitle || 'التقارير'); 
 
   const today = format(new Date(), "yyyy-MM-dd");
-  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_التقارير_${today}.xlsx`); // Changed file name part
+  const finalReportTitle = reportTitle ? reportTitle.replace(/\s+/g, '_') : 'التقارير';
+  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_${finalReportTitle}_${today}.xlsx`);
 }
+
