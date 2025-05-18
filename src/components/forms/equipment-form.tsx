@@ -1,0 +1,212 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Save } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { arSA } from "date-fns/locale"; // For Arabic date formatting
+import { useToast } from "@/hooks/use-toast";
+import type { Transaction } from "@/lib/types";
+import { addTransaction } from "@/lib/store";
+import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
+import { useRouter } from "next/navigation";
+
+
+interface EquipmentFormProps {
+  type: 'receive' | 'dispatch';
+  formTitle: string;
+  partyLabel: string; // "الجهة المرسلة" or "الجهة المستلمة"
+  submitButtonText: string;
+}
+
+export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }: EquipmentFormProps) {
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const form = useForm<EquipmentFormValues>({
+    resolver: zodResolver(equipmentFormSchema),
+    defaultValues: {
+      equipmentName: "",
+      quantity: 1,
+      party: "",
+      date: new Date(),
+      receiptNumber: "",
+      notes: "",
+    },
+  });
+
+  function onSubmit(values: EquipmentFormValues) {
+    const newTransaction: Transaction = {
+      id: crypto.randomUUID(),
+      type,
+      equipmentName: values.equipmentName,
+      quantity: values.quantity,
+      party: values.party,
+      date: values.date.toISOString(),
+      receiptNumber: values.receiptNumber,
+      notes: values.notes,
+    };
+
+    addTransaction(newTransaction);
+
+    toast({
+      title: "تمت العملية بنجاح",
+      description: `تم تسجيل ${type === 'receive' ? 'استلام' : 'تسليم'} التجهيز: ${values.equipmentName}.`,
+      variant: "default", // Use accent if defined for success actions.
+    });
+
+    form.reset(); // Reset form after submission
+    // Optionally redirect or update UI
+    router.push('/dashboard/history');
+  }
+
+  return (
+    <Card className="w-full max-w-2xl mx-auto shadow-lg">
+      <CardHeader>
+        <CardTitle className="text-2xl">{formTitle}</CardTitle>
+        <CardDescription>
+          يرجى ملء جميع الحقول المطلوبة لتسجيل العملية.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="equipmentName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>اسم التجهيز</FormLabel>
+                  <FormControl>
+                    <Input placeholder="مثال: جهاز حاسوب محمول" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>الكمية</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="party"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{partyLabel}</FormLabel>
+                  <FormControl>
+                    <Input placeholder="مثال: قسم الصيانة" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>التاريخ</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 pr-1 text-right font-normal justify-between", // Adjusted padding for RTL
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: arSA })
+                          ) : (
+                            <span>اختر تاريخًا</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> {/* Adjusted margin for RTL */}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                        locale={arSA} dir="rtl"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="receiptNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>رقم الوصل</FormLabel>
+                  <FormControl>
+                    <Input placeholder="مثال: 2024-001" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ملاحظات (اختياري)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="أدخل أي ملاحظات إضافية هنا..."
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90">
+              <Save className="ml-2 h-4 w-4" /> {/* Adjusted margin for RTL */}
+              {submitButtonText}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ShadCN Card components needed for the form styling
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
