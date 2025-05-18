@@ -1,7 +1,8 @@
+
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, ArrowRightLeft, ListChecks, AlertTriangle } from 'lucide-react';
+import { ArrowRightLeft, ListChecks, AlertTriangle, PlusCircle } from 'lucide-react'; // Updated PlusCircle import
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock } from '@/lib/store';
 import Link from 'next/link';
@@ -18,7 +19,6 @@ export default function DashboardPage() {
     const currentStock = calculateStock(loadedTransactions);
     setStock(currentStock);
 
-    // Example: Define low stock threshold (e.g., quantity < 5)
     const LOW_STOCK_THRESHOLD = 5;
     setLowStockItems(currentStock.filter(item => item.quantity < LOW_STOCK_THRESHOLD && item.quantity > 0));
   }, []);
@@ -45,7 +45,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">إجمالي التجهيزات المستلمة</CardTitle>
-            <PlusCircle className="h-5 w-5 text-muted-foreground" />
+            <PlusCircle className="h-5 w-5 text-muted-foreground" /> {/* Using Lucide icon */}
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalReceived.toLocaleString()}</div>
@@ -121,12 +121,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Placeholder Icon for the first card - replace if a better one is found in lucide.
-const PlusCircle = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10"></circle>
-    <line x1="12" y1="8" x2="12" y2="16"></line>
-    <line x1="8" y1="12" x2="16" y2="12"></line>
-  </svg>
-);

@@ -13,3 +13,8 @@ export interface Equipment {
   name: string;
   quantity: number; // Current stock
 }
+
+export interface Party {
+  id: string;
+  name: string;
+}

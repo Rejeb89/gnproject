@@ -16,22 +16,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { arSA } from "date-fns/locale"; // For Arabic date formatting
+import { arSA } from "date-fns/locale"; 
 import { useToast } from "@/hooks/use-toast";
-import type { Transaction } from "@/lib/types";
-import { addTransaction, getTransactions } from "@/lib/store"; // Import getTransactions
+import type { Transaction, Party } from "@/lib/types";
+import { addTransaction, getTransactions, getParties, addParty } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
-
+import React, { useEffect, useState } from "react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface EquipmentFormProps {
   type: 'receive' | 'dispatch';
   formTitle: string;
-  partyLabel: string; // "الجهة المرسلة" or "الجهة المستلمة"
+  partyLabel: string; 
   submitButtonText: string;
 }
 
@@ -42,10 +51,8 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   const yearlyTypedTransactions = transactions.filter(tx => {
     try {
       const txYear = new Date(tx.date).getFullYear();
-      // Filter by type AND year
       return tx.receiptNumber && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
     } catch (e) {
-      // Handle invalid date format if any, or if receiptNumber is unexpectedly missing
       console.error("Error processing transaction for receipt number generation:", tx, e);
       return false; 
     }
@@ -53,7 +60,7 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
 
   let maxSeq = 0;
   yearlyTypedTransactions.forEach(tx => {
-    if (tx.receiptNumber) { // Ensure receiptNumber exists
+    if (tx.receiptNumber) { 
       const parts = tx.receiptNumber.split('-');
       if (parts.length === 2) {
         const seq = parseInt(parts[0], 10);
@@ -71,6 +78,15 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
 export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }: EquipmentFormProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const [parties, setParties] = useState<Party[]>([]);
+  const [partyPopoverOpen, setPartyPopoverOpen] = useState(false);
+  const [partySearchTerm, setPartySearchTerm] = useState("");
+
+  useEffect(() => {
+    if (type === 'dispatch') {
+      setParties(getParties());
+    }
+  }, [type]);
 
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentFormSchema),
@@ -84,8 +100,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   });
 
   function onSubmit(values: EquipmentFormValues) {
-    // Pass the transaction type to generateReceiptNumber
     const generatedReceiptNumber = generateReceiptNumber(type);
+
+    if (type === 'dispatch') {
+      addParty(values.party); // Add party to store if it's new or update (addParty handles uniqueness)
+    }
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -94,7 +113,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       quantity: values.quantity,
       party: values.party,
       date: values.date.toISOString(),
-      receiptNumber: generatedReceiptNumber, // Use generated number
+      receiptNumber: generatedReceiptNumber,
       notes: values.notes,
     };
 
@@ -107,8 +126,15 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset(); 
+    if (type === 'dispatch') { // Refresh parties list after potential add
+      setParties(getParties());
+    }
     router.push('/dashboard/history');
   }
+
+  const filteredParties = partySearchTerm
+    ? parties.filter(p => p.name.toLowerCase().includes(partySearchTerm.toLowerCase()))
+    : parties;
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -151,11 +177,83 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               control={form.control}
               name="party"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>{partyLabel}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: قسم الصيانة" {...field} />
-                  </FormControl>
+                  {type === 'dispatch' ? (
+                    <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={partyPopoverOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value
+                              ? parties.find(p => p.name === field.value)?.name || field.value
+                              : `اختر أو أدخل ${partyLabel}...`}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder={`ابحث عن ${partyLabel}...`}
+                            value={partySearchTerm}
+                            onValueChange={setPartySearchTerm}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {partySearchTerm ? `لم يتم العثور على جهة باسم "${partySearchTerm}".` : "لا توجد جهات."}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {filteredParties.map((p) => (
+                                <CommandItem
+                                  key={p.id}
+                                  value={p.name}
+                                  onSelect={() => {
+                                    form.setValue("party", p.name);
+                                    setPartyPopoverOpen(false);
+                                    setPartySearchTerm("");
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      p.name === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {p.name}
+                                </CommandItem>
+                              ))}
+                              {partySearchTerm && !parties.some(p => p.name.toLowerCase() === partySearchTerm.toLowerCase()) && (
+                                <CommandItem
+                                  value={partySearchTerm}
+                                  onSelect={() => {
+                                    form.setValue("party", partySearchTerm);
+                                    setPartyPopoverOpen(false);
+                                    setPartySearchTerm("");
+                                  }}
+                                  className="text-primary"
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
+                                  إنشاء جهة جديدة: "{partySearchTerm}"
+                                </CommandItem>
+                              )}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <FormControl>
+                      <Input placeholder={`مثال: قسم الصيانة`} {...field} />
+                    </FormControl>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -202,7 +300,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 </FormItem>
               )}
             />
-            {/* Receipt number field is removed from UI */}
             <FormField
               control={form.control}
               name="notes"
@@ -232,4 +329,9 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 }
 
 // ShadCN Card components needed for the form styling
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Already imported above
+
+// Need to ensure cmdk is installed or vendored for Command components
+// If not, `npm install cmdk` might be needed and package.json updated
+// For now, assuming command.tsx includes necessary parts or cmdk is globally available to it.
+

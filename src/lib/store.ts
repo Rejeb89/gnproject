@@ -1,7 +1,8 @@
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment } from '@/lib/types';
+import type { Transaction, Equipment, Party } from '@/lib/types';
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1'; // Added versioning
+const PARTIES_KEY = 'equipTrack_parties_v1'; // Key for storing parties
 
 export function getTransactions(): Transaction[] {
   if (typeof window === 'undefined') return [];
@@ -48,10 +49,51 @@ export function calculateStock(transactions: Transaction[]): Equipment[] {
     .sort((a,b) => a.name.localeCompare(b.name)); // Sort by name for consistent display
 }
 
+export function getParties(): Party[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(PARTIES_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error("Error reading parties from localStorage:", error);
+    return [];
+  }
+}
+
+export function addParty(partyName: string): Party {
+  if (typeof window === 'undefined') {
+    // Should not happen if called correctly, but as a safeguard
+    const fallbackParty: Party = { id: crypto.randomUUID(), name: partyName };
+    console.warn("addParty called on server, returning fallback. This may indicate an issue.");
+    return fallbackParty;
+  }
+  
+  const parties = getParties();
+  const existingParty = parties.find(p => p.name.toLowerCase() === partyName.toLowerCase());
+  
+  if (existingParty) {
+    return existingParty;
+  }
+  
+  const newParty: Party = {
+    id: crypto.randomUUID(),
+    name: partyName,
+  };
+  
+  parties.push(newParty);
+  try {
+    localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
+  } catch (error) {
+    console.error("Error saving party to localStorage:", error);
+  }
+  return newParty;
+}
+
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.removeItem(TRANSACTIONS_KEY);
+    localStorage.removeItem(PARTIES_KEY); // Also clear parties
   } catch (error) {
     console.error("Error clearing data from localStorage:", error);
   }
