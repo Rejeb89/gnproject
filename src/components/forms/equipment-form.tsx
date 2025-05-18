@@ -33,7 +33,7 @@ import {
   getEquipmentDefinitions,
   addEquipmentDefinition,
   updateEquipmentDefinition,
-  calculateStock, // Added calculateStock
+  calculateStock,
 } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
@@ -157,14 +157,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           form.setValue('lowStockThreshold', settings[equipmentNameValue]?.lowStockThreshold ?? undefined);
         }
       }
-    } else if (type === 'dispatch') {
-      // form.setValue('lowStockThreshold', undefined); // This was causing the value to be reset incorrectly
-      // If a full equipment item (name + category) is selected, populate category
-      const selectedDispatchItem = availableEquipmentForDispatch.find(eq => eq.name === equipmentNameValue && eq.category === form.watch('category'));
-      if (selectedDispatchItem && form.watch('category') !== selectedDispatchItem.category) {
-         // This logic might be tricky if multiple categories exist for the same name.
-         // For now, if a user selects a name, they might need to select category separately or we auto-select first.
-      }
     }
   }, [equipmentNameValue, type, form, allEquipmentDefinitions, availableEquipmentForDispatch]);
 
@@ -172,7 +164,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    addParty(values.party); // Ensure party is added/exists
+    addParty(values.party); 
 
     if (type === 'receive') {
       const definitions = getEquipmentDefinitions();
@@ -188,12 +180,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
           defaultLowStockThreshold: formThreshold,
         });
       } else {
-        // Check if the category from the form is different from the existing definition's default category
-        // and if the formCategory is actually provided (not empty or undefined).
         const needsCategoryUpdate = formCategory !== undefined && formCategory !== existingDefinition.defaultCategory;
-        
-        // Check if the threshold from the form is different from the existing definition's default threshold
-        // and if the formThreshold is actually provided.
         const needsThresholdUpdate = formThreshold !== undefined && formThreshold !== existingDefinition.defaultLowStockThreshold;
 
         if (needsCategoryUpdate || needsThresholdUpdate) {
@@ -203,9 +190,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
             defaultLowStockThreshold: needsThresholdUpdate ? formThreshold : existingDefinition.defaultLowStockThreshold,
           });
         } else if (formThreshold !== undefined && existingDefinition.defaultLowStockThreshold !== formThreshold) {
-          // This case handles if only threshold is changed and it's different from an existing definition's threshold.
-          // updateEquipmentDefinition now also handles setEquipmentThreshold via its internal logic.
-          // So, if threshold is set and different, we can still call update to ensure store consistency for settings.
            setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       }
@@ -324,10 +308,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           <CommandInput
                             placeholder="ابحث عن اسم التجهيز..."
                             value={equipmentNameSearchTerm}
-                            onValueChange={(search) => {
+                            onValueValueChange={(search) => {
                               setEquipmentNameSearchTerm(search);
-                              // Keep the field value in sync with search term if user types directly
-                              // field.onChange(search); 
                             }}
                           />
                           <CommandList>
@@ -343,8 +325,19 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                     form.setValue("equipmentName", name);
                                     setEquipmentNamePopoverOpen(false);
                                     setEquipmentNameSearchTerm("");
-                                    // Reset category if name changes, let user re-select
-                                    form.setValue("category", ""); 
+                                    
+                                    const itemsWithSelectedName = availableEquipmentForDispatch.filter(
+                                      item => item.name === name && item.quantity > 0
+                                    );
+                                    const uniqueCategories = Array.from(
+                                      new Set(itemsWithSelectedName.map(item => item.category))
+                                    );
+                                
+                                    if (uniqueCategories.length === 1) {
+                                      form.setValue("category", uniqueCategories[0] || ""); 
+                                    } else {
+                                      form.setValue("category", ""); 
+                                    }
                                   }}
                                 >
                                   <Check
@@ -367,7 +360,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
               />
             )}
             
-            {/* Category Field - Common for both, but behavior changes */}
             <FormField
               control={form.control}
               name="category"
@@ -530,7 +522,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           value={partySearchTerm}
                           onValueChange={(search) => {
                             setPartySearchTerm(search);
-                            // field.onChange(search); // Allow typing new party names directly if desired
                           }}
                         />
                         <CommandList>
@@ -653,4 +644,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
-
