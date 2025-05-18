@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 
 // بيانات اعتماد المشرف المؤقتة (للمحاكاة فقط - غير آمنة للاستخدام الفعلي)
-const ADMIN_EMAIL = "admin@example.com";
-const ADMIN_PASSWORD = "password";
+const ADMIN_EMAIL = "admin@gn-met.tn";
+const ADMIN_PASSWORD = "gn-met2025";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -69,7 +69,7 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="admin@example.com"
+              placeholder="admin@gn-met.tn"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
