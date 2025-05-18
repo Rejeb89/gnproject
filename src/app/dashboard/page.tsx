@@ -7,15 +7,24 @@ import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'; // Added Cell
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 const chartConfig = {
   quantity: {
     label: "الكمية",
-    color: "hsl(var(--primary))",
+    // Color is now set by Cell, so no global color for quantity needed here
   },
 } satisfies ChartConfig;
+
+// Define a list of colors to be used for the bars
+const BAR_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
 
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -52,9 +61,10 @@ export default function DashboardPage() {
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsCount = stock.length; // Now counts unique name-category pairs
 
-  const chartData = stock.map(item => ({
+  const chartData = stock.map((item, index) => ({
     name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
     quantity: item.quantity,
+    fill: BAR_COLORS[index % BAR_COLORS.length], // Assign color cyclically
   }));
 
   return (
@@ -161,7 +171,7 @@ export default function DashboardPage() {
                   angle={-45}
                   textAnchor="end"
                   interval={0}
-                  height={50} // Adjusted height for XAxis if needed, mostly controlled by margin.bottom
+                  height={50} 
                   tickFormatter={(value: string) => value.length > 25 ? `${value.substring(0, 22)}...` : value}
                 />
                 <YAxis
@@ -176,7 +186,11 @@ export default function DashboardPage() {
                   cursor={false}
                   content={<ChartTooltipContent indicator="dot" hideLabel />}
                 />
-                <Bar dataKey="quantity" fill="var(--color-quantity)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="quantity" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ChartContainer>
           ) : (
