@@ -96,7 +96,7 @@ export function generateReceiptPdf(transaction: Transaction): void {
   
 
   // === Footer (optional) ===
-  const footerText = "EquipTrack - نظام إدارة المستودعات";
+  const footerText = "قسم التجهيز بمنطقة الحرس الوطني بالمتلوي - نظام إدارة المستودعات";
   doc.setFontSize(8);
   doc.text(footerText, margin, doc.internal.pageSize.getHeight() - 10);
 

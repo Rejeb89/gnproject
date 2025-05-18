@@ -10,7 +10,7 @@ const tajawalFont = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: 'EquipTrack - نظام إدارة المستودع',
+  title: 'قسم التجهيز بمنطقة الحرس الوطني بالمتلوي',
   description: 'تطبيق ويب لإدارة مستودع التجهيزات محليًا',
 };
 
