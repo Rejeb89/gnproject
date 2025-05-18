@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
@@ -25,6 +26,7 @@ import { generateReceiptPdf } from '@/lib/pdf';
 import { exportTransactionsToExcel } from '@/lib/excel';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils'; // Added import for cn
 
 const ITEMS_PER_PAGE = 10;
 
@@ -204,7 +206,10 @@ export function HistoryTable() {
               <TableRow key={tx.id}>
                 <TableCell>
                   <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'} 
-                         className={tx.type === 'receive' ? 'bg-green-500/20 text-green-700 border-green-500/50' : 'bg-blue-500/20 text-blue-700 border-blue-500/50'}>
+                         className={cn(
+                            'font-semibold',
+                            tx.type === 'receive' ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200'
+                         )}>
                     {tx.type === 'receive' ? 'استلام' : 'تسليم'}
                   </Badge>
                 </TableCell>
@@ -262,3 +267,4 @@ export function HistoryTable() {
 
 // ShadCN Card components needed for the form styling
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
