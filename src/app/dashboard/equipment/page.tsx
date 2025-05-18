@@ -187,7 +187,7 @@ export default function EquipmentManagementPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5 text-muted-foreground" />
-              مرشحات البحث
+              البحث
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
@@ -286,10 +286,10 @@ export default function EquipmentManagementPage() {
               <div className="text-center py-10 text-muted-foreground">
                 <PackageSearch className="mx-auto h-12 w-12 mb-4" />
                 <p className="text-lg">
-                  {nameFilter || categoryFilter ? "لا توجد أنواع تجهيزات تطابق المرشحات الحالية." : "لم يتم تعريف أي أنواع تجهيزات بعد."}
+                  {nameFilter || categoryFilter ? "لا توجد أنواع تجهيزات تطابق معايير البحث الحالية." : "لم يتم تعريف أي أنواع تجهيزات بعد."}
                 </p>
                 <p>
-                  {nameFilter || categoryFilter ? "حاول تعديل المرشحات أو إزالتها." : "ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك."}
+                  {nameFilter || categoryFilter ? "حاول تعديل معايير البحث أو إزالتها." : "ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك."}
                 </p>
               </div>
             )}
@@ -341,6 +341,8 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+    
+
     
 
     

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check, CalendarClock, FileDown } from 'lucide-react';
+import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check, CalendarClock, FileDown, Filter } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -215,8 +215,11 @@ export function HistoryTable() {
     <div className="space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">مرشحات البحث</CardTitle>
-          <CardDescription>استخدم المرشحات لتضييق نطاق نتائج البحث في التقارير.</CardDescription>
+          <CardTitle className="text-2xl flex items-center gap-2">
+            <Filter className="h-6 w-6 text-muted-foreground" />
+            البحث
+          </CardTitle>
+          <CardDescription>استخدم خيارات البحث لتضييق نطاق نتائج البحث في التقارير.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
@@ -346,7 +349,7 @@ export function HistoryTable() {
         <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" onClick={resetFilters} className="h-10">
                 <Eraser className="ml-2 h-4 w-4" />
-                مسح المرشحات
+                مسح البحث
             </Button>
         </CardFooter>
       </Card>
@@ -467,10 +470,13 @@ export function HistoryTable() {
         <div className="text-center py-10">
           <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-muted-foreground text-lg">لا توجد عمليات تطابق معايير البحث الحالية.</p>
-          <p className="text-sm text-muted-foreground">حاول تعديل المرشحات أو قم بإضافة عمليات جديدة.</p>
+          <p className="text-sm text-muted-foreground">حاول تعديل معايير البحث أو قم بإضافة عمليات جديدة.</p>
         </div>
       )}
     </div>
   );
 }
 
+
+
+    
