@@ -16,13 +16,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Transaction, Party, EquipmentDefinition } from "@/lib/types";
+import type { Transaction, Party, EquipmentDefinition, Equipment } from "@/lib/types";
 import { 
   addTransaction, 
   getTransactions, 
@@ -32,7 +32,8 @@ import {
   setEquipmentThreshold,
   getEquipmentDefinitions,
   addEquipmentDefinition,
-  updateEquipmentDefinition
+  updateEquipmentDefinition,
+  calculateStock, // Added calculateStock
 } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
@@ -72,8 +73,21 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   yearlyTypedTransactions.forEach(tx => {
     if (tx.receiptNumber) {
       const parts = tx.receiptNumber.split('-');
-      if (parts.length === 2) {
-        const seq = parseInt(parts[0], 10);
+      if (parts.length === 2) { // e.g., 001-2024
+        const seqPart = parts[0];
+        const seq = parseInt(seqPart, 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
+      } else if (parts.length === 3 && type === 'dispatch') { // e.g., D-001-2024 (older format possibly)
+         const seqPart = parts[1];
+         const seq = parseInt(seqPart, 10);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
+      } else if (parts.length === 3 && type === 'receive') { // e.g., R-001-2024 (older format possibly)
+         const seqPart = parts[1];
+         const seq = parseInt(seqPart, 10);
         if (!isNaN(seq) && seq > maxSeq) {
           maxSeq = seq;
         }
@@ -93,11 +107,19 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [partyPopoverOpen, setPartyPopoverOpen] = useState(false);
   const [partySearchTerm, setPartySearchTerm] = useState("");
 
+  const [equipmentNamePopoverOpen, setEquipmentNamePopoverOpen] = useState(false);
+  const [equipmentNameSearchTerm, setEquipmentNameSearchTerm] = useState("");
+  const [availableEquipmentForDispatch, setAvailableEquipmentForDispatch] = useState<Equipment[]>([]);
+
+
   useEffect(() => {
-    // Load parties and definitions once on mount
     setParties(getParties());
     setAllEquipmentDefinitions(getEquipmentDefinitions());
-  }, []);
+    if (type === 'dispatch') {
+      const currentStock = calculateStock(getTransactions());
+      setAvailableEquipmentForDispatch(currentStock.filter(item => item.quantity > 0));
+    }
+  }, [type]);
 
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentFormSchema),
@@ -113,6 +135,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   });
 
   const equipmentNameValue = form.watch("equipmentName");
+  const selectedEquipmentForDispatch = availableEquipmentForDispatch.find(
+    (eq) => eq.name === equipmentNameValue && eq.category === form.watch("category")
+  );
+
 
   useEffect(() => {
     if (equipmentNameValue && type === 'receive') {
@@ -121,63 +147,60 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       const currentFormThreshold = form.getValues('lowStockThreshold');
 
       if (definition) {
-        // Pre-fill category only if form category is empty/not set and definition has one
         if ((currentFormCategory === "" || currentFormCategory === undefined) && definition.defaultCategory) {
           form.setValue('category', definition.defaultCategory);
         }
-        // Pre-fill threshold only if form threshold is undefined and definition has one
         if (currentFormThreshold === undefined && definition.defaultLowStockThreshold !== undefined) {
           form.setValue('lowStockThreshold', definition.defaultLowStockThreshold);
         } else if (currentFormThreshold === undefined) {
-          // If definition exists but has no default threshold, check general equipment settings.
-          // This ensures the threshold field reflects any previously set specific threshold for this item name.
           const settings = getEquipmentSettings();
           form.setValue('lowStockThreshold', settings[equipmentNameValue]?.lowStockThreshold ?? undefined);
         }
       }
-      // If no definition, user is defining a new item, so fields are based on their input or form defaults.
     } else if (type === 'dispatch') {
-      // For dispatch, ensure lowStockThreshold is not set/relevant in the form
       form.setValue('lowStockThreshold', undefined);
+      // If a full equipment item (name + category) is selected, populate category
+      const selectedDispatchItem = availableEquipmentForDispatch.find(eq => eq.name === equipmentNameValue && eq.category === form.watch('category'));
+      if (selectedDispatchItem && form.watch('category') !== selectedDispatchItem.category) {
+         // This logic might be tricky if multiple categories exist for the same name.
+         // For now, if a user selects a name, they might need to select category separately or we auto-select first.
+      }
     }
-  }, [equipmentNameValue, type, form, allEquipmentDefinitions]);
+  }, [equipmentNameValue, type, form, allEquipmentDefinitions, availableEquipmentForDispatch]);
 
 
   function onSubmit(values: EquipmentFormValues) {
     const generatedReceiptNumber = generateReceiptNumber(type);
 
-    addParty(values.party);
+    addParty(values.party); // Ensure party is added/exists
 
     if (type === 'receive') {
-      const definitions = getEquipmentDefinitions(); // Get latest definitions
+      const definitions = getEquipmentDefinitions();
       const existingDefinition = definitions.find(def => def.name.toLowerCase() === values.equipmentName.toLowerCase());
       
       const formCategory = values.category || undefined;
       const formThreshold = values.lowStockThreshold;
 
       if (!existingDefinition) {
-        // New equipment name being received - create a definition for it.
-        // The lowStockThreshold and category from the form will become its defaults.
         addEquipmentDefinition({
           name: values.equipmentName,
           defaultCategory: formCategory,
           defaultLowStockThreshold: formThreshold,
-          // unitOfMeasurement can be added later if needed for new definitions
         });
-        // addEquipmentDefinition also calls setEquipmentThreshold internally with defaultLowStockThreshold
       } else {
-        // Existing equipment definition.
-        // Check if category or threshold from form differs from definition's defaults.
-        const needsCategoryUpdate = formCategory !== existingDefinition.defaultCategory;
-        const needsThresholdUpdate = formThreshold !== existingDefinition.defaultLowStockThreshold;
+        const needsCategoryUpdate = formCategory !== existingDefinition.defaultCategory && formCategory !== undefined; // Only update if formCategory is provided
+        const needsThresholdUpdate = formThreshold !== existingDefinition.defaultLowStockThreshold && formThreshold !== undefined; // Only update if formThreshold is provided
 
         if (needsCategoryUpdate || needsThresholdUpdate) {
           updateEquipmentDefinition({
-            ...existingDefinition, // Spread existing to preserve id and unitOfMeasurement
-            defaultCategory: formCategory, // Update with form value
-            defaultLowStockThreshold: formThreshold, // Update with form value
+            ...existingDefinition,
+            defaultCategory: needsCategoryUpdate ? formCategory : existingDefinition.defaultCategory,
+            defaultLowStockThreshold: needsThresholdUpdate ? formThreshold : existingDefinition.defaultLowStockThreshold,
           });
-          // updateEquipmentDefinition also calls setEquipmentThreshold internally
+        } else if (formThreshold !== undefined && existingDefinition.defaultLowStockThreshold !== formThreshold) {
+          // This case handles if only threshold is changed and it's different from an existing definition's threshold.
+          // The updateEquipmentDefinition already handles setEquipmentThreshold
+           setEquipmentThreshold(values.equipmentName, formThreshold);
         }
       }
     }
@@ -203,19 +226,38 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     });
 
     form.reset();
-    setParties(getParties()); // Refresh parties list for next form use
-    setAllEquipmentDefinitions(getEquipmentDefinitions()); // Refresh definitions list for next form use
+    setParties(getParties()); 
+    setAllEquipmentDefinitions(getEquipmentDefinitions());
+    if (type === 'dispatch') {
+      const currentStock = calculateStock(getTransactions());
+      setAvailableEquipmentForDispatch(currentStock.filter(item => item.quantity > 0));
+    }
+    setPartySearchTerm("");
+    setEquipmentNameSearchTerm("");
     router.push('/dashboard/reports');
   }
 
   const filteredParties = partySearchTerm
     ? parties.filter(p => p.name.toLowerCase().includes(partySearchTerm.toLowerCase()))
     : parties;
+  
+  const uniqueEquipmentNamesForDispatch = Array.from(new Set(availableEquipmentForDispatch.map(item => item.name)));
+  const filteredEquipmentNamesForDispatch = equipmentNameSearchTerm
+    ? uniqueEquipmentNamesForDispatch.filter(name => name.toLowerCase().includes(equipmentNameSearchTerm.toLowerCase()))
+    : uniqueEquipmentNamesForDispatch;
+
+  const categoriesForSelectedEquipmentName = equipmentNameValue
+    ? Array.from(new Set(availableEquipmentForDispatch.filter(item => item.name === equipmentNameValue).map(item => item.category || 'N/A')))
+    : [];
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
       <CardHeader>
-        <CardTitle className="text-2xl">{formTitle}</CardTitle>
+        <CardTitle className="text-2xl flex items-center gap-2">
+            {type === 'receive' ? <PlusCircle className="h-7 w-7 text-primary"/> : <ArrowRightLeft className="h-7 w-7 text-primary"/>}
+            {formTitle}
+        </CardTitle>
         <CardDescription>
           يرجى ملء جميع الحقول المطلوبة لتسجيل العملية. رقم الوصل سيتم إنشاؤه تلقائياً.
         </CardDescription>
@@ -223,19 +265,103 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="equipmentName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>اسم التجهيز</FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: جهاز حاسوب محمول" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
+            {type === 'receive' && (
+              <FormField
+                control={form.control}
+                name="equipmentName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center">
+                      <Package className="ml-1 h-4 w-4 text-muted-foreground" />
+                      اسم التجهيز
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="مثال: جهاز حاسوب محمول" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {type === 'dispatch' && (
+              <FormField
+                control={form.control}
+                name="equipmentName"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center">
+                        <Package className="ml-1 h-4 w-4 text-muted-foreground" />
+                        اسم التجهيز
+                    </FormLabel>
+                    <Popover open={equipmentNamePopoverOpen} onOpenChange={setEquipmentNamePopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={equipmentNamePopoverOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            onClick={() => setEquipmentNamePopoverOpen(!equipmentNamePopoverOpen)}
+                          >
+                            {field.value || "اختر أو أدخل اسم التجهيز..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command shouldFilter={false}>
+                          <CommandInput
+                            placeholder="ابحث عن اسم التجهيز..."
+                            value={equipmentNameSearchTerm}
+                            onValueChange={(search) => {
+                              setEquipmentNameSearchTerm(search);
+                              // Keep the field value in sync with search term if user types directly
+                              // field.onChange(search); 
+                            }}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {equipmentNameSearchTerm ? `لم يتم العثور على تجهيز باسم "${equipmentNameSearchTerm}".` : "لا توجد تجهيزات معرفة."}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {filteredEquipmentNamesForDispatch.map((name) => (
+                                <CommandItem
+                                  key={name}
+                                  value={name}
+                                  onSelect={() => {
+                                    form.setValue("equipmentName", name);
+                                    setEquipmentNamePopoverOpen(false);
+                                    setEquipmentNameSearchTerm("");
+                                    // Reset category if name changes, let user re-select
+                                    form.setValue("category", ""); 
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      name === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            
+            {/* Category Field - Common for both, but behavior changes */}
             <FormField
               control={form.control}
               name="category"
@@ -245,16 +371,69 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                     <Tag className="ml-1 h-4 w-4 text-muted-foreground" />
                     صنف التجهيز (اختياري)
                   </FormLabel>
-                  <FormControl>
-                    <Input placeholder="مثال: مكتبي، محمول، شبكات" {...field} value={field.value ?? ''} />
-                  </FormControl>
+                  {type === 'receive' && (
+                    <FormControl>
+                      <Input placeholder="مثال: مكتبي، محمول، شبكات" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                  )}
+                  {type === 'dispatch' && equipmentNameValue && categoriesForSelectedEquipmentName.length > 0 && (
+                     <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value || "اختر الصنف..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandList>
+                              <CommandEmpty>لا توجد أصناف لهذا التجهيز.</CommandEmpty>
+                              <CommandGroup>
+                                {categoriesForSelectedEquipmentName.map((cat) => (
+                                  <CommandItem
+                                    key={cat}
+                                    value={cat === 'N/A' ? '' : cat}
+                                    onSelect={() => {
+                                      form.setValue("category", cat === 'N/A' ? '' : cat);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        (cat === 'N/A' ? '' : cat) === field.value ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {cat === 'N/A' ? '(بدون صنف)' : cat}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                  )}
+                   {type === 'dispatch' && (!equipmentNameValue || categoriesForSelectedEquipmentName.length === 0) && (
+                     <FormControl>
+                        <Input placeholder="اختر اسم التجهيز أولاً" {...field} value={field.value ?? ''} readOnly disabled/>
+                     </FormControl>
+                  )}
                   <FormDescription>
-                    لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد.
+                    {type === 'receive' ? "لتصنيف هذا النوع من التجهيزات (إن وجد). سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "اختر صنف التجهيز المراد تسليمه."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="quantity"
@@ -262,10 +441,20 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 <FormItem>
                   <FormLabel>الكمية</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0" {...field} min="1"
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      {...field} 
+                      min="1"
+                      max={type === 'dispatch' && selectedEquipmentForDispatch ? selectedEquipmentForDispatch.quantity : undefined}
                       onChange={event => field.onChange(+event.target.value)}
                     />
                   </FormControl>
+                  {type === 'dispatch' && selectedEquipmentForDispatch && (
+                    <FormDescription className="text-blue-600">
+                      الكمية المتوفرة من {selectedEquipmentForDispatch.name} ({selectedEquipmentForDispatch.category || 'بدون صنف'}): {selectedEquipmentForDispatch.quantity.toLocaleString()}
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -333,11 +522,17 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <CommandInput
                           placeholder={`ابحث عن ${partyLabel}...`}
                           value={partySearchTerm}
-                          onValueChange={setPartySearchTerm}
+                          onValueChange={(search) => {
+                            setPartySearchTerm(search);
+                            // field.onChange(search); // Allow typing new party names directly if desired
+                          }}
                         />
                         <CommandList>
                           <CommandEmpty>
                             {partySearchTerm ? `لم يتم العثور على جهة باسم "${partySearchTerm}".` : "لا توجد جهات."}
+                            {partySearchTerm && !parties.some(p => p.name.toLowerCase() === partySearchTerm.toLowerCase()) && (
+                                 " يمكنك إضافتها عند الحفظ."
+                            )}
                           </CommandEmpty>
                           <CommandGroup>
                             {filteredParties.map((p) => (
@@ -370,7 +565,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 className="text-primary"
                               >
                                 <Check className={cn("mr-2 h-4 w-4 opacity-0")} />
-                                إنشاء جهة جديدة: "{partySearchTerm}"
+                                إضافة جهة جديدة: "{partySearchTerm}"
                               </CommandItem>
                             )}
                           </CommandGroup>
