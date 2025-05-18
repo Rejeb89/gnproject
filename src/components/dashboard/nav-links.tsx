@@ -16,7 +16,7 @@ const links = [
   { name: 'تسجيل استلام', href: '/dashboard/receive', icon: PlusCircle },
   { name: 'تسجيل تسليم', href: '/dashboard/dispatch', icon: ArrowRightLeft },
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
-  { name: 'الجهات المستلمة', href: '/dashboard/parties', icon: Building }, // New link
+  { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building }, // Updated link text
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
