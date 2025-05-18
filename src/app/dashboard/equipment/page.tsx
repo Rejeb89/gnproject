@@ -1,10 +1,11 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -14,13 +15,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft } from "lucide-react";
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft, Filter } from "lucide-react";
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -47,16 +55,33 @@ export default function EquipmentManagementPage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const { toast } = useToast();
 
+  const [nameFilter, setNameFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = () => {
-    setDefinitions(getEquipmentDefinitions());
+    const currentDefinitions = getEquipmentDefinitions();
+    setDefinitions(currentDefinitions);
     const transactions = getTransactions();
     setAllTransactions(transactions);
     setCurrentStock(calculateStock(transactions));
   };
+
+  const uniqueCategories = useMemo(() => {
+    const categoriesSet = new Set(definitions.map(def => def.defaultCategory).filter(Boolean) as string[]);
+    return Array.from(categoriesSet).sort();
+  }, [definitions]);
+
+  const filteredDefinitions = useMemo(() => {
+    return definitions.filter(def => {
+      const nameMatch = nameFilter === "" || def.name.toLowerCase().includes(nameFilter.toLowerCase());
+      const categoryMatch = categoryFilter === "" || (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase();
+      return nameMatch && categoryMatch;
+    });
+  }, [definitions, nameFilter, categoryFilter]);
 
   const handleOpenAddDialog = () => {
     setEditingDefinition(null);
@@ -156,6 +181,41 @@ export default function EquipmentManagementPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-muted-foreground" />
+              مرشحات البحث
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
+            <Input
+              placeholder="البحث باسم نوع التجهيز..."
+              value={nameFilter}
+              onChange={(e) => setNameFilter(e.target.value)}
+              className="h-10"
+            />
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) => setCategoryFilter(value === "all" ? "" : value)}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="تصفية حسب الصنف الافتراضي" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الأصناف الافتراضية</SelectItem>
+                {uniqueCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+                <SelectItem value="">(بدون صنف افتراضي)</SelectItem> 
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
               <Package className="h-6 w-6" />
               قائمة أنواع التجهيزات المعرفة
             </CardTitle>
@@ -164,7 +224,7 @@ export default function EquipmentManagementPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {definitions.length > 0 ? (
+            {filteredDefinitions.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -178,7 +238,7 @@ export default function EquipmentManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {definitions.map((def) => {
+                  {filteredDefinitions.map((def) => {
                     const currentQuantity = getQuantityForDefinition(def.name);
                     const hasBeenReceived = allTransactions.some(tx => tx.equipmentName === def.name && tx.type === 'receive');
                     return (
@@ -220,14 +280,18 @@ export default function EquipmentManagementPage() {
             ) : (
               <div className="text-center py-10 text-muted-foreground">
                 <PackageSearch className="mx-auto h-12 w-12 mb-4" />
-                <p className="text-lg">لم يتم تعريف أي أنواع تجهيزات بعد.</p>
-                <p>ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك.</p>
+                <p className="text-lg">
+                  {nameFilter || categoryFilter ? "لا توجد أنواع تجهيزات تطابق المرشحات الحالية." : "لم يتم تعريف أي أنواع تجهيزات بعد."}
+                </p>
+                <p>
+                  {nameFilter || categoryFilter ? "حاول تعديل المرشحات أو إزالتها." : "ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك."}
+                </p>
               </div>
             )}
           </CardContent>
-          {definitions.length > 0 && (
+          {filteredDefinitions.length > 0 && (
             <CardFooter className="text-sm text-muted-foreground">
-              يتم عرض {definitions.length} {definitions.length === 1 ? 'نوع تجهيز معرف' : definitions.length === 2 ? 'نوعي تجهيز معرفين' : definitions.length <=10 ? 'أنواع تجهيزات معرفة' : 'نوع تجهيز معرف'}.
+              يتم عرض {filteredDefinitions.length} {filteredDefinitions.length === 1 ? 'نوع تجهيز معرف' : filteredDefinitions.length === 2 ? 'نوعي تجهيز معرفين' : filteredDefinitions.length <=10 ? 'أنواع تجهيزات معرفة' : 'نوع تجهيز معرف'}.
             </CardFooter>
           )}
         </Card>
@@ -272,6 +336,8 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+    
+
     
 
     
