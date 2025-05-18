@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link'; // Added Link
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn } from "lucide-react"; // Added LogIn, kept PlusCircle for Add Definition
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft } from "lucide-react"; // Added ArrowRightLeft
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -136,8 +136,14 @@ export default function EquipmentManagementPage() {
           <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
             <Button asChild variant="outline">
               <Link href="/dashboard/receive">
-                <LogIn className="ml-2 h-5 w-5" /> {/* Using LogIn for receive */}
+                <LogIn className="ml-2 h-5 w-5" />
                 تسجيل استلام جديد
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/dispatch">
+                <ArrowRightLeft className="ml-2 h-5 w-5" />
+                تسليم تجهيزات جديدة
               </Link>
             </Button>
             <Button onClick={handleOpenAddDialog}>
