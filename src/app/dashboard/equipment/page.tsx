@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils"; // Added import for cn
 
 export default function EquipmentManagementPage() {
   const [definitions, setDefinitions] = useState<EquipmentDefinition[]>([]);
