@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { exportTransactionsToExcel } from '@/lib/excel';
 import { useToast } from '@/hooks/use-toast';
@@ -55,15 +57,18 @@ export default function PartyDetailPage() {
     }
   }, [partyId]);
 
-  const handleExportPartyReceivedTransactions = (periodType: 'month' | 'year') => {
+  const exportPartyTransactions = (
+    periodType: 'month' | 'year',
+    transactionType: 'receive' | 'dispatch'
+  ) => {
     if (!party) return;
 
-    const receivedTransactions = partyTransactions.filter(tx => tx.type === 'receive');
+    const transactionsToFilter = partyTransactions.filter(tx => tx.type === transactionType);
 
-    if (receivedTransactions.length === 0) {
+    if (transactionsToFilter.length === 0) {
       toast({
         title: "لا توجد بيانات للتصدير",
-        description: `لا توجد معاملات استلام مسجلة من ${party.name} لهذه الفترة.`,
+        description: `لا توجد معاملات ${transactionType === 'receive' ? 'استلام' : 'تسليم'} مسجلة ${transactionType === 'receive' ? 'من' : 'إلى'} ${party.name}.`,
         variant: "destructive",
       });
       return;
@@ -72,6 +77,8 @@ export default function PartyDetailPage() {
     const now = new Date();
     let fromDate: Date, toDate: Date;
     let reportPeriodName: string;
+    let reportTypeName: string = transactionType === 'receive' ? 'استلام' : 'تسليم';
+
 
     if (periodType === 'month') {
       fromDate = startOfMonth(now);
@@ -85,7 +92,7 @@ export default function PartyDetailPage() {
     fromDate.setHours(0,0,0,0);
     toDate.setHours(23,59,59,999);
 
-    const filteredForPeriod = receivedTransactions.filter(tx => {
+    const filteredForPeriod = transactionsToFilter.filter(tx => {
       const txDate = new Date(tx.date);
       return txDate >= fromDate && txDate <= toDate;
     });
@@ -93,17 +100,17 @@ export default function PartyDetailPage() {
     if (filteredForPeriod.length === 0) {
       toast({
         title: "لا توجد بيانات للتصدير",
-        description: `لا توجد معاملات استلام مسجلة من ${party.name} خلال ${reportPeriodName}.`,
+        description: `لا توجد معاملات ${reportTypeName} مسجلة ${transactionType === 'receive' ? 'من' : 'إلى'} ${party.name} خلال ${reportPeriodName.replace('_', ' ')}.`,
         variant: "destructive",
       });
       return;
     }
 
-    const reportTitle = `تقرير_استلام_${periodType === 'month' ? 'شهري' : 'سنوي'}_${party.name.replace(/\s+/g, '_')}_${reportPeriodName.replace(/[ ()]/g, '_')}`;
-    exportTransactionsToExcel(filteredForPeriod, reportTitle);
+    const exportTitle = `تقرير_${reportTypeName}_${periodType === 'month' ? 'شهري' : 'سنوي'}_${transactionType === 'receive' ? 'من' : 'الى'}_${party.name.replace(/\s+/g, '_')}_${reportPeriodName.replace(/[ ()]/g, '_')}`;
+    exportTransactionsToExcel(filteredForPeriod, exportTitle);
     toast({
       title: "تم التصدير بنجاح",
-      description: `تم تصدير تقرير استلام ${party.name} لـ ${reportPeriodName} إلى ملف Excel.`,
+      description: `تم تصدير تقرير ${reportTypeName} ${transactionType === 'receive' ? 'من' : 'إلى'} ${party.name} لـ ${reportPeriodName.replace('_', ' ')} إلى ملف Excel.`,
     });
   };
 
@@ -161,17 +168,28 @@ export default function PartyDetailPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <FileDown className="ml-2 h-4 w-4" />
-                تصدير تقارير الاستلام
+                تصدير المعاملات
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExportPartyReceivedTransactions('month')}>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>تقارير الاستلام من {party.name}</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportPartyTransactions('month', 'receive')}>
                 <FileDown className="ml-2 h-4 w-4" />
                 تقرير استلام شهري (الحالي)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportPartyReceivedTransactions('year')}>
+              <DropdownMenuItem onClick={() => exportPartyTransactions('year', 'receive')}>
                 <FileDown className="ml-2 h-4 w-4" />
                 تقرير استلام سنوي (الحالي)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>تقارير التسليم إلى {party.name}</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => exportPartyTransactions('month', 'dispatch')}>
+                <FileDown className="ml-2 h-4 w-4" />
+                تقرير تسليم شهري (الحالي)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportPartyTransactions('year', 'dispatch')}>
+                <FileDown className="ml-2 h-4 w-4" />
+                تقرير تسليم سنوي (الحالي)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -198,9 +216,11 @@ export default function PartyDetailPage() {
                         <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'}
                                className={cn(
                                   'font-semibold px-2.5 py-1 text-xs', 
+                                  // إذا كان tx.party هو الجهة الحالية، و tx.type هو 'receive'، فهذا يعني أن الجهة الحالية هي المرسل
+                                  // إذا كان tx.party هو الجهة الحالية، و tx.type هو 'dispatch'، فهذا يعني أن الجهة الحالية هي المستلم
                                   tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
                                )}>
-                          {tx.type === 'receive' ? 'استلام منها' : 'تسليم لها'}
+                          {tx.type === 'receive' ? `استلام من ${tx.party}` : `تسليم إلى ${tx.party}`}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{tx.equipmentName}</TableCell>
@@ -222,4 +242,3 @@ export default function PartyDetailPage() {
     </div>
   );
 }
-
