@@ -63,7 +63,7 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   const yearlyTypedTransactions = transactions.filter(tx => {
     try {
       const txYear = new Date(tx.date).getFullYear();
-      return tx.receiptNumber && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
+      return tx.receiptNumber && tx.receiptNumber.includes(`-${type.charAt(0).toUpperCase()}-`) && tx.receiptNumber.endsWith(`-${currentYear}`) && tx.type === type;
     } catch (e) {
       console.error("Error processing transaction for receipt number generation:", tx, e);
       return false;
@@ -73,21 +73,9 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   let maxSeq = 0;
   yearlyTypedTransactions.forEach(tx => {
     if (tx.receiptNumber) {
-      const parts = tx.receiptNumber.split('-');
-      if (parts.length === 2) { 
-        const seqPart = parts[0];
-        const seq = parseInt(seqPart, 10);
-        if (!isNaN(seq) && seq > maxSeq) {
-          maxSeq = seq;
-        }
-      } else if (parts.length === 3 && type === 'dispatch') { 
-         const seqPart = parts[1];
-         const seq = parseInt(seqPart, 10);
-        if (!isNaN(seq) && seq > maxSeq) {
-          maxSeq = seq;
-        }
-      } else if (parts.length === 3 && type === 'receive') { 
-         const seqPart = parts[1];
+      const parts = tx.receiptNumber.split('-'); // e.g., "001-R-2024" or "001-D-2024"
+      if (parts.length === 3) { 
+         const seqPart = parts[0]; // Should be "001"
          const seq = parseInt(seqPart, 10);
         if (!isNaN(seq) && seq > maxSeq) {
           maxSeq = seq;
@@ -97,7 +85,7 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   });
 
   const nextSeq = maxSeq + 1;
-  return `${String(nextSeq).padStart(3, '0')}-${type === 'receive' ? 'R' : 'D'}-${currentYear}`;
+  return `${String(nextSeq).padStart(3, '0')}-${type.charAt(0).toUpperCase()}-${currentYear}`;
 }
 
 export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }: EquipmentFormProps) {
@@ -202,10 +190,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       if (uniqueCategoriesForDispatch.length === 1) {
         const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
         form.setValue("category", singleCategory, {shouldValidate: true});
-        // setCategorySearchTerm(singleCategory); // This was for Combobox, revert to input
+        // setCategorySearchTerm(singleCategory); 
       } else {
         form.setValue("category", ""); 
-        // setCategorySearchTerm(""); // This was for Combobox, revert to input
+        // setCategorySearchTerm(""); 
       }
     } else if (type === 'receive') {
       const categories = Array.from(new Set(allEquipmentDefinitions.map(def => def.defaultCategory).filter(Boolean) as string[]));
@@ -257,7 +245,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         const updatedDefinitionData: Partial<EquipmentDefinition> = {};
 
         if (formCategory !== undefined && formCategory !== (existingDefinition.defaultCategory || undefined)) {
-            // Only update if category in form is not empty and different from definition or definition category is empty
             if(formCategory !== "" || existingDefinition.defaultCategory !== undefined) {
                 updatedDefinitionData.defaultCategory = formCategory === "" ? undefined : formCategory;
                 definitionNeedsUpdate = true;
@@ -323,7 +310,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     ? parties.filter(p => p.name.toLowerCase().includes(partySearchTerm.toLowerCase()))
     : parties;
 
-  const uniqueEquipmentNamesForDispatch = Array.from(new Set(availableEquipmentForDispatch.map(item => item.name)));
+  const uniqueEquipmentNamesForDispatch = Array.from(new Set(availableEquipmentForDispatch.map(item => item.name))).sort();
   const filteredEquipmentNamesForDispatch = equipmentNameSearchTerm
     ? uniqueEquipmentNamesForDispatch.filter(name => name.toLowerCase().includes(equipmentNameSearchTerm.toLowerCase()))
     : uniqueEquipmentNamesForDispatch;
@@ -335,7 +322,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
   const filteredEmployees = withdrawalOfficerSearchTerm
     ? employeesOfSelectedParty.filter(emp => 
-        `${emp.rank} ${emp.firstName} ${emp.lastName}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
+        `${emp.rank} ${emp.firstName} ${emp.lastName} ${emp.employeeNumber}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
       )
     : employeesOfSelectedParty;
 
@@ -418,13 +405,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   form.setValue("equipmentName", name, { shouldValidate: true });
                                   if (type === 'dispatch') {
                                       form.setValue("category", ""); 
-                                      // setCategorySearchTerm(""); // Reverted to input
                                       const itemsWithSelectedName = availableEquipmentForDispatch.filter(item => item.name === name && item.quantity > 0);
                                       const uniqueCategoriesForDispatch = Array.from(new Set(itemsWithSelectedName.map(item => item.category || "(بدون صنف)"))).sort();
+                                      setCategoriesForSelectedEquipmentName(uniqueCategoriesForDispatch);
                                       if (uniqueCategoriesForDispatch.length === 1) {
                                         const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
                                         form.setValue("category", singleCategory, { shouldValidate: true });
-                                        // setCategorySearchTerm(singleCategory); // Reverted
                                       }
                                   }
                                   setEquipmentNamePopoverOpen(false);
@@ -562,19 +548,20 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       </PopoverContent>
                     </Popover>
                   ) : ( 
-                    // Dispatch mode - simple input for category
-                     <FormControl>
-                        <Input 
-                            placeholder="أدخل صنف التجهيز (إن وجد)" 
-                            {...field} 
-                            value={field.value ?? ''}
-                            disabled={!equipmentNameValue} // Disable if no equipment name is selected
-                        />
+                    // Dispatch mode - input for category, possibly auto-filled
+                    <FormControl>
+                      <Input
+                        placeholder="أدخل صنف التجهيز (إن وجد)"
+                        {...field}
+                        value={field.value ?? ''}
+                        disabled={!equipmentNameValue || (categoriesForSelectedEquipmentName.length === 1 && categoriesForSelectedEquipmentName[0] !== '(بدون صنف)')}
+                        list="dispatch-categories"
+                      />
                     </FormControl>
                   )}
                   <FormDescription>
                     {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." 
-                                       : "أدخل صنف التجهيز إذا كان مطلوبًا. إذا كان للتجهيز صنف واحد متوفر، سيتم ملؤه تلقائيًا."}
+                                       : "أدخل صنف التجهيز. إذا كان للتجهيز صنف واحد متوفر، سيتم ملؤه تلقائيًا."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -782,12 +769,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 {filteredEmployees.map((emp) => (
                                   <CommandItem
                                     key={emp.id}
-                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName}`}
+                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`}
                                     onSelect={() => {
                                       form.setValue("withdrawalOfficerName", `${emp.firstName} ${emp.lastName}`, { shouldValidate: true });
                                       form.setValue("withdrawalOfficerRank", emp.rank, { shouldValidate: true });
                                       setWithdrawalOfficerPopoverOpen(false);
-                                      setWithdrawalOfficerSearchTerm(`${emp.rank} ${emp.firstName} ${emp.lastName}`);
+                                      setWithdrawalOfficerSearchTerm(`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`);
                                     }}
                                   >
                                     <Check
@@ -798,7 +785,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                           : "opacity-0"
                                       )}
                                     />
-                                    {`${emp.rank} ${emp.firstName} ${emp.lastName}`}
+                                    {`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -887,4 +874,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
-
