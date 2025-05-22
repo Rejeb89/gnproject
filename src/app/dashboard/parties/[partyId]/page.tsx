@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight, BuildingIcon } from 'lucide-react'; // ArrowRight for back button
+import { ArrowRight, BuildingIcon, FileDown } from 'lucide-react'; // ArrowRight for back button
 import type { Party, Transaction } from '@/lib/types';
 import { getParties, getTransactions } from '@/lib/store';
 import {
@@ -17,15 +17,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { exportTransactionsToExcel } from '@/lib/excel';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PartyDetailPage() {
   const router = useRouter();
   const params = useParams();
   const partyId = params.partyId as string;
+  const { toast } = useToast();
 
   const [party, setParty] = useState<Party | null>(null);
   const [partyTransactions, setPartyTransactions] = useState<Transaction[]>([]);
@@ -46,7 +55,60 @@ export default function PartyDetailPage() {
     }
   }, [partyId]);
 
-  if (!party && partyId) { // Check if partyId exists to avoid flashing "not found" during initial load
+  const handleExportPartyReceivedTransactions = (periodType: 'month' | 'year') => {
+    if (!party) return;
+
+    const receivedTransactions = partyTransactions.filter(tx => tx.type === 'receive');
+
+    if (receivedTransactions.length === 0) {
+      toast({
+        title: "لا توجد بيانات للتصدير",
+        description: `لا توجد معاملات استلام مسجلة من ${party.name} لهذه الفترة.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const now = new Date();
+    let fromDate: Date, toDate: Date;
+    let reportPeriodName: string;
+
+    if (periodType === 'month') {
+      fromDate = startOfMonth(now);
+      toDate = endOfMonth(now);
+      reportPeriodName = `الشهر_الحالي (${format(now, "MMMM yyyy", { locale: arSA })})`;
+    } else { // year
+      fromDate = startOfYear(now);
+      toDate = endOfYear(now);
+      reportPeriodName = `السنة_الحالية (${format(now, "yyyy", { locale: arSA })})`;
+    }
+    fromDate.setHours(0,0,0,0);
+    toDate.setHours(23,59,59,999);
+
+    const filteredForPeriod = receivedTransactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      return txDate >= fromDate && txDate <= toDate;
+    });
+
+    if (filteredForPeriod.length === 0) {
+      toast({
+        title: "لا توجد بيانات للتصدير",
+        description: `لا توجد معاملات استلام مسجلة من ${party.name} خلال ${reportPeriodName}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reportTitle = `تقرير_استلام_${periodType === 'month' ? 'شهري' : 'سنوي'}_${party.name.replace(/\s+/g, '_')}_${reportPeriodName.replace(/[ ()]/g, '_')}`;
+    exportTransactionsToExcel(filteredForPeriod, reportTitle);
+    toast({
+      title: "تم التصدير بنجاح",
+      description: `تم تصدير تقرير استلام ${party.name} لـ ${reportPeriodName} إلى ملف Excel.`,
+    });
+  };
+
+
+  if (!party && partyId) {
     return (
         <div className="container mx-auto py-8 text-center">
             <Card className="max-w-md mx-auto shadow-lg">
@@ -67,7 +129,7 @@ export default function PartyDetailPage() {
     );
   }
   
-  if (!party) { // Still loading or party truly not found after check
+  if (!party) { 
     return (
         <div className="container mx-auto py-8 text-center">
             <p>جارٍ تحميل بيانات الجهة...</p>
@@ -90,9 +152,29 @@ export default function PartyDetailPage() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>معاملات الجهة</CardTitle>
-          <CardDescription>قائمة بجميع عمليات الاستلام والتسليم المرتبطة بالجهة: {party.name}.</CardDescription>
+        <CardHeader className="flex flex-row justify-between items-center">
+          <div>
+            <CardTitle>معاملات الجهة</CardTitle>
+            <CardDescription>قائمة بجميع عمليات الاستلام والتسليم المرتبطة بالجهة: {party.name}.</CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <FileDown className="ml-2 h-4 w-4" />
+                تصدير تقارير الاستلام
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportPartyReceivedTransactions('month')}>
+                <FileDown className="ml-2 h-4 w-4" />
+                تقرير استلام شهري (الحالي)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportPartyReceivedTransactions('year')}>
+                <FileDown className="ml-2 h-4 w-4" />
+                تقرير استلام سنوي (الحالي)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </CardHeader>
         <CardContent>
           {partyTransactions.length > 0 ? (
@@ -140,3 +222,4 @@ export default function PartyDetailPage() {
     </div>
   );
 }
+
