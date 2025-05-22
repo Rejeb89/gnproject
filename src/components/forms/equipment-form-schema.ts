@@ -13,6 +13,8 @@ export const equipmentFormSchema = z.object({
     .int()
     .min(1, { message: "الحد الأدنى للتنبيه يجب أن يكون 1 أو أكثر." })
     .optional(),
+  withdrawalOfficerName: z.string().optional(),
+  withdrawalOfficerRank: z.string().optional(),
 });
 
 export type EquipmentFormValues = z.infer<typeof equipmentFormSchema>;

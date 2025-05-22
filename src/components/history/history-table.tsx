@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check, CalendarClock, FileDown, Filter } from 'lucide-react';
+import { Download, FileText, Eraser, CalendarIcon, Users, ChevronsUpDown, Check, CalendarClock, FileDown, Filter, UserCheck } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -406,6 +406,8 @@ export function HistoryTable() {
               <TableHead>صنف التجهيز</TableHead>
               <TableHead className="text-center">الكمية</TableHead>
               <TableHead>الجهة</TableHead>
+              <TableHead>رتبة المكلف بالسحب</TableHead>
+              <TableHead>اسم المكلف بالسحب</TableHead>
               <TableHead>التاريخ</TableHead>
               <TableHead>رقم الوصل</TableHead>
               <TableHead>ملاحظات</TableHead>
@@ -428,6 +430,8 @@ export function HistoryTable() {
                 <TableCell>{tx.category || '-'}</TableCell>
                 <TableCell className="text-center">{tx.quantity.toLocaleString()}</TableCell>
                 <TableCell>{tx.party}</TableCell>
+                <TableCell>{tx.type === 'dispatch' ? tx.withdrawalOfficerRank || '-' : '-'}</TableCell>
+                <TableCell>{tx.type === 'dispatch' ? tx.withdrawalOfficerName || '-' : '-'}</TableCell>
                 <TableCell>{format(new Date(tx.date), 'PPpp', { locale: arSA })}</TableCell>
                 <TableCell>{tx.receiptNumber}</TableCell>
                 <TableCell className="max-w-xs truncate" title={tx.notes}>{tx.notes || '-'}</TableCell>
@@ -476,7 +480,3 @@ export function HistoryTable() {
     </div>
   );
 }
-
-
-
-    

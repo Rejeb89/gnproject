@@ -54,28 +54,22 @@ export function generateReceiptPdf(transaction: Transaction): void {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
 
-  // دالة محسنة للكتابة من اليمين لليسار مع الخط المخصص
   const writeRtl = (text: string, y: number, options?: any) => {
-    // تأكد من أن الخط المخصص هو النشط
-    // قد تحتاج إلى إعادة تعيينه إذا تم استخدام خطوط أخرى في مكان ما
     if (ARABIC_FONT_BASE64 && ARABIC_FONT_BASE64.trim() !== '' && !ARABIC_FONT_BASE64.includes("الصق هنا")) {
       doc.setFont(FONT_FAMILY_NAME, 'normal');
     } else {
-      doc.setFont('Helvetica'); // Fallback
+      doc.setFont('Helvetica'); 
     }
     
     const textWidth = doc.getTextWidth(text);
     doc.text(text, pageWidth - margin - textWidth, y, options);
   };
   
-  // يجب أن تكون جميع استدعاءات doc.setFontSize قبل writeRtl إذا كانت تغير حجم الخط
-  // لأن getTextWidth يعتمد على حجم الخط الحالي.
-
   doc.setFontSize(18);
   const title = `وصل ${transaction.type === 'receive' ? 'استــلام' : 'تسليــم'} تجهيزات`;
   writeRtl(title, 20);
 
-  doc.setFontSize(10); // غير حجم الخط قبل قياس النص التالي
+  doc.setFontSize(10); 
   writeRtl(`رقم الوصل: ${transaction.receiptNumber}`, 30);
   const formattedDate = format(new Date(transaction.date), "PPPpp", { locale: arSA });
   writeRtl(`التاريخ: ${formattedDate}`, 38);
@@ -83,7 +77,7 @@ export function generateReceiptPdf(transaction: Transaction): void {
   doc.setLineWidth(0.5);
   doc.line(margin, 45, pageWidth - margin, 45);
 
-  doc.setFontSize(12); // أعد حجم الخط للمحتوى
+  doc.setFontSize(12); 
   let yPos = 55;
 
   const details = [
@@ -97,24 +91,20 @@ export function generateReceiptPdf(transaction: Transaction): void {
     { label: transaction.type === 'receive' ? "الجهة المرسلة:" : "الجهة المستلمة:", value: transaction.party }
   );
 
+  if (transaction.type === 'dispatch') {
+    if (transaction.withdrawalOfficerRank && transaction.withdrawalOfficerName) {
+      details.push({ label: "المكلف بالسحب:", value: `${transaction.withdrawalOfficerRank} ${transaction.withdrawalOfficerName}` });
+    } else if (transaction.withdrawalOfficerName) {
+       details.push({ label: "المكلف بالسحب:", value: transaction.withdrawalOfficerName });
+    }
+  }
 
   if (transaction.notes) {
     details.push({ label: "ملاحظات:", value: transaction.notes });
   }
 
   details.forEach(detail => {
-    // كل النصوص يجب أن تُكتب بالخط العربي
-    const labelText = `${detail.label}`;
-    const valueText = `${detail.value}`;
-    const fullText = `${labelText} ${valueText}`; // قد تحتاج إلى تعديل الترتيب هنا إذا لزم الأمر للغة العربية
-    
-    // لضمان محاذاة صحيحة:
-    // 1. اطبع الـ label (يمين)
-    // 2. اطبع الـ value (يسار الـ label)
-    // هذا الجزء يحتاج تعديل ليكون أكثر دقة للمحاذاة.
-    // الطريقة الأبسط هي دمج النص كما هو في fullText والاعتماد على writeRtl.
-    
-    // طريقة أبسط حالياً:
+    const fullText = `${detail.label} ${detail.value}`; 
     writeRtl(fullText, yPos);
     yPos += 8;
   });
@@ -123,12 +113,12 @@ export function generateReceiptPdf(transaction: Transaction): void {
   doc.line(margin, yPos, pageWidth - margin, yPos);
   yPos += 15;
 
-  doc.setFontSize(11); // غير حجم الخط للتواقيع
+  doc.setFontSize(11); 
   const signatureParty1 = transaction.type === 'receive' ? "توقيع المستلم (المخزن):" : "توقيع المسلّم (المخزن):";
   const signatureParty2 = transaction.type === 'receive' ? "توقيع المسلّم (الجهة):" : "توقيع المستلم (الجهة):";
 
   writeRtl(signatureParty1, yPos);
-  yPos += 20; // مسافة أقل قليلاً
+  yPos += 20; 
   writeRtl("____________________", yPos);
   yPos += 10;
 
@@ -139,8 +129,7 @@ export function generateReceiptPdf(transaction: Transaction): void {
 
 
   const footerText = "قسم التجهيز بمنطقة الحرس الوطني بالمتلوي - نظام إدارة المستودعات";
-  doc.setFontSize(8); // غير حجم الخط للتذييل
-  // بما أن التذييل قد يكون ثابتًا، يمكننا وضعه في الهامش الأيسر كالمعتاد أو توسيطه
+  doc.setFontSize(8); 
   const footerWidth = doc.getTextWidth(footerText);
   doc.text(footerText, (pageWidth - footerWidth) / 2, doc.internal.pageSize.getHeight() - 10);
 

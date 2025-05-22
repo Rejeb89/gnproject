@@ -10,9 +10,11 @@ interface ExcelTransactionRow {
   "المعرف": string;
   "نوع العملية": string;
   "اسم التجهيز": string;
-  "صنف التجهيز"?: string; // Added category
+  "صنف التجهيز"?: string; 
   "الكمية": number;
   "الجهة": string;
+  "رتبة المكلف بالسحب"?: string;
+  "اسم المكلف بالسحب"?: string;
   "التاريخ": string;
   "رقم الوصل": string;
   "ملاحظات"?: string;
@@ -28,6 +30,8 @@ export function exportTransactionsToExcel(transactions: Transaction[], reportTit
     "صنف التجهيز": tx.category || '', 
     "الكمية": tx.quantity,
     "الجهة": tx.party,
+    "رتبة المكلف بالسحب": tx.type === 'dispatch' ? tx.withdrawalOfficerRank || '' : '',
+    "اسم المكلف بالسحب": tx.type === 'dispatch' ? tx.withdrawalOfficerName || '' : '',
     "التاريخ": format(new Date(tx.date), "yyyy/MM/dd HH:mm", { locale: arSA }),
     "رقم الوصل": tx.receiptNumber,
     "ملاحظات": tx.notes || '',
@@ -43,6 +47,8 @@ export function exportTransactionsToExcel(transactions: Transaction[], reportTit
     { wch: 20 }, // Category
     { wch: 10 }, // Quantity
     { wch: 30 }, // Party
+    { wch: 20 }, // Officer Rank
+    { wch: 30 }, // Officer Name
     { wch: 20 }, // Date
     { wch: 20 }, // Receipt Number
     { wch: 40 }, // Notes
@@ -58,4 +64,3 @@ export function exportTransactionsToExcel(transactions: Transaction[], reportTit
   const finalReportTitleForFileName = reportTitle ? reportTitle.replace(/\s+/g, '_') : 'التقارير';
   XLSX.writeFile(workbook, `EquipSupplyMetlaoui_${finalReportTitleForFileName}_${today}.xlsx`);
 }
-

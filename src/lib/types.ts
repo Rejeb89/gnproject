@@ -9,6 +9,8 @@ export interface Transaction {
   date: string; // ISO date string
   receiptNumber: string;
   notes?: string;
+  withdrawalOfficerName?: string; // Name of the person who withdrew the equipment
+  withdrawalOfficerRank?: string; // Rank of the person who withdrew the equipment
 }
 
 export interface Equipment {

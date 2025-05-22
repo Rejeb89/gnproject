@@ -16,13 +16,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package, PlusCircle, ArrowRightLeft } from "lucide-react";
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package, UserCheck } from "lucide-react";
+import { PlusCircle, ArrowRightLeft } from 'lucide-react'; // Added missing imports
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import type { Transaction, Party, EquipmentDefinition, Equipment } from "@/lib/types";
+import type { Transaction, Party, EquipmentDefinition, Equipment, PartyEmployee } from "@/lib/types";
 import {
   addTransaction,
   getTransactions,
@@ -34,6 +35,7 @@ import {
   addEquipmentDefinition,
   updateEquipmentDefinition,
   calculateStock,
+  getPartyEmployees,
 } from "@/lib/store";
 import { equipmentFormSchema, type EquipmentFormValues } from "./equipment-form-schema";
 import { useRouter } from "next/navigation";
@@ -73,19 +75,19 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   yearlyTypedTransactions.forEach(tx => {
     if (tx.receiptNumber) {
       const parts = tx.receiptNumber.split('-');
-      if (parts.length === 2) { // e.g., 001-2024
+      if (parts.length === 2) { 
         const seqPart = parts[0];
         const seq = parseInt(seqPart, 10);
         if (!isNaN(seq) && seq > maxSeq) {
           maxSeq = seq;
         }
-      } else if (parts.length === 3 && type === 'dispatch') { // e.g., D-001-2024 (older format possibly)
+      } else if (parts.length === 3 && type === 'dispatch') { 
          const seqPart = parts[1];
          const seq = parseInt(seqPart, 10);
         if (!isNaN(seq) && seq > maxSeq) {
           maxSeq = seq;
         }
-      } else if (parts.length === 3 && type === 'receive') { // e.g., R-001-2024 (older format possibly)
+      } else if (parts.length === 3 && type === 'receive') { 
          const seqPart = parts[1];
          const seq = parseInt(seqPart, 10);
         if (!isNaN(seq) && seq > maxSeq) {
@@ -111,11 +113,14 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const [equipmentNameSearchTerm, setEquipmentNameSearchTerm] = useState("");
   const [availableEquipmentForDispatch, setAvailableEquipmentForDispatch] = useState<Equipment[]>([]);
 
-  // State for category combobox
   const [categoryPopoverOpen, setCategoryPopoverOpen] = useState(false);
   const [categorySearchTerm, setCategorySearchTerm] = useState("");
   const [uniqueExistingCategories, setUniqueExistingCategories] = useState<string[]>([]);
   const [categoriesForSelectedEquipmentName, setCategoriesForSelectedEquipmentName] = useState<string[]>([]);
+
+  const [withdrawalOfficerPopoverOpen, setWithdrawalOfficerPopoverOpen] = useState(false);
+  const [withdrawalOfficerSearchTerm, setWithdrawalOfficerSearchTerm] = useState("");
+  const [employeesOfSelectedParty, setEmployeesOfSelectedParty] = useState<PartyEmployee[]>([]);
 
 
   useEffect(() => {
@@ -142,11 +147,14 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       date: new Date(),
       notes: "",
       lowStockThreshold: undefined,
+      withdrawalOfficerName: undefined,
+      withdrawalOfficerRank: undefined,
     },
   });
 
   const equipmentNameValue = form.watch("equipmentName");
   const categoryValue = form.watch("category");
+  const partyValue = form.watch("party");
 
   const selectedEquipmentForDispatch = useMemo(() => {
     if (type !== 'dispatch' || !equipmentNameValue) return undefined;
@@ -187,25 +195,41 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       const itemsWithSelectedName = availableEquipmentForDispatch.filter(
         item => item.name === equipmentNameValue && item.quantity > 0
       );
-      const uniqueCategories = Array.from(
+      const uniqueCategoriesForDispatch = Array.from(
         new Set(itemsWithSelectedName.map(item => item.category || "(بدون صنف)"))
       ).sort();
-      setCategoriesForSelectedEquipmentName(uniqueCategories);
+      setCategoriesForSelectedEquipmentName(uniqueCategoriesForDispatch);
 
-      if (uniqueCategories.length === 1) {
-        const singleCategory = uniqueCategories[0] === "(بدون صنف)" ? "" : uniqueCategories[0];
-        form.setValue("category", singleCategory);
+      if (uniqueCategoriesForDispatch.length === 1) {
+        const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
+        form.setValue("category", singleCategory, {shouldValidate: true});
         setCategorySearchTerm(singleCategory);
       } else {
-        form.setValue("category", ""); // Reset category if multiple or none
+        form.setValue("category", ""); 
         setCategorySearchTerm("");
       }
     } else if (type === 'receive') {
-      // For receive, all existing default categories are available initially
       const categories = Array.from(new Set(allEquipmentDefinitions.map(def => def.defaultCategory).filter(Boolean) as string[]));
       setUniqueExistingCategories(categories.sort());
     }
   }, [equipmentNameValue, type, availableEquipmentForDispatch, form, allEquipmentDefinitions]);
+
+  useEffect(() => {
+    if (type === 'dispatch' && partyValue) {
+      const selectedPartyObject = parties.find(p => p.name === partyValue);
+      if (selectedPartyObject) {
+        const employees = getPartyEmployees(selectedPartyObject.id);
+        setEmployeesOfSelectedParty(employees);
+      } else {
+        setEmployeesOfSelectedParty([]); 
+      }
+      form.setValue("withdrawalOfficerName", undefined);
+      form.setValue("withdrawalOfficerRank", undefined);
+      setWithdrawalOfficerSearchTerm("");
+    } else {
+      setEmployeesOfSelectedParty([]);
+    }
+  }, [partyValue, type, parties, form]);
 
 
   function onSubmit(values: EquipmentFormValues) {
@@ -264,6 +288,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       date: values.date.toISOString(),
       receiptNumber: generatedReceiptNumber,
       notes: values.notes,
+      withdrawalOfficerName: values.withdrawalOfficerName,
+      withdrawalOfficerRank: values.withdrawalOfficerRank,
     };
 
     addTransaction(newTransaction);
@@ -286,6 +312,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     setPartySearchTerm("");
     setEquipmentNameSearchTerm("");
     setCategorySearchTerm(""); 
+    setWithdrawalOfficerSearchTerm("");
+    setEmployeesOfSelectedParty([]);
     router.push('/dashboard/reports');
   }
 
@@ -302,6 +330,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
   const filteredDefinedEquipmentNames = equipmentNameSearchTerm
     ? allDefinedEquipmentNames.filter(name => name.toLowerCase().includes(equipmentNameSearchTerm.toLowerCase()))
     : allDefinedEquipmentNames;
+
+  const filteredEmployees = withdrawalOfficerSearchTerm
+    ? employeesOfSelectedParty.filter(emp => 
+        `${emp.rank} ${emp.firstName} ${emp.lastName} ${emp.employeeNumber}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
+      )
+    : employeesOfSelectedParty;
 
   return (
     <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -383,6 +417,14 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   if (type === 'dispatch') {
                                       form.setValue("category", ""); 
                                       setCategorySearchTerm(""); 
+                                      // Check for single category auto-selection logic
+                                      const itemsWithSelectedName = availableEquipmentForDispatch.filter(item => item.name === name && item.quantity > 0);
+                                      const uniqueCategoriesForDispatch = Array.from(new Set(itemsWithSelectedName.map(item => item.category || "(بدون صنف)"))).sort();
+                                      if (uniqueCategoriesForDispatch.length === 1) {
+                                        const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
+                                        form.setValue("category", singleCategory, { shouldValidate: true });
+                                        setCategorySearchTerm(singleCategory);
+                                      }
                                   }
                                   setEquipmentNamePopoverOpen(false);
                                   setEquipmentNameSearchTerm(name); 
@@ -471,7 +513,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           />
                           <CommandList>
                             <CommandEmpty>
-                              {categorySearchTerm ? `لم يتم العثور على صنف "${categorySearchTerm}".` : "لا توجد أصناف معرفة مسبقًا."}
+                              {categorySearchTerm ? `لم يتم العثور على صنف باسم "${categorySearchTerm}".` : "لا توجد أصناف معرفة مسبقًا."}
                               {categorySearchTerm && !uniqueExistingCategories.some(cat => cat.toLowerCase() === categorySearchTerm.toLowerCase()) && (
                                 " يمكنك إضافته كـ \"إضافة صنف جديد\"."
                               )}
@@ -518,7 +560,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         </Command>
                       </PopoverContent>
                     </Popover>
-                  ) : ( // type === 'dispatch'
+                  ) : ( 
                     <Popover 
                         open={categoryPopoverOpen && !!equipmentNameValue && categoriesForSelectedEquipmentName.length > 0} 
                         onOpenChange={(isOpen) => {
@@ -595,7 +637,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                     </Popover>
                   )}
                   <FormDescription>
-                    {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "أدخل صنف التجهيز، أو سيتم تحديده تلقائيًا إذا كان للتجهيز المختار صنف واحد متوفر."}
+                    {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "اختر صنف التجهيز من القائمة بناءً على التجهيز المختار."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -758,6 +800,86 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 </FormItem>
               )}
             />
+
+            {type === 'dispatch' && partyValue && (
+              <FormField
+                control={form.control}
+                name="withdrawalOfficerName" 
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="flex items-center">
+                      <UserCheck className="ml-1 h-4 w-4 text-muted-foreground" />
+                      المكلف بالسحب
+                    </FormLabel>
+                    <Popover open={withdrawalOfficerPopoverOpen} onOpenChange={setWithdrawalOfficerPopoverOpen} >
+                      <PopoverTrigger asChild disabled={employeesOfSelectedParty.length === 0}>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={withdrawalOfficerPopoverOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground",
+                              employeesOfSelectedParty.length === 0 && "cursor-not-allowed opacity-50"
+                            )}
+                          >
+                            {field.value
+                              ? `${form.getValues("withdrawalOfficerRank") || ''} ${field.value}`.trim()
+                              : (employeesOfSelectedParty.length > 0 ? "اختر المكلف بالسحب..." : "(لا يوجد موظفون لهذه الجهة)")}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      {employeesOfSelectedParty.length > 0 && (
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="ابحث عن موظف..."
+                              value={withdrawalOfficerSearchTerm}
+                              onValueChange={setWithdrawalOfficerSearchTerm}
+                            />
+                            <CommandList>
+                              <CommandEmpty>لم يتم العثور على موظف.</CommandEmpty>
+                              <CommandGroup>
+                                {filteredEmployees.map((emp) => (
+                                  <CommandItem
+                                    key={emp.id}
+                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName} (${emp.employeeNumber})`}
+                                    onSelect={() => {
+                                      form.setValue("withdrawalOfficerName", `${emp.firstName} ${emp.lastName}`, { shouldValidate: true });
+                                      form.setValue("withdrawalOfficerRank", emp.rank, { shouldValidate: true });
+                                      setWithdrawalOfficerPopoverOpen(false);
+                                      setWithdrawalOfficerSearchTerm(`${emp.rank} ${emp.firstName} ${emp.lastName}`);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        `${emp.firstName} ${emp.lastName}` === field.value && emp.rank === form.getValues("withdrawalOfficerRank")
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {`${emp.rank} ${emp.firstName} ${emp.lastName} (${emp.employeeNumber})`}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      )}
+                    </Popover>
+                    <FormDescription>
+                      اختر الموظف المكلف باستلام التجهيزات من الجهة المستلمة.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+
             <FormField
               control={form.control}
               name="date"
@@ -828,5 +950,3 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
-
-    
