@@ -201,11 +201,13 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       if (uniqueCategoriesForDispatch.length === 1) {
         const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
         form.setValue("category", singleCategory, {shouldValidate: true});
+        setCategorySearchTerm(singleCategory); // Also update the search term
       } else {
         form.setValue("category", ""); 
+        setCategorySearchTerm(""); // Reset category search term
       }
     } else if (type === 'receive') {
-      // Logic handled in the equipmentNameValue useEffect
+      // Logic for receive type is handled in the equipmentNameValue useEffect
     }
   }, [equipmentNameValue, type, availableEquipmentForDispatch, form]);
 
@@ -253,7 +255,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         const updatedDefinitionData: Partial<EquipmentDefinition> = {};
 
         if (formCategory !== undefined && formCategory !== (existingDefinition.defaultCategory || undefined)) {
-            // Allow clearing category if it was previously set
              if(formCategory !== "" || existingDefinition.defaultCategory !== undefined) {
                 updatedDefinitionData.defaultCategory = formCategory === "" ? undefined : formCategory;
                 definitionNeedsUpdate = true;
@@ -270,8 +271,6 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                 ...updatedDefinitionData,
             });
         }
-        // Always set/update the specific equipment threshold if provided,
-        // even if it matches the default, to ensure it's stored per equipment name.
         if (formThreshold !== undefined) { 
             setEquipmentThreshold(values.equipmentName, formThreshold);
         }
@@ -313,9 +312,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     setEquipmentNameSearchTerm("");
     setCategorySearchTerm(""); 
     setWithdrawalOfficerSearchTerm("");
-    setEmployeesOfSelectedParty([]); // Reset employees list
-    // No router.push here to allow multiple entries if needed
-    // router.push('/dashboard/reports');
+    setEmployeesOfSelectedParty([]); 
   }
 
   const filteredParties = partySearchTerm
@@ -344,7 +341,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
   const filteredEmployees = withdrawalOfficerSearchTerm
     ? employeesOfSelectedParty.filter(emp => 
-        `${emp.rank} ${emp.firstName} ${emp.lastName} ${emp.employeeNumber}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
+        `${emp.rank} ${emp.firstName} ${emp.lastName} رقم ${emp.employeeNumber}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
       )
     : employeesOfSelectedParty;
 
@@ -406,7 +403,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           value={equipmentNameSearchTerm}
                           onValueChange={(search) => {
                             setEquipmentNameSearchTerm(search);
-                            if (type === 'receive') { // Allow typing new equipment name for receive
+                            // Allow typing new equipment name for receive directly into form value
+                            if (type === 'receive') { 
                                 form.setValue("equipmentName", search, { shouldValidate: true });
                             }
                           }}
@@ -425,11 +423,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 value={name}
                                 onSelect={() => {
                                   form.setValue("equipmentName", name, { shouldValidate: true });
-                                  setEquipmentNameSearchTerm(name); // Set search term to selected name
+                                  setEquipmentNameSearchTerm(name); 
 
                                   if (type === 'dispatch') {
-                                      form.setValue("category", ""); // Reset category for dispatch
-                                      setCategorySearchTerm(""); // Reset category search term
+                                      form.setValue("category", ""); 
+                                      setCategorySearchTerm(""); 
                                       const itemsWithSelectedName = availableEquipmentForDispatch.filter(item => item.name === name && item.quantity > 0);
                                       const uniqueCategoriesForDispatch = Array.from(new Set(itemsWithSelectedName.map(item => item.category || "(بدون صنف)"))).sort();
                                       setCategoriesForSelectedEquipmentName(uniqueCategoriesForDispatch);
@@ -577,10 +575,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         setCategoryPopoverOpen(isOpen);
                          if (isOpen && field.value) {
                             setCategorySearchTerm(field.value);
-                        } else if (!isOpen && equipmentNameValue) { // Only set search term if equipment is selected
+                        } else if (!isOpen && equipmentNameValue) { 
                             setCategorySearchTerm(field.value || "");
                         } else if (!isOpen && !equipmentNameValue) {
-                            setCategorySearchTerm(""); // Clear search if no equipment
+                            setCategorySearchTerm(""); 
                         }
                       }}
                     >
@@ -839,10 +837,8 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                       emp.rank === officerRank
                                   );
                                   if (selectedEmp) {
-                                    return `${selectedEmp.rank} ${selectedEmp.firstName} ${selectedEmp.lastName} - ${selectedEmp.employeeNumber}`;
+                                    return `${selectedEmp.rank} ${selectedEmp.firstName} ${selectedEmp.lastName} رقم ${selectedEmp.employeeNumber}`;
                                   }
-                                  // Fallback if employee not found in list but form has values 
-                                  // (e.g. if employees list changes after selection or manual entry scenario)
                                   return `${officerRank} ${officerName}`; 
                                 }
                                 return employeesOfSelectedParty.length > 0
@@ -868,12 +864,12 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 {filteredEmployees.map((emp) => (
                                   <CommandItem
                                     key={emp.id}
-                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`}
+                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName} رقم ${emp.employeeNumber}`}
                                     onSelect={() => {
                                       form.setValue("withdrawalOfficerName", `${emp.firstName} ${emp.lastName}`, { shouldValidate: true });
                                       form.setValue("withdrawalOfficerRank", emp.rank, { shouldValidate: true });
                                       setWithdrawalOfficerPopoverOpen(false);
-                                      setWithdrawalOfficerSearchTerm(`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`);
+                                      setWithdrawalOfficerSearchTerm(`${emp.rank} ${emp.firstName} ${emp.lastName} رقم ${emp.employeeNumber}`);
                                     }}
                                   >
                                     <Check
@@ -884,7 +880,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                           : "opacity-0"
                                       )}
                                     />
-                                    {`${emp.rank} ${emp.firstName} ${emp.lastName} - ${emp.employeeNumber}`}
+                                    {`${emp.rank} ${emp.firstName} ${emp.lastName} رقم ${emp.employeeNumber}`}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -915,7 +911,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                         <Button
                           variant={"outline"}
                           className={cn(
-                            "w-full pl-3 pr-1 text-right font-normal justify-between", // Ensure text is aligned to the right
+                            "w-full pl-3 pr-1 text-right font-normal justify-between", 
                             !field.value && "text-muted-foreground"
                           )}
                         >
@@ -924,7 +920,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                           ) : (
                             <span>اختر تاريخًا</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> {/* mr-2 for RTL spacing */}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" /> 
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
