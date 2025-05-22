@@ -50,10 +50,12 @@ export function exportTransactionsToExcel(transactions: Transaction[], reportTit
   worksheet['!cols'] = columnWidths;
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, reportTitle || 'التقارير'); 
+  const sheetName = (reportTitle || 'التقارير').substring(0, 31);
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName); 
 
   const today = format(new Date(), "yyyy-MM-dd");
-  const finalReportTitle = reportTitle ? reportTitle.replace(/\s+/g, '_') : 'التقارير';
-  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_${finalReportTitle}_${today}.xlsx`);
+  // The filename itself can be longer, this part is not affected by the sheet name limit.
+  const finalReportTitleForFileName = reportTitle ? reportTitle.replace(/\s+/g, '_') : 'التقارير';
+  XLSX.writeFile(workbook, `EquipSupplyMetlaoui_${finalReportTitleForFileName}_${today}.xlsx`);
 }
 
