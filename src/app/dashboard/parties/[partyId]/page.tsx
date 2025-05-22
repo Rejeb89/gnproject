@@ -169,11 +169,11 @@ export default function PartyDetailPage() {
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuItem onClick={() => exportPartyTransactions('month')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام شهري (من هذه الجهة)
+                تقرير استلام شهري
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportPartyTransactions('year')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام سنوي (من هذه الجهة)
+                تقرير استلام سنوي
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
