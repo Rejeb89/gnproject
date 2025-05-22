@@ -122,13 +122,13 @@ export default function PartiesPage() {
 
   const getTabTitle = (tab: PartyViewType) => {
     if (tab === "senders") return "الجهات المرسِلة";
-    if (tab === "receivers") return "الجهات المستلِمة";
+    if (tab === "receivers") return "الجهات المتسلمة";
     return "كل الجهات المسجلة";
   };
   
   const getEmptyStateMessage = (tab: PartyViewType) => {
     if (tab === "senders") return "لا توجد جهات قامت بإرسال تجهيزات بعد.";
-    if (tab === "receivers") return "لا توجد جهات قامت باستلام تجهيزات بعد.";
+    if (tab === "receivers") return "لا توجد جهات قامت بتسلم تجهيزات بعد.";
     return "لم يتم تسجيل أي جهات بعد. ابدأ بإضافة جهة جديدة.";
   };
 
@@ -155,7 +155,7 @@ export default function PartiesPage() {
             </TabsTrigger>
             <TabsTrigger value="receivers">
               <Download className="ml-2 h-4 w-4" />
-              الجهات المستلِمة
+              الجهات المتسلمة
             </TabsTrigger>
           </TabsList>
 
@@ -172,7 +172,7 @@ export default function PartiesPage() {
                   <CardDescription>
                     {activeTab === "all" && "إدارة جميع الجهات المتعامل معها في النظام."}
                     {activeTab === "senders" && "قائمة بالجهات التي قامت بإرسال تجهيزات إلى المخزن."}
-                    {activeTab === "receivers" && "قائمة بالجهات التي قامت باستلام تجهيزات من المخزن."}
+                    {activeTab === "receivers" && "قائمة بالجهات التي قامت بتسلم تجهيزات من المخزن."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -222,7 +222,7 @@ export default function PartiesPage() {
                      partiesToDisplay.length > 2 && partiesToDisplay.length <= 10 ? 'جهات' : 'جهة'}
                     {activeTab === "all" && " مسجلة"}
                     {activeTab === "senders" && " مرسِلة"}
-                    {activeTab === "receivers" && " مستلِمة"}.
+                    {activeTab === "receivers" && " متسلمة"}.
                   </CardFooter>
                 )}
               </Card>
