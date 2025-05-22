@@ -92,7 +92,6 @@ export default function PartyDetailPage() {
       setPartyEmployees(result.data);
     }
     setSelectedFile(null); 
-    // Clear the file input visually
     const fileInput = document.getElementById('employee-excel-file') as HTMLInputElement;
     if (fileInput) {
         fileInput.value = "";
@@ -123,7 +122,7 @@ export default function PartyDetailPage() {
       fromDate = startOfMonth(now);
       toDate = endOfMonth(now);
       reportPeriodName = `الشهر_الحالي (${format(now, "MMMM yyyy", { locale: arSA })})`;
-    } else { // year
+    } else { 
       fromDate = startOfYear(now);
       toDate = endOfYear(now);
       reportPeriodName = `السنة_الحالية (${format(now, "yyyy", { locale: arSA })})`;
@@ -198,64 +197,6 @@ export default function PartyDetailPage() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-6 w-6 text-primary" />
-            بيانات موظفي الجهة
-          </CardTitle>
-          <CardDescription>
-            إدارة بيانات موظفي هذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
-            <br />
-            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: الرتبة, الاسم, اللقب, الرقم.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <Input
-              id="employee-excel-file"
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleFileChange}
-              className="flex-grow"
-              aria-label="اختيار ملف Excel لبيانات الموظفين"
-            />
-            <Button onClick={handleImportEmployees} disabled={!selectedFile || isImporting} className="w-full sm:w-auto">
-              <UploadCloud className="ml-2 h-4 w-4" />
-              {isImporting ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
-            </Button>
-          </div>
-          {partyEmployees.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>الرتبة</TableHead>
-                    <TableHead>الاسم</TableHead>
-                    <TableHead>اللقب</TableHead>
-                    <TableHead>الرقم</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {partyEmployees.map(emp => (
-                    <TableRow key={emp.id}>
-                      <TableCell>{emp.rank}</TableCell>
-                      <TableCell>{emp.firstName}</TableCell>
-                      <TableCell>{emp.lastName}</TableCell>
-                      <TableCell>{emp.employeeNumber}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">
-              لم يتم استيراد بيانات موظفين لهذه الجهة بعد. استخدم الزر أعلاه للاستيراد.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-lg">
         <CardHeader className="flex flex-row justify-between items-center">
           <div>
             <CardTitle>معاملات الجهة</CardTitle>
@@ -320,6 +261,64 @@ export default function PartyDetailPage() {
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-4">لا توجد معاملات مسجلة لهذه الجهة.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-6 w-6 text-primary" />
+            بيانات موظفي الجهة
+          </CardTitle>
+          <CardDescription>
+            إدارة بيانات موظفي هذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
+            <br />
+            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: الرتبة, الاسم, اللقب, الرقم.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <Input
+              id="employee-excel-file"
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleFileChange}
+              className="flex-grow"
+              aria-label="اختيار ملف Excel لبيانات الموظفين"
+            />
+            <Button onClick={handleImportEmployees} disabled={!selectedFile || isImporting} className="w-full sm:w-auto">
+              <UploadCloud className="ml-2 h-4 w-4" />
+              {isImporting ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+            </Button>
+          </div>
+          {partyEmployees.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الرتبة</TableHead>
+                    <TableHead>الاسم</TableHead>
+                    <TableHead>اللقب</TableHead>
+                    <TableHead>الرقم</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {partyEmployees.map(emp => (
+                    <TableRow key={emp.id}>
+                      <TableCell>{emp.rank}</TableCell>
+                      <TableCell>{emp.firstName}</TableCell>
+                      <TableCell>{emp.lastName}</TableCell>
+                      <TableCell>{emp.employeeNumber}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-4">
+              لم يتم استيراد بيانات موظفين لهذه الجهة بعد. استخدم الزر أعلاه للاستيراد.
+            </p>
           )}
         </CardContent>
       </Card>
