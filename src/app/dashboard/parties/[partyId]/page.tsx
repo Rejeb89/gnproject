@@ -55,7 +55,6 @@ export default function PartyDetailPage() {
     }
   }, [partyId]);
 
-  // Reverted exportPartyTransactions to only handle 'receive' transactions from the current party
   const exportPartyTransactions = (periodType: 'month' | 'year') => {
     if (!party) return;
 
@@ -170,11 +169,11 @@ export default function PartyDetailPage() {
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuItem onClick={() => exportPartyTransactions('month')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام شهري (الحالي)
+                تقرير استلام شهري (من هذه الجهة)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportPartyTransactions('year')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام سنوي (الحالي)
+                تقرير استلام سنوي (من هذه الجهة)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -203,7 +202,6 @@ export default function PartyDetailPage() {
                                   'font-semibold px-2.5 py-1 text-xs', 
                                   tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
                                )}>
-                          {/* This badge text describes the transaction relative to the current party */}
                           {tx.type === 'receive' ? `استلام من ${tx.party}` : `تسليم إلى ${tx.party}`}
                         </Badge>
                       </TableCell>
