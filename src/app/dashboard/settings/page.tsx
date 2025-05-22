@@ -178,16 +178,28 @@ export default function SettingsPage() {
             إدارة الصلاحيات (للتطوير المستقبلي)
           </CardTitle>
           <CardDescription>
-            سيتم هنا تحديد الصلاحيات المتاحة لكل دور (مشرف، موظف). على سبيل المثال:
+            سيتم هنا تحديد الصلاحيات المتاحة لكل دور.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>المشرف: يمكنه إدارة المستخدمين، عرض جميع التقارير، تعديل الإعدادات العامة.</li>
-            <li>الموظف: يمكنه تسجيل عمليات الاستلام والتسليم، عرض تقارير محددة.</li>
-          </ul>
-           <p className="mt-4 text-sm text-primary font-semibold">
-            يتطلب التنفيذ الفعلي لهذه الميزة نظام صلاحيات متقدم مرتبط بنظام المصادقة.
+        <CardContent className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-primary mb-2">المشرف:</h3>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>يمكنه إدارة المستخدمين (إنشاء، تعديل، حذف حسابات الموظفين).</li>
+              <li>يمكنه عرض جميع التقارير والإحصائيات.</li>
+              <li>يمكنه تعديل الإعدادات العامة للنظام.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-primary mb-2">الموظف:</h3>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>يمكنه تسجيل عمليات استلام التجهيزات.</li>
+              <li>يمكنه تسجيل عمليات تسليم التجهيزات.</li>
+              <li>يمكنه عرض تقارير محددة ذات صلة بعمله.</li>
+            </ul>
+          </div>
+           <p className="mt-6 text-sm text-amber-600 font-semibold border-t pt-4">
+            ملاحظة: يتطلب التنفيذ الفعلي لهذه الميزة نظام صلاحيات متقدم مرتبط بنظام مصادقة آمن (مثل Firebase Authentication مع قواعد أمان).
           </p>
         </CardContent>
       </Card>
