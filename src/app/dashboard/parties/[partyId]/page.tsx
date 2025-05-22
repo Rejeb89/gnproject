@@ -58,12 +58,13 @@ export default function PartyDetailPage() {
   const exportPartyTransactions = (periodType: 'month' | 'year') => {
     if (!party) return;
 
-    const transactionsToFilter = partyTransactions.filter(tx => tx.type === 'receive');
+    // No longer filtering by type, export all transactions for this party
+    const transactionsToFilter = [...partyTransactions]; 
 
     if (transactionsToFilter.length === 0) {
       toast({
         title: "لا توجد بيانات للتصدير",
-        description: `لا توجد معاملات استلام مسجلة من ${party.name}.`,
+        description: `لا توجد معاملات مسجلة مع ${party.name}.`,
         variant: "destructive",
       });
       return;
@@ -72,7 +73,7 @@ export default function PartyDetailPage() {
     const now = new Date();
     let fromDate: Date, toDate: Date;
     let reportPeriodName: string;
-    const reportTypeName: string = 'استلام';
+    const reportTypeName: string = 'كل_المعاملات';
 
 
     if (periodType === 'month') {
@@ -95,17 +96,17 @@ export default function PartyDetailPage() {
     if (filteredForPeriod.length === 0) {
       toast({
         title: "لا توجد بيانات للتصدير",
-        description: `لا توجد معاملات ${reportTypeName} مسجلة من ${party.name} خلال ${reportPeriodName.replace('_', ' ')}.`,
+        description: `لا توجد معاملات مسجلة مع ${party.name} خلال ${reportPeriodName.replace('_', ' ')}.`,
         variant: "destructive",
       });
       return;
     }
 
-    const exportTitle = `تقرير_${reportTypeName}_${periodType === 'month' ? 'شهري' : 'سنوي'}_من_${party.name.replace(/\s+/g, '_')}_${reportPeriodName.replace(/[ ()]/g, '_')}`;
+    const exportTitle = `تقرير_${reportTypeName}_مع_${party.name.replace(/\s+/g, '_')}_${reportPeriodName.replace(/[ ()]/g, '_')}`;
     exportTransactionsToExcel(filteredForPeriod, exportTitle);
     toast({
       title: "تم التصدير بنجاح",
-      description: `تم تصدير تقرير ${reportTypeName} من ${party.name} لـ ${reportPeriodName.replace('_', ' ')} إلى ملف Excel.`,
+      description: `تم تصدير تقرير ${reportTypeName.replace('_', ' ')} مع ${party.name} لـ ${reportPeriodName.replace('_', ' ')} إلى ملف Excel.`,
     });
   };
 
@@ -163,17 +164,17 @@ export default function PartyDetailPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <FileDown className="ml-2 h-4 w-4" />
-                تصدير تقارير الاستلام
+                تصدير تقارير المعاملات
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuItem onClick={() => exportPartyTransactions('month')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام شهري
+                تقرير كل المعاملات الشهري
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportPartyTransactions('year')}>
                 <FileDown className="ml-2 h-4 w-4" />
-                تقرير استلام سنوي
+                تقرير كل المعاملات السنوي
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -224,3 +225,4 @@ export default function PartyDetailPage() {
     </div>
   );
 }
+
