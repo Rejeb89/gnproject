@@ -1,14 +1,15 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ArrowRight, BuildingIcon, FileDown } from 'lucide-react'; 
-import type { Party, Transaction } from '@/lib/types';
-import { getParties, getTransactions } from '@/lib/store';
+import { Input } from '@/components/ui/input';
+import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon } from 'lucide-react'; 
+import type { Party, Transaction, PartyEmployee } from '@/lib/types';
+import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel } from '@/lib/store';
 import {
   Table,
   TableBody,
@@ -38,6 +39,10 @@ export default function PartyDetailPage() {
 
   const [party, setParty] = useState<Party | null>(null);
   const [partyTransactions, setPartyTransactions] = useState<Transaction[]>([]);
+  const [partyEmployees, setPartyEmployees] = useState<PartyEmployee[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
 
   useEffect(() => {
     if (partyId) {
@@ -51,14 +56,52 @@ export default function PartyDetailPage() {
           .filter(tx => tx.party === foundParty.name)
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setPartyTransactions(relatedTransactions);
+
+        const employees = getPartyEmployees(partyId);
+        setPartyEmployees(employees);
       }
     }
   }, [partyId]);
 
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  const handleImportEmployees = async () => {
+    if (!selectedFile || !partyId) {
+      toast({
+        title: "خطأ في الاستيراد",
+        description: "يرجى اختيار ملف Excel أولاً.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsImporting(true);
+    const result = await importPartyEmployeesFromExcel(partyId, selectedFile);
+    setIsImporting(false);
+    toast({
+      title: result.success ? "نجاح الاستيراد" : "فشل الاستيراد",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+    if (result.success && result.data) {
+      setPartyEmployees(result.data);
+    }
+    setSelectedFile(null); 
+    // Clear the file input visually
+    const fileInput = document.getElementById('employee-excel-file') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = "";
+    }
+  };
+
   const exportPartyTransactions = (periodType: 'month' | 'year') => {
     if (!party) return;
 
-    // No longer filtering by type, export all transactions for this party
     const transactionsToFilter = [...partyTransactions]; 
 
     if (transactionsToFilter.length === 0) {
@@ -155,6 +198,64 @@ export default function PartyDetailPage() {
       </div>
 
       <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersIcon className="h-6 w-6 text-primary" />
+            بيانات موظفي الجهة
+          </CardTitle>
+          <CardDescription>
+            إدارة بيانات موظفي هذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
+            <br />
+            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: الرتبة, الاسم, اللقب, الرقم.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <Input
+              id="employee-excel-file"
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleFileChange}
+              className="flex-grow"
+              aria-label="اختيار ملف Excel لبيانات الموظفين"
+            />
+            <Button onClick={handleImportEmployees} disabled={!selectedFile || isImporting} className="w-full sm:w-auto">
+              <UploadCloud className="ml-2 h-4 w-4" />
+              {isImporting ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+            </Button>
+          </div>
+          {partyEmployees.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الرتبة</TableHead>
+                    <TableHead>الاسم</TableHead>
+                    <TableHead>اللقب</TableHead>
+                    <TableHead>الرقم</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {partyEmployees.map(emp => (
+                    <TableRow key={emp.id}>
+                      <TableCell>{emp.rank}</TableCell>
+                      <TableCell>{emp.firstName}</TableCell>
+                      <TableCell>{emp.lastName}</TableCell>
+                      <TableCell>{emp.employeeNumber}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-4">
+              لم يتم استيراد بيانات موظفين لهذه الجهة بعد. استخدم الزر أعلاه للاستيراد.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg">
         <CardHeader className="flex flex-row justify-between items-center">
           <div>
             <CardTitle>معاملات الجهة</CardTitle>
@@ -225,4 +326,3 @@ export default function PartyDetailPage() {
     </div>
   );
 }
-

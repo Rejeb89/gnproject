@@ -1,11 +1,13 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee } from '@/lib/types';
+import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
 const PARTIES_KEY = 'equipTrack_parties_v1';
 const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for equipment settings
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
+const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 
 // Transactions
 export function getTransactions(): Transaction[] {
@@ -169,6 +171,13 @@ export function deleteParty(partyId: string): { success: boolean, message?: stri
   const updatedParties = parties.filter(p => p.id !== partyId);
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(updatedParties));
+    // Also delete associated party employees
+    const allPartyEmployeesData = localStorage.getItem(PARTY_EMPLOYEES_KEY);
+    if (allPartyEmployeesData) {
+      const allEmployees = JSON.parse(allPartyEmployeesData);
+      delete allEmployees[partyId];
+      localStorage.setItem(PARTY_EMPLOYEES_KEY, JSON.stringify(allEmployees));
+    }
     return { success: true };
   } catch (error) {
     console.error("Error deleting party from localStorage:", error);
@@ -274,6 +283,115 @@ export function deleteEquipmentDefinition(definitionId: string): boolean {
   return true;
 }
 
+// Party Employees
+export function getPartyEmployees(partyId: string): PartyEmployee[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const allPartyEmployeesData = localStorage.getItem(PARTY_EMPLOYEES_KEY);
+    const allEmployees = allPartyEmployeesData ? JSON.parse(allPartyEmployeesData) : {};
+    return (allEmployees[partyId] || []).sort((a: PartyEmployee, b: PartyEmployee) => {
+      const lastNameCompare = a.lastName.localeCompare(b.lastName);
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return a.firstName.localeCompare(b.firstName);
+    });
+  } catch (error) {
+    console.error(`Error reading employees for party ${partyId} from localStorage:`, error);
+    return [];
+  }
+}
+
+export function setPartyEmployees(partyId: string, employees: PartyEmployee[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const allPartyEmployeesData = localStorage.getItem(PARTY_EMPLOYEES_KEY);
+    const allEmployees = allPartyEmployeesData ? JSON.parse(allPartyEmployeesData) : {};
+    allEmployees[partyId] = employees;
+    localStorage.setItem(PARTY_EMPLOYEES_KEY, JSON.stringify(allEmployees));
+  } catch (error) {
+    console.error(`Error saving employees for party ${partyId} to localStorage:`, error);
+  }
+}
+
+export async function importPartyEmployeesFromExcel(partyId: string, file: File): Promise<{ success: boolean; message: string; data?: PartyEmployee[] }> {
+  if (typeof window === 'undefined') return { success: false, message: "لا يمكن معالجة الملف من الخادم." };
+  if (!file) return { success: false, message: "لم يتم اختيار ملف." };
+
+  return new Promise(async (resolve) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const arrayBuffer = event.target?.result;
+          if (!arrayBuffer) {
+            resolve({ success: false, message: "فشل في قراءة الملف." });
+            return;
+          }
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]; // Read as array of arrays
+
+          if (jsonData.length < 2) { // Header + at least one data row
+            resolve({ success: false, message: "ملف Excel فارغ أو لا يحتوي على بيانات كافية." });
+            return;
+          }
+          
+          const header = jsonData[0].map(h => String(h).trim().toLowerCase());
+          const expectedHeaders = ["الرتبة", "الاسم", "اللقب", "الرقم"].map(h => h.toLowerCase());
+          
+          const rankIndex = header.indexOf(expectedHeaders[0]);
+          const firstNameIndex = header.indexOf(expectedHeaders[1]);
+          const lastNameIndex = header.indexOf(expectedHeaders[2]);
+          const employeeNumberIndex = header.indexOf(expectedHeaders[3]);
+
+          if (rankIndex === -1 || firstNameIndex === -1 || lastNameIndex === -1 || employeeNumberIndex === -1) {
+            resolve({ success: false, message: `ملف Excel يجب أن يحتوي على الأعمدة التالية: ${expectedHeaders.join(', ')} (بالترتيب أو بدون)` });
+            return;
+          }
+
+          const employees: PartyEmployee[] = [];
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue; // Skip empty rows
+
+            const rank = String(row[rankIndex] || '').trim();
+            const firstName = String(row[firstNameIndex] || '').trim();
+            const lastName = String(row[lastNameIndex] || '').trim();
+            const employeeNumber = String(row[employeeNumberIndex] || '').trim();
+
+            if (rank && firstName && lastName && employeeNumber) {
+              employees.push({
+                id: crypto.randomUUID(),
+                rank,
+                firstName,
+                lastName,
+                employeeNumber,
+              });
+            } else {
+              console.warn(`Skipping row ${i+1} due to missing data: Rank=${rank}, FirstName=${firstName}, LastName=${lastName}, Number=${employeeNumber}`);
+            }
+          }
+          
+          setPartyEmployees(partyId, employees);
+          resolve({ success: true, message: `تم استيراد وتحديث بيانات الموظفين بنجاح. عدد السجلات: ${employees.length}`, data: employees });
+
+        } catch (e) {
+          console.error("Error processing Excel file:", e);
+          resolve({ success: false, message: "حدث خطأ أثناء معالجة ملف Excel." });
+        }
+      };
+      reader.onerror = () => {
+        resolve({ success: false, message: "فشل في قراءة الملف." });
+      };
+      reader.readAsArrayBuffer(file);
+
+    } catch (error) {
+      console.error("Error importing party employees:", error);
+      resolve({ success: false, message: "حدث خطأ غير متوقع أثناء عملية الاستيراد." });
+    }
+  });
+}
+
 
 // Clear All Data
 export function clearAllData(): void {
@@ -283,6 +401,7 @@ export function clearAllData(): void {
     localStorage.removeItem(PARTIES_KEY);
     localStorage.removeItem(EQUIPMENT_SETTINGS_KEY);
     localStorage.removeItem(EQUIPMENT_DEFINITIONS_KEY); // Clear equipment definitions
+    localStorage.removeItem(PARTY_EMPLOYEES_KEY); // Clear party employees
   } catch (error) {
     console.error("Error clearing data from localStorage:", error);
   }

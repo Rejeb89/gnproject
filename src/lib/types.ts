@@ -5,7 +5,7 @@ export interface Transaction {
   equipmentName: string;
   category?: string; // Optional category for the equipment
   quantity: number;
-  party: string; // Sender or Recipient ("الجهة المرسلة" أو "الجهة المستلمة")
+  party: string; // Sender or Recipient ("الجهة المرسلة" أو "الجهة المتسلمة")
   date: string; // ISO date string
   receiptNumber: string;
   notes?: string;
@@ -22,6 +22,14 @@ export interface Party {
   name: string;
 }
 
+export interface PartyEmployee {
+  id: string; // crypto.randomUUID()
+  rank: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber: string; 
+}
+
 export interface EquipmentSetting {
   lowStockThreshold: number;
 }
@@ -33,3 +41,4 @@ export interface EquipmentDefinition {
   defaultLowStockThreshold?: number;
   unitOfMeasurement?: string;
 }
+
