@@ -16,8 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package, UserCheck } from "lucide-react";
-import { PlusCircle, ArrowRightLeft } from 'lucide-react'; // Added missing imports
+import { CalendarIcon, Save, ChevronsUpDown, Check, AlertTriangle, Tag, Package, UserCheck, PlusCircle, ArrowRightLeft } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -98,7 +97,7 @@ function generateReceiptNumber(type: 'receive' | 'dispatch'): string {
   });
 
   const nextSeq = maxSeq + 1;
-  return `${String(nextSeq).padStart(3, '0')}-${currentYear}`;
+  return `${String(nextSeq).padStart(3, '0')}-${type === 'receive' ? 'R' : 'D'}-${currentYear}`;
 }
 
 export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }: EquipmentFormProps) {
@@ -203,10 +202,10 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
       if (uniqueCategoriesForDispatch.length === 1) {
         const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
         form.setValue("category", singleCategory, {shouldValidate: true});
-        setCategorySearchTerm(singleCategory);
+        // setCategorySearchTerm(singleCategory); // This was for Combobox, revert to input
       } else {
         form.setValue("category", ""); 
-        setCategorySearchTerm("");
+        // setCategorySearchTerm(""); // This was for Combobox, revert to input
       }
     } else if (type === 'receive') {
       const categories = Array.from(new Set(allEquipmentDefinitions.map(def => def.defaultCategory).filter(Boolean) as string[]));
@@ -258,8 +257,11 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
         const updatedDefinitionData: Partial<EquipmentDefinition> = {};
 
         if (formCategory !== undefined && formCategory !== (existingDefinition.defaultCategory || undefined)) {
-            updatedDefinitionData.defaultCategory = formCategory;
-            definitionNeedsUpdate = true;
+            // Only update if category in form is not empty and different from definition or definition category is empty
+            if(formCategory !== "" || existingDefinition.defaultCategory !== undefined) {
+                updatedDefinitionData.defaultCategory = formCategory === "" ? undefined : formCategory;
+                definitionNeedsUpdate = true;
+            }
         }
         if (formThreshold !== undefined && formThreshold !== (existingDefinition.defaultLowStockThreshold || undefined) ) {
             updatedDefinitionData.defaultLowStockThreshold = formThreshold;
@@ -333,7 +335,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
 
   const filteredEmployees = withdrawalOfficerSearchTerm
     ? employeesOfSelectedParty.filter(emp => 
-        `${emp.rank} ${emp.firstName} ${emp.lastName} ${emp.employeeNumber}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
+        `${emp.rank} ${emp.firstName} ${emp.lastName}`.toLowerCase().includes(withdrawalOfficerSearchTerm.toLowerCase())
       )
     : employeesOfSelectedParty;
 
@@ -416,14 +418,13 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                   form.setValue("equipmentName", name, { shouldValidate: true });
                                   if (type === 'dispatch') {
                                       form.setValue("category", ""); 
-                                      setCategorySearchTerm(""); 
-                                      // Check for single category auto-selection logic
+                                      // setCategorySearchTerm(""); // Reverted to input
                                       const itemsWithSelectedName = availableEquipmentForDispatch.filter(item => item.name === name && item.quantity > 0);
                                       const uniqueCategoriesForDispatch = Array.from(new Set(itemsWithSelectedName.map(item => item.category || "(بدون صنف)"))).sort();
                                       if (uniqueCategoriesForDispatch.length === 1) {
                                         const singleCategory = uniqueCategoriesForDispatch[0] === "(بدون صنف)" ? "" : uniqueCategoriesForDispatch[0];
                                         form.setValue("category", singleCategory, { shouldValidate: true });
-                                        setCategorySearchTerm(singleCategory);
+                                        // setCategorySearchTerm(singleCategory); // Reverted
                                       }
                                   }
                                   setEquipmentNamePopoverOpen(false);
@@ -561,83 +562,19 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                       </PopoverContent>
                     </Popover>
                   ) : ( 
-                    <Popover 
-                        open={categoryPopoverOpen && !!equipmentNameValue && categoriesForSelectedEquipmentName.length > 0} 
-                        onOpenChange={(isOpen) => {
-                            if (!equipmentNameValue || categoriesForSelectedEquipmentName.length === 0) {
-                                setCategoryPopoverOpen(false);
-                                return;
-                            }
-                            setCategoryPopoverOpen(isOpen);
-                            if (isOpen && field.value) {
-                                setCategorySearchTerm(field.value);
-                            } else if (!isOpen) {
-                                setCategorySearchTerm(field.value || "");
-                            }
-                        }}
-                    >
-                        <PopoverTrigger asChild disabled={!equipmentNameValue || categoriesForSelectedEquipmentName.length === 0}>
-                            <FormControl>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    aria-expanded={categoryPopoverOpen}
-                                    className={cn(
-                                    "w-full justify-between",
-                                    !field.value && "text-muted-foreground",
-                                    (!equipmentNameValue || categoriesForSelectedEquipmentName.length === 0) && "cursor-not-allowed opacity-50"
-                                    )}
-                                    
-                                >
-                                    {field.value || (categoriesForSelectedEquipmentName.length > 0 ? "اختر الصنف..." : "(لا يوجد صنف أو اختر تجهيزًا أولاً)")}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        {categoriesForSelectedEquipmentName.length > 0 && (
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command shouldFilter={false}>
-                            <CommandInput
-                                placeholder="ابحث عن صنف..."
-                                value={categorySearchTerm}
-                                onValueChange={setCategorySearchTerm}
-                            />
-                            <CommandList>
-                                <CommandEmpty>لم يتم العثور على صنف.</CommandEmpty>
-                                <CommandGroup>
-                                {categoriesForSelectedEquipmentName
-                                    .filter(cat => cat.toLowerCase().includes(categorySearchTerm.toLowerCase()))
-                                    .map((catDisplay) => {
-                                        const catValue = catDisplay === "(بدون صنف)" ? "" : catDisplay;
-                                        return (
-                                            <CommandItem
-                                                key={catDisplay}
-                                                value={catDisplay}
-                                                onSelect={() => {
-                                                    form.setValue("category", catValue, { shouldValidate: true });
-                                                    setCategoryPopoverOpen(false);
-                                                    setCategorySearchTerm(catValue); 
-                                                }}
-                                            >
-                                            <Check
-                                                className={cn(
-                                                "mr-2 h-4 w-4",
-                                                catValue === field.value ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {catDisplay}
-                                            </CommandItem>
-                                        );
-                                    })}
-                                </CommandGroup>
-                            </CommandList>
-                            </Command>
-                        </PopoverContent>
-                        )}
-                    </Popover>
+                    // Dispatch mode - simple input for category
+                     <FormControl>
+                        <Input 
+                            placeholder="أدخل صنف التجهيز (إن وجد)" 
+                            {...field} 
+                            value={field.value ?? ''}
+                            disabled={!equipmentNameValue} // Disable if no equipment name is selected
+                        />
+                    </FormControl>
                   )}
                   <FormDescription>
-                    {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." : "اختر صنف التجهيز من القائمة بناءً على التجهيز المختار."}
+                    {type === 'receive' ? "اختر صنفًا موجودًا أو أدخل اسم صنف جديد. سيتم استخدامه كصنف افتراضي إذا كان هذا اسم تجهيز جديد." 
+                                       : "أدخل صنف التجهيز إذا كان مطلوبًا. إذا كان للتجهيز صنف واحد متوفر، سيتم ملؤه تلقائيًا."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -845,7 +782,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                 {filteredEmployees.map((emp) => (
                                   <CommandItem
                                     key={emp.id}
-                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName} (${emp.employeeNumber})`}
+                                    value={`${emp.rank} ${emp.firstName} ${emp.lastName}`}
                                     onSelect={() => {
                                       form.setValue("withdrawalOfficerName", `${emp.firstName} ${emp.lastName}`, { shouldValidate: true });
                                       form.setValue("withdrawalOfficerRank", emp.rank, { shouldValidate: true });
@@ -861,7 +798,7 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
                                           : "opacity-0"
                                       )}
                                     />
-                                    {`${emp.rank} ${emp.firstName} ${emp.lastName} (${emp.employeeNumber})`}
+                                    {`${emp.rank} ${emp.firstName} ${emp.lastName}`}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -950,3 +887,4 @@ export function EquipmentForm({ type, formTitle, partyLabel, submitButtonText }:
     </Card>
   );
 }
+
