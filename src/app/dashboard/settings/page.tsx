@@ -104,7 +104,7 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
         <h1 className="text-3xl font-bold tracking-tight">إعدادات النظام</h1>
       </div>
 
@@ -134,33 +134,35 @@ export default function SettingsPage() {
           </div>
 
           {mockUsers.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>اسم الموظف</TableHead>
-                  <TableHead>البريد الإلكتروني</TableHead>
-                  <TableHead>الدور</TableHead>
-                  <TableHead className="text-center">إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role === 'admin' ? 'مشرف' : 'موظف'}</TableCell>
-                    <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                      <Button variant="ghost" size="icon" title="تعديل" onClick={() => handleOpenEditUserDialog(user)}>
-                        <Edit2 className="h-4 w-4 text-blue-600" />
-                      </Button>
-                      <Button variant="ghost" size="icon" title="حذف" onClick={() => handleDeleteUser(user.id)} disabled={user.email === 'admin@gn-met.tn' && mockUsers.filter(u=>u.role ==='admin').length ===1}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>اسم الموظف</TableHead>
+                    <TableHead>البريد الإلكتروني</TableHead>
+                    <TableHead>الدور</TableHead>
+                    <TableHead className="text-center">إجراءات</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {mockUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.role === 'admin' ? 'مشرف' : 'موظف'}</TableCell>
+                      <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                        <Button variant="ghost" size="icon" title="تعديل" onClick={() => handleOpenEditUserDialog(user)}>
+                          <Edit2 className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="حذف" onClick={() => handleDeleteUser(user.id)} disabled={user.email === 'admin@gn-met.tn' && mockUsers.filter(u=>u.role ==='admin').length ===1}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground text-center py-4">لا يوجد موظفون حاليًا.</p>
           )}

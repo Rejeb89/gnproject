@@ -135,16 +135,16 @@ export default function PartiesPage() {
   return (
     <AlertDialog open={!!partyToDelete} onOpenChange={(isOpen) => !isOpen && setPartyToDelete(null)}>
       <div className="container mx-auto py-8 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة الجهات</h1>
-          <Button onClick={handleOpenAddDialog}>
+          <Button onClick={handleOpenAddDialog} className="w-full sm:w-auto">
             <PlusCircle className="ml-2 h-5 w-5" />
             إضافة جهة جديدة
           </Button>
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PartyViewType)}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
             <TabsTrigger value="all">
               <Building className="ml-2 h-4 w-4" />
               كل الجهات
@@ -177,36 +177,38 @@ export default function PartiesPage() {
                 </CardHeader>
                 <CardContent>
                   {partiesToDisplay.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>اسم الجهة</TableHead>
-                          <TableHead className="text-center">إجراءات</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {partiesToDisplay.map((party) => (
-                          <TableRow key={party.id}>
-                            <TableCell className="font-medium">
-                              <Link href={`/dashboard/parties/${party.id}`} className="text-primary hover:underline hover:text-primary/80 flex items-center gap-2">
-                                <Eye className="h-4 w-4" />
-                                {party.name}
-                              </Link>
-                            </TableCell>
-                            <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
-                                <Edit2 className="h-4 w-4 text-blue-600" />
-                              </Button>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>اسم الجهة</TableHead>
+                            <TableHead className="text-center">إجراءات</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {partiesToDisplay.map((party) => (
+                            <TableRow key={party.id}>
+                              <TableCell className="font-medium">
+                                <Link href={`/dashboard/parties/${party.id}`} className="text-primary hover:underline hover:text-primary/80 flex items-center gap-2">
+                                  <Eye className="h-4 w-4" />
+                                  {party.name}
+                                </Link>
+                              </TableCell>
+                              <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
+                                  <Edit2 className="h-4 w-4 text-blue-600" />
+                                </Button>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   ) : (
                     <div className="text-center py-10 text-muted-foreground">
                       <Users className="mx-auto h-12 w-12 mb-4" />

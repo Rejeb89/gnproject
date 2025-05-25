@@ -163,7 +163,7 @@ export default function EquipmentManagementPage() {
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end w-full sm:w-auto">
             <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
               <Link href="/dashboard/receive">
                 <LogIn className="ml-2 h-5 w-5" />
@@ -230,58 +230,60 @@ export default function EquipmentManagementPage() {
           </CardHeader>
           <CardContent>
             {filteredDefinitions.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>اسم نوع التجهيز</TableHead>
-                    <TableHead>الصنف الافتراضي</TableHead>
-                    <TableHead className="text-center">الكمية الحالية</TableHead>
-                    <TableHead className="text-center">تم استلامه؟</TableHead>
-                    <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
-                    <TableHead>وحدة القياس</TableHead>
-                    <TableHead className="text-center">إجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDefinitions.map((def) => {
-                    const currentQuantity = getQuantityForDefinition(def.name);
-                    const hasBeenReceived = allTransactions.some(tx => tx.equipmentName === def.name && tx.type === 'receive');
-                    return (
-                      <TableRow key={def.id}>
-                        <TableCell className="font-medium">{def.name}</TableCell>
-                        <TableCell>{def.defaultCategory || '-'}</TableCell>
-                        <TableCell className="text-center font-semibold">
-                          <span className={cn(
-                            currentQuantity <= (def.defaultLowStockThreshold || 0) && currentQuantity > 0 ? "text-destructive" :
-                            currentQuantity === 0 ? "text-muted-foreground" : ""
-                          )}>
-                            {currentQuantity.toLocaleString()}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {hasBeenReceived ? (
-                            <CheckCircle className="h-5 w-5 text-green-600 inline-block" title="نعم، تم استلامه"/>
-                          ) : (
-                            <XCircle className="h-5 w-5 text-muted-foreground inline-block" title="لا، لم يتم استلامه بعد"/>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
-                        <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
-                        <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
-                            <Edit2 className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>اسم نوع التجهيز</TableHead>
+                      <TableHead>الصنف الافتراضي</TableHead>
+                      <TableHead className="text-center">الكمية الحالية</TableHead>
+                      <TableHead className="text-center">تم استلامه؟</TableHead>
+                      <TableHead className="text-center">حد التنبيه الافتراضي</TableHead>
+                      <TableHead>وحدة القياس</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDefinitions.map((def) => {
+                      const currentQuantity = getQuantityForDefinition(def.name);
+                      const hasBeenReceived = allTransactions.some(tx => tx.equipmentName === def.name && tx.type === 'receive');
+                      return (
+                        <TableRow key={def.id}>
+                          <TableCell className="font-medium">{def.name}</TableCell>
+                          <TableCell>{def.defaultCategory || '-'}</TableCell>
+                          <TableCell className="text-center font-semibold">
+                            <span className={cn(
+                              currentQuantity <= (def.defaultLowStockThreshold || 0) && currentQuantity > 0 ? "text-destructive" :
+                              currentQuantity === 0 ? "text-muted-foreground" : ""
+                            )}>
+                              {currentQuantity.toLocaleString()}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {hasBeenReceived ? (
+                              <CheckCircle className="h-5 w-5 text-green-600 inline-block" title="نعم، تم استلامه"/>
+                            ) : (
+                              <XCircle className="h-5 w-5 text-muted-foreground inline-block" title="لا، لم يتم استلامه بعد"/>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">{def.defaultLowStockThreshold?.toLocaleString() || '-'}</TableCell>
+                          <TableCell>{def.unitOfMeasurement || '-'}</TableCell>
+                          <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(def)} title="تعديل">
+                              <Edit2 className="h-4 w-4 text-blue-600" />
                             </Button>
-                          </AlertDialogTrigger>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="حذف" onClick={() => setDefinitionToDelete(def)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="text-center py-10 text-muted-foreground">
                 <PackageSearch className="mx-auto h-12 w-12 mb-4" />

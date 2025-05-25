@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -185,26 +185,26 @@ export default function PartyDetailPage() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
         <div className="flex items-center gap-3">
           <BuildingIcon className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold tracking-tight">تفاصيل الجهة: {party.name}</h1>
         </div>
-        <Button onClick={() => router.push('/dashboard/parties')} variant="outline">
+        <Button onClick={() => router.push('/dashboard/parties')} variant="outline" className="w-full sm:w-auto">
           <ArrowRight className="ml-2 h-4 w-4" />
           العودة إلى قائمة الجهات
         </Button>
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row justify-between items-center">
+        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <div>
             <CardTitle>معاملات الجهة</CardTitle>
             <CardDescription>قائمة بجميع عمليات الاستلام والتسليم المرتبطة بالجهة: {party.name}.</CardDescription>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="w-full sm:w-auto">
                 <FileDown className="ml-2 h-4 w-4" />
                 تصدير تقارير المعاملات
               </Button>

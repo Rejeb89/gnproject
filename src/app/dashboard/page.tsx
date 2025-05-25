@@ -82,11 +82,11 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold tracking-tight">لوحة التحكم</h1>
-        <div className="flex gap-2">
-          <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto">
             <Link href="/dashboard/receive">تسجيل استلام جديد</Link>
           </Button>
-          <Button asChild variant="destructive">
+          <Button asChild variant="destructive" className="w-full sm:w-auto">
             <Link href="/dashboard/dispatch">تسليم تجهيزات</Link> 
           </Button>
         </div>
