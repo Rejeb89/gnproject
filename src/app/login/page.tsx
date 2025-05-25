@@ -30,7 +30,7 @@ export default function LoginPage() {
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       localStorage.setItem('isAuthenticated', 'true'); // علامة مؤقتة
       localStorage.setItem('userRole', 'admin'); // علامة مؤقتة لدور المستخدم
-      localStorage.setItem('userName', 'المشرف العام'); 
+      localStorage.setItem('userName', 'المشرف العام');
       toast({
         title: "تم تسجيل الدخول بنجاح",
         description: "مرحباً بك أيها المشرف.",
@@ -50,12 +50,12 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen bg-background px-4 py-12">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <Image 
-            src="/national-guard-logo.png" 
-            alt="شعار الحرس الوطني" 
+          <Image
+            src="/national-guard-logo.png"
+            alt="شعار الحرس الوطني"
             data-ai-hint="logo emblem"
-            width={80} 
-            height={96} 
+            width={80}
+            height={96}
             className="mx-auto mb-4"
           />
           <CardTitle className="text-2xl font-bold">تسجيل الدخول</CardTitle>
