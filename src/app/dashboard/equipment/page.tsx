@@ -85,7 +85,7 @@ export default function EquipmentManagementPage() {
         categoryFilter === NO_CATEGORY_VALUE ? !def.defaultCategory : // "no category" selected (handles undefined or empty string)
         (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase(); // specific category selected
       return nameMatch && categoryMatch;
-    });
+    }).sort((a, b) => a.name.localeCompare(b.name)); // Default sort by name
   }, [definitions, nameFilter, categoryFilter]);
 
   const handleOpenAddDialog = () => {
@@ -163,20 +163,20 @@ export default function EquipmentManagementPage() {
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight">إدارة أنواع التجهيزات</h1>
-          <div className="flex gap-2 flex-wrap justify-center sm:justify-end">
-            <Button asChild className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <div className="flex gap-2 flex-wrap justify-center sm:justify-end w-full sm:w-auto">
+            <Button asChild className="flex-1 min-w-0 bg-accent text-accent-foreground hover:bg-accent/90">
               <Link href="/dashboard/receive">
                 <LogIn className="ml-2 h-5 w-5" />
                 تسجيل استلام جديد
               </Link>
             </Button>
-            <Button asChild variant="destructive">
+            <Button asChild variant="destructive" className="flex-1 min-w-0">
               <Link href="/dashboard/dispatch">
                 <ArrowRightLeft className="ml-2 h-5 w-5" />
                 تسليم تجهيزات
               </Link>
             </Button>
-            <Button onClick={handleOpenAddDialog}>
+            <Button className="flex-1 min-w-0" onClick={handleOpenAddDialog}>
               <PlusCircle className="ml-2 h-5 w-5" />
               إضافة نوع تجهيز جديد
             </Button>
