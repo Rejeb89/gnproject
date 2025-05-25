@@ -2,7 +2,7 @@
 "use client"; // Required for useEffect and useRouter
 
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   SidebarProvider,
@@ -18,9 +18,12 @@ import { AppLogo } from '@/components/dashboard/app-logo';
 import { NavLinks } from '@/components/dashboard/nav-links';
 import { UserNav } from '@/components/dashboard/user-nav';
 import { Separator } from '@/components/ui/separator';
+import { format } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const [currentDateTime, setCurrentDateTime] = useState<string | null>(null);
 
   useEffect(() => {
     // محاكاة التحقق من المصادقة (غير آمنة للاستخدام الفعلي)
@@ -32,6 +35,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       // For now, we let it render and redirect, which might cause a flash.
     }
   }, [router]);
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      setCurrentDateTime(format(new Date(), 'eeee، d MMMM yyyy - HH:mm:ss', { locale: arSA }));
+    };
+
+    updateDateTime(); // Set initial time
+    const intervalId = setInterval(updateDateTime, 1000); // Update every second
+
+    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+  }, []);
+
 
   // To prevent hydration errors, ensure the initial render on the client matches the server.
   // The server will always render the layout below.
@@ -71,7 +86,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-6 shadow-sm">
           <SidebarTrigger className="md:hidden" /> {/* Mobile trigger, appears on left for RTL */}
           <div className="flex-1">
-            {/* Optional: Breadcrumbs or Page Title */}
+            {currentDateTime ? (
+              <span className="text-sm text-muted-foreground">{currentDateTime}</span>
+            ) : (
+              <span className="text-sm text-muted-foreground">جارٍ تحميل الوقت...</span>
+            )}
           </div>
           <UserNav />
         </header>
