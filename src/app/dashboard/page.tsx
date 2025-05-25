@@ -2,14 +2,15 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, Package, Tag, AreaChart as AreaChartIcon } from 'lucide-react'; // Changed BarChartIcon to AreaChartIcon
+import { ArrowRightLeft, ListChecks, AlertTriangle, Package, BarChart as BarChartIcon } from 'lucide-react'; // Changed AreaChartIcon to BarChartIcon
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
-  AreaChart,
-  Area,
+  BarChart, // Changed from AreaChart
+  Bar,      // Changed from Area
+  Cell,     // Added for individual bar colors
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,11 +22,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 const chartConfig = {
   quantity: {
     label: "الكمية",
-    color: "hsl(var(--chart-1))", // Base color for the area/stroke
+    // color is no longer globally set for the chart as bars are individually colored
   },
 } satisfies ChartConfig;
 
-// BAR_COLORS is not strictly needed for a single gradient area chart, but kept for potential future use or consistency.
 const BAR_COLORS = [
   "hsl(var(--chart-1))",
   "hsl(var(--chart-2))",
@@ -39,7 +39,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stock, setStock] = useState<Equipment[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
-  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number}>>([]); // Fill property removed as gradient is global
+  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -68,15 +68,14 @@ export default function DashboardPage() {
 
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
-    // Prepare data for AreaChart, keeping the detailed name for X-axis and tooltip
-    const chartDataFiltered = currentStock
+    const chartDataFilteredAndColored = currentStock
       .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) 
       .map((item, index) => ({
-        name: `${item.name}${item.category ? ` (${item.category})` : ''}`, // Full name for X-axis
+        name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
         quantity: item.quantity,
-        // 'fill' property is not directly used by Area with single gradient
+        fill: BAR_COLORS[index % BAR_COLORS.length], // Assign color cyclically
       }));
-    setDisplayChartData(chartDataFiltered);
+    setDisplayChartData(chartDataFilteredAndColored);
     setIsLoading(false);
   }, []);
 
@@ -84,14 +83,12 @@ export default function DashboardPage() {
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
 
-  const legendPayload = displayChartData.length > 0 ? [
-    {
-      value: `كمية التجهيزات المنخفضة`,
-      type: 'line' as const, // Use 'line' or 'rect' for area representation
-      id: 'quantity',
-      color: chartConfig.quantity.color,
-    }
-  ] : [];
+  const legendPayload = displayChartData.map(item => ({
+    value: item.name, // The name of the equipment for the legend item
+    type: 'square' as const, // Shape of the legend icon
+    id: item.name,
+    color: item.fill, // Color of the legend icon, matching the bar
+  }));
 
 
   if (isLoading) {
@@ -146,7 +143,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Skeleton className="h-6 w-6 rounded-sm" />
+              <Skeleton className="h-6 w-6 rounded-sm" /> {/* BarChartIcon Skeleton */}
               <Skeleton className="h-6 w-64" />
             </CardTitle>
             <Skeleton className="h-4 w-full mt-1" />
@@ -248,39 +245,34 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AreaChartIcon className="h-6 w-6 text-primary" /> {/* Using AreaChartIcon */}
-            تحليل مخزون التجهيزات المنخفض (رسم بياني مساحي متدرج)
+            <BarChartIcon className="h-6 w-6 text-primary" /> {/* Using BarChartIcon */}
+            تحليل مخزون التجهيزات المنخفض (رسم بياني شريطي)
           </CardTitle>
-          <CardDescription>رسم بياني مساحي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
+          <CardDescription>رسم بياني شريطي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {displayChartData.length > 0 ? (
             <ChartContainer config={chartConfig} className="h-[450px] w-full">
-              <AreaChart
+              <BarChart
                 data={displayChartData}
                 margin={{
-                  top: 20, // Increased top margin for legend
+                  top: 20, // For legend
                   right: 30,
-                  left: 0,
-                  bottom: 70, // Increased bottom margin for angled X-axis labels
+                  left: 0, // Adjust if Y-axis labels are cut
+                  bottom: 70, 
                 }}
               >
-                <defs>
-                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartConfig.quantity.color} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={chartConfig.quantity.color} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                     dataKey="name" 
                     angle={-45} 
                     textAnchor="end" 
-                    height={80} // Adjusted height for labels
+                    height={80} 
                     interval={0} 
                     tick={{fontSize: '0.75rem'}} 
                 />
-                <YAxis 
+                <YAxis
+                    allowDecimals={false}
                     tickFormatter={(value) => value.toLocaleString()}
                     tick={{fontSize: '0.75rem'}}
                 />
@@ -288,8 +280,8 @@ export default function DashboardPage() {
                   cursor={{ fill: "hsl(var(--accent) / 0.2)" }}
                   content={<ChartTooltipContent 
                     indicator="dot" 
-                    formatter={(value, name, props) => {
-                        const equipmentDisplayName = props.payload?.name || name; // Use the detailed name from payload
+                    formatter={(value, name, props) => { // 'name' here is the dataKey ('quantity')
+                        const equipmentDisplayName = props.payload?.name; // Actual name from data item
                         return (
                           <div className="flex flex-col">
                             <span className="font-semibold">{equipmentDisplayName}</span> 
@@ -299,24 +291,20 @@ export default function DashboardPage() {
                       }}
                   />}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="quantity"
-                  stroke={chartConfig.quantity.color}
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#areaGradient)"
-                  name="الكمية" // This name will be used by default legend if payload is not provided
-                />
                 <Legend
                   payload={legendPayload}
                   iconSize={10}
-                  layout="horizontal" // Changed to horizontal
-                  verticalAlign="top"   // Placed at the top
-                  align="center"        // Centered
+                  layout="horizontal"
+                  verticalAlign="top"
+                  align="center"
                   wrapperStyle={{paddingBottom: "20px"}}
                 />
-              </AreaChart>
+                <Bar dataKey="quantity" radius={[4, 4, 0, 0]}>
+                  {displayChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ChartContainer>
           ) : (
             <p className="text-muted-foreground text-center py-8">لا توجد تجهيزات بمخزون منخفض لعرضها حاليًا.</p>
@@ -329,3 +317,5 @@ export default function DashboardPage() {
     
 
       
+
+    
