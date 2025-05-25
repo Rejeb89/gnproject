@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { RadialBarChart, RadialBar, Legend, PolarAngleAxis, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const chartConfig = {
   quantity: {
@@ -25,12 +26,14 @@ const BAR_COLORS = [
 ];
 
 export default function DashboardPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stock, setStock] = useState<Equipment[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
   const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
 
   useEffect(() => {
+    setIsLoading(true);
     const loadedTransactions = getTransactions();
     setTransactions(loadedTransactions);
     const currentStock = calculateStock(loadedTransactions);
@@ -64,7 +67,7 @@ export default function DashboardPage() {
         fill: BAR_COLORS[index % BAR_COLORS.length],
       }));
     setDisplayChartData(chartDataFiltered);
-
+    setIsLoading(false);
   }, []);
 
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
@@ -73,10 +76,75 @@ export default function DashboardPage() {
 
   const legendPayload = displayChartData.map(item => ({
     value: `${item.name} (${item.quantity.toLocaleString()})`,
-    type: 'circle' as const, // Explicitly type for iconType compatibility
+    type: 'circle' as const, 
     id: item.name,
     color: item.fill,
   }));
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <Skeleton className="h-9 w-48" />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Skeleton className="h-10 w-full sm:w-36" />
+            <Skeleton className="h-10 w-full sm:w-32" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-5 w-5 rounded-sm" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-7 w-1/2 mb-1" />
+                <Skeleton className="h-3 w-1/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Skeleton for Low Stock Alert Card */}
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <Skeleton className="h-6 w-6 rounded-sm" />
+              <Skeleton className="h-6 w-40" />
+            </CardTitle>
+            <Skeleton className="h-4 w-full mt-1" />
+             <Skeleton className="h-4 w-3/4 mt-1" />
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {[...Array(2)].map((_, i) => (
+                <li key={i} className="flex justify-between">
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+        
+        {/* Skeleton for Low Stock Chart Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6 rounded-sm" />
+              <Skeleton className="h-6 w-64" />
+            </CardTitle>
+            <Skeleton className="h-4 w-full mt-1" />
+          </CardHeader>
+          <CardContent className="pt-4">
+            <Skeleton className="h-[450px] w-full aspect-square" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -219,8 +287,8 @@ export default function DashboardPage() {
                   content={<ChartTooltipContent 
                     indicator="dot" 
                     nameKey="name" 
-                    labelKey="quantity" // This refers to the key in the original data for the tooltip to pick up as "label"
-                    formatter={(value, name, props) => ( // value is quantity, name is "quantity", props.payload.name is the actual equipment name
+                    labelKey="quantity" 
+                    formatter={(value, name, props) => ( 
                       <div className="flex flex-col">
                         <span className="font-semibold">{props.payload?.name}</span> 
                         <span>الكمية: {Number(value).toLocaleString()}</span>
@@ -239,3 +307,4 @@ export default function DashboardPage() {
   );
 }
     
+

@@ -45,10 +45,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NO_CATEGORY_VALUE = "_EMPTY_CATEGORY_";
 
 export default function EquipmentManagementPage() {
+  const [isLoading, setIsLoading] = useState(true);
   const [definitions, setDefinitions] = useState<EquipmentDefinition[]>([]);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingDefinition, setEditingDefinition] = useState<EquipmentDefinition | null>(null);
@@ -65,11 +67,13 @@ export default function EquipmentManagementPage() {
   }, []);
 
   const loadData = () => {
+    setIsLoading(true);
     const currentDefinitions = getEquipmentDefinitions();
     setDefinitions(currentDefinitions);
     const transactions = getTransactions();
     setAllTransactions(transactions);
     setCurrentStock(calculateStock(transactions));
+    setIsLoading(false);
   };
 
   const uniqueCategories = useMemo(() => {
@@ -81,11 +85,11 @@ export default function EquipmentManagementPage() {
     return definitions.filter(def => {
       const nameMatch = nameFilter === "" || def.name.toLowerCase().includes(nameFilter.toLowerCase());
       const categoryMatch =
-        categoryFilter === "" ? true : // "all" selected
-        categoryFilter === NO_CATEGORY_VALUE ? !def.defaultCategory : // "no category" selected (handles undefined or empty string)
-        (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase(); // specific category selected
+        categoryFilter === "" ? true : 
+        categoryFilter === NO_CATEGORY_VALUE ? !def.defaultCategory : 
+        (def.defaultCategory || "").toLowerCase() === categoryFilter.toLowerCase(); 
       return nameMatch && categoryMatch;
-    }).sort((a, b) => a.name.localeCompare(b.name)); // Default sort by name
+    }).sort((a, b) => a.name.localeCompare(b.name)); 
   }, [definitions, nameFilter, categoryFilter]);
 
   const handleOpenAddDialog = () => {
@@ -152,6 +156,40 @@ export default function EquipmentManagementPage() {
       .filter(stockItem => stockItem.name === definitionName)
       .reduce((total, item) => total + item.quantity, 0);
   };
+
+  const TableSkeleton = () => (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead><Skeleton className="h-5 w-32" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+            <TableHead className="text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
+            <TableHead className="text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
+            <TableHead className="text-center"><Skeleton className="h-5 w-28 mx-auto" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+            <TableHead className="text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {[...Array(5)].map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+              <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+              <TableCell className="text-center"><Skeleton className="h-5 w-5 mx-auto rounded-full" /></TableCell>
+              <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+              <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                <Skeleton className="h-8 w-8 inline-block" />
+                <Skeleton className="h-8 w-8 inline-block" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
 
 
   return (
@@ -229,7 +267,8 @@ export default function EquipmentManagementPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {filteredDefinitions.length > 0 ? (
+            {isLoading ? <TableSkeleton /> : 
+            filteredDefinitions.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -296,7 +335,7 @@ export default function EquipmentManagementPage() {
               </div>
             )}
           </CardContent>
-          {filteredDefinitions.length > 0 && (
+          {!isLoading && filteredDefinitions.length > 0 && (
             <CardFooter className="text-sm text-muted-foreground">
               يتم عرض {filteredDefinitions.length} {filteredDefinitions.length === 1 ? 'نوع تجهيز معرف' : filteredDefinitions.length === 2 ? 'نوعي تجهيز معرفين' : filteredDefinitions.length <=10 ? 'أنواع تجهيزات معرفة' : 'نوع تجهيز معرف'}.
             </CardFooter>
@@ -352,3 +391,4 @@ export default function EquipmentManagementPage() {
     
 
     
+
