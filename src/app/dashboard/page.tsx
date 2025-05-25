@@ -2,21 +2,30 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, Package, Tag, BarChartIcon } from 'lucide-react';
+import { ArrowRightLeft, ListChecks, AlertTriangle, Package, Tag, AreaChart as AreaChartIcon } from 'lucide-react'; // Changed BarChartIcon to AreaChartIcon
 import type { Transaction, Equipment } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { RadialBarChart, RadialBar, Legend, PolarAngleAxis, Cell } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const chartConfig = {
   quantity: {
     label: "الكمية",
+    color: "hsl(var(--chart-1))", // Base color for the area/stroke
   },
 } satisfies ChartConfig;
 
+// BAR_COLORS is not strictly needed for a single gradient area chart, but kept for potential future use or consistency.
 const BAR_COLORS = [
   "hsl(var(--chart-1))",
   "hsl(var(--chart-2))",
@@ -30,7 +39,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stock, setStock] = useState<Equipment[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
-  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
+  const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number}>>([]); // Fill property removed as gradient is global
 
   useEffect(() => {
     setIsLoading(true);
@@ -59,12 +68,13 @@ export default function DashboardPage() {
 
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
+    // Prepare data for AreaChart, keeping the detailed name for X-axis and tooltip
     const chartDataFiltered = currentStock
       .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) 
       .map((item, index) => ({
-        name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
+        name: `${item.name}${item.category ? ` (${item.category})` : ''}`, // Full name for X-axis
         quantity: item.quantity,
-        fill: BAR_COLORS[index % BAR_COLORS.length],
+        // 'fill' property is not directly used by Area with single gradient
       }));
     setDisplayChartData(chartDataFiltered);
     setIsLoading(false);
@@ -74,12 +84,15 @@ export default function DashboardPage() {
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
 
-  const legendPayload = displayChartData.map(item => ({
-    value: `${item.name} (${item.quantity.toLocaleString()})`,
-    type: 'circle' as const, 
-    id: item.name,
-    color: item.fill,
-  }));
+  const legendPayload = displayChartData.length > 0 ? [
+    {
+      value: `كمية التجهيزات المنخفضة`,
+      type: 'line' as const, // Use 'line' or 'rect' for area representation
+      id: 'quantity',
+      color: chartConfig.quantity.color,
+    }
+  ] : [];
+
 
   if (isLoading) {
     return (
@@ -139,7 +152,7 @@ export default function DashboardPage() {
             <Skeleton className="h-4 w-full mt-1" />
           </CardHeader>
           <CardContent className="pt-4">
-            <Skeleton className="h-[450px] w-full aspect-square" />
+            <Skeleton className="h-[450px] w-full" /> 
           </CardContent>
         </Card>
       </div>
@@ -235,68 +248,75 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChartIcon className="h-6 w-6 text-primary" />
-            توزيع التجهيزات ذات المخزون المنخفض
+            <AreaChartIcon className="h-6 w-6 text-primary" /> {/* Using AreaChartIcon */}
+            تحليل مخزون التجهيزات المنخفض (رسم بياني مساحي متدرج)
           </CardTitle>
-          <CardDescription>رسم بياني شعاعي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
+          <CardDescription>رسم بياني مساحي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {displayChartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="h-[450px] w-full aspect-square">
-              <RadialBarChart
+            <ChartContainer config={chartConfig} className="h-[450px] w-full">
+              <AreaChart
                 data={displayChartData}
-                innerRadius="30%"
-                outerRadius="100%"
-                startAngle={90} 
-                endAngle={90 + 360} 
-                cy="50%" 
+                margin={{
+                  top: 20, // Increased top margin for legend
+                  right: 30,
+                  left: 0,
+                  bottom: 70, // Increased bottom margin for angled X-axis labels
+                }}
               >
-                <PolarAngleAxis
-                  type="category"
-                  dataKey="name"
-                  tick={false} 
-                  axisLine={false}
+                <defs>
+                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartConfig.quantity.color} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={chartConfig.quantity.color} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                    dataKey="name" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={80} // Adjusted height for labels
+                    interval={0} 
+                    tick={{fontSize: '0.75rem'}} 
                 />
-                <RadialBar
-                  minAngle={15}
-                  background={{ fill: 'hsl(var(--muted))' }}
-                  clockWise
+                <YAxis 
+                    tickFormatter={(value) => value.toLocaleString()}
+                    tick={{fontSize: '0.75rem'}}
+                />
+                <ChartTooltip
+                  cursor={{ fill: "hsl(var(--accent) / 0.2)" }}
+                  content={<ChartTooltipContent 
+                    indicator="dot" 
+                    formatter={(value, name, props) => {
+                        const equipmentDisplayName = props.payload?.name || name; // Use the detailed name from payload
+                        return (
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{equipmentDisplayName}</span> 
+                            <span>الكمية: {Number(value).toLocaleString()}</span>
+                          </div>
+                        );
+                      }}
+                  />}
+                />
+                <Area
+                  type="monotone"
                   dataKey="quantity"
-                  label={{
-                    position: 'insideStart',
-                    fill: 'hsl(var(--foreground))',
-                    fontSize: '0.75rem',
-                    formatter: (value: number) => value.toLocaleString(),
-                  }}
-                >
-                  {displayChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} className="stroke-transparent focus:outline-none" strokeWidth={2} />
-                  ))}
-                </RadialBar>
+                  stroke={chartConfig.quantity.color}
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#areaGradient)"
+                  name="الكمية" // This name will be used by default legend if payload is not provided
+                />
                 <Legend
                   payload={legendPayload}
                   iconSize={10}
-                  iconType="circle"
-                  layout="vertical"
-                  verticalAlign="middle"
-                  align="right"
-                  wrapperStyle={{paddingLeft: "20px"}}
+                  layout="horizontal" // Changed to horizontal
+                  verticalAlign="top"   // Placed at the top
+                  align="center"        // Centered
+                  wrapperStyle={{paddingBottom: "20px"}}
                 />
-                <ChartTooltip
-                  cursor={{ strokeDasharray: '3 3', fill: "hsl(var(--accent) / 0.2)" }}
-                  content={<ChartTooltipContent 
-                    indicator="dot" 
-                    nameKey="name" 
-                    labelKey="quantity" 
-                    formatter={(value, name, props) => ( 
-                      <div className="flex flex-col">
-                        <span className="font-semibold">{props.payload?.name}</span> 
-                        <span>الكمية: {Number(value).toLocaleString()}</span>
-                      </div>
-                    )}
-                  />}
-                />
-              </RadialBarChart>
+              </AreaChart>
             </ChartContainer>
           ) : (
             <p className="text-muted-foreground text-center py-8">لا توجد تجهيزات بمخزون منخفض لعرضها حاليًا.</p>
@@ -308,3 +328,4 @@ export default function DashboardPage() {
 }
     
 
+      
