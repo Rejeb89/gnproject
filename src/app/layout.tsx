@@ -1,7 +1,9 @@
+
 import type { Metadata } from 'next';
-import { Tajawal } from 'next/font/google'; // Using Tajawal for Arabic
+import { Tajawal } from 'next/font/google'; 
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const tajawalFont = Tajawal({
   weight: ['400', '500', '700'],
@@ -20,10 +22,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${tajawalFont.variable} font-sans antialiased`}>
-        {children}
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
