@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Settings, Building, Package, Car } from 'lucide-react'; // Added Car
+import { Home, FileText, Settings, Building, Package, Car, CalendarDays } from 'lucide-react'; // Added CalendarDays
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -17,7 +17,8 @@ import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/sto
 const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
   { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
-  { name: 'وسائل النقل الادارية', href: '/dashboard/vehicles', icon: Car }, // New link
+  { name: 'وسائل النقل الادارية', href: '/dashboard/vehicles', icon: Car },
+  { name: 'الروزنامة', href: '/dashboard/calendar', icon: CalendarDays }, // New link for Calendar
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
   { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
