@@ -24,7 +24,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck } from "lucide-react";
+import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck, Users } from "lucide-react"; // Added Users
 import { useToast } from "@/hooks/use-toast";
 
 // Mock user type for local state demonstration
@@ -102,6 +102,14 @@ export default function SettingsPage() {
     toast({ title: "تم الحذف بنجاح", description: "تم حذف الموظف. (محاكاة)" });
   };
 
+  const openAddDialogClean = () => {
+    setEditingUser(null); 
+    setUserName(''); 
+    setUserEmail(''); 
+    setUserRole('employee'); 
+    setIsAddUserDialogOpen(true);
+  }
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
@@ -121,13 +129,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex justify-end">
-            <Button onClick={() => {
-              setEditingUser(null); 
-              setUserName(''); 
-              setUserEmail(''); 
-              setUserRole('employee'); 
-              setIsAddUserDialogOpen(true);
-            }}>
+            <Button onClick={openAddDialogClean}>
               <PlusCircle className="ml-2 h-5 w-5" />
               إضافة موظف جديد
             </Button>
@@ -164,12 +166,22 @@ export default function SettingsPage() {
               </Table>
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-4">لا يوجد موظفون حاليًا.</p>
+            <div className="text-center py-10 text-muted-foreground">
+              <Users className="mx-auto h-12 w-12 mb-4" />
+              <p className="text-lg">لا يوجد مستخدمون معرفون حاليًا.</p>
+              <p className="text-sm">ابدأ بإضافة موظف جديد.</p>
+              <Button onClick={openAddDialogClean} className="mt-4">
+                <PlusCircle className="ml-2 h-5 w-5" />
+                إضافة موظف جديد
+              </Button>
+            </div>
           )}
         </CardContent>
+        {mockUsers.length > 0 && (
         <CardFooter className="text-sm text-muted-foreground">
-          يتم عرض {mockUsers.length} {mockUsers.length === 1 ? 'مستخدم' : 'مستخدمين'}. (بيانات محاكاة)
+          يتم عرض {mockUsers.length} {mockUsers.length === 1 ? 'مستخدم' : mockUsers.length === 2 ? 'مستخدمين' : mockUsers.length <= 10 ? 'مستخدمين' : 'مستخدم'}. (بيانات محاكاة)
         </CardFooter>
+        )}
       </Card>
 
       {/* Permissions Card */}
@@ -289,3 +301,4 @@ export default function SettingsPage() {
   );
 }
     
+

@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon } from 'lucide-react'; 
+import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX } from 'lucide-react'; 
 import type { Party, Transaction, PartyEmployee } from '@/lib/types';
 import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel } from '@/lib/store';
 import {
@@ -21,7 +21,7 @@ import {
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -260,7 +260,11 @@ export default function PartyDetailPage() {
               </Table>
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-4">لا توجد معاملات مسجلة لهذه الجهة.</p>
+            <div className="text-center py-10 text-muted-foreground">
+              <ListX className="mx-auto h-12 w-12 mb-4" />
+              <p className="text-lg">لا توجد معاملات مسجلة لهذه الجهة.</p>
+              <p className="text-sm">ابدأ بتسجيل عمليات استلام أو تسليم لترى المعاملات هنا.</p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -316,12 +320,15 @@ export default function PartyDetailPage() {
               </Table>
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-4">
-              لم يتم استيراد بيانات موظفين لهذه الجهة بعد. استخدم الزر أعلاه للاستيراد.
-            </p>
+            <div className="text-center py-10 text-muted-foreground">
+              <UserX className="mx-auto h-12 w-12 mb-4" />
+              <p className="text-lg">لم يتم استيراد بيانات موظفين لهذه الجهة بعد.</p>
+              <p className="text-sm">استخدم الزر أعلاه للاستيراد من ملف Excel.</p>
+            </div>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+

@@ -329,9 +329,15 @@ export default function EquipmentManagementPage() {
                 <p className="text-lg">
                   {nameFilter || categoryFilter ? "لا توجد أنواع تجهيزات تطابق معايير البحث الحالية." : "لم يتم تعريف أي أنواع تجهيزات بعد."}
                 </p>
-                <p>
+                <p className="text-sm">
                   {nameFilter || categoryFilter ? "حاول تعديل معايير البحث أو إزالتها." : "ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك."}
                 </p>
+                {!(nameFilter || categoryFilter) && (
+                    <Button onClick={handleOpenAddDialog} className="mt-4">
+                        <PlusCircle className="ml-2 h-5 w-5" />
+                        إضافة نوع تجهيز جديد
+                    </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -391,4 +397,5 @@ export default function EquipmentManagementPage() {
     
 
     
+
 
