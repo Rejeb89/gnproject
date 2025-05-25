@@ -20,7 +20,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download, Eye } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download, Eye, Filter } from "lucide-react";
 import type { Party, Transaction } from "@/lib/types";
 import { getParties, addParty, updateParty, deleteParty, getTransactions } from "@/lib/store";
 import { PartyForm, type PartyFormValues } from "@/components/forms/party-form";
@@ -36,7 +43,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type PartyViewType = "all" | "senders" | "receivers";
 
@@ -46,7 +52,7 @@ export default function PartiesPage() {
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [editingParty, setEditingParty] = useState<Party | null>(null);
   const [partyToDelete, setPartyToDelete] = useState<Party | null>(null);
-  const [activeTab, setActiveTab] = useState<PartyViewType>("all");
+  const [partyFilterType, setPartyFilterType] = useState<PartyViewType>("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -69,10 +75,10 @@ export default function PartiesPage() {
   }, [allParties, transactions]);
 
   const partiesToDisplay = useMemo(() => {
-    if (activeTab === "senders") return sendingParties;
-    if (activeTab === "receivers") return receivingParties;
+    if (partyFilterType === "senders") return sendingParties;
+    if (partyFilterType === "receivers") return receivingParties;
     return allParties;
-  }, [activeTab, allParties, sendingParties, receivingParties]);
+  }, [partyFilterType, allParties, sendingParties, receivingParties]);
 
   const handleOpenAddDialog = () => {
     setEditingParty(null);
@@ -120,17 +126,29 @@ export default function PartiesPage() {
     setPartyToDelete(null);
   };
 
-  const getTabTitle = (tab: PartyViewType) => {
-    if (tab === "senders") return "الجهات المرسِلة";
-    if (tab === "receivers") return "الجهات المتسلمة";
+  const getFilterTitle = (filter: PartyViewType) => {
+    if (filter === "senders") return "الجهات المرسِلة";
+    if (filter === "receivers") return "الجهات المتسلمة";
     return "كل الجهات المسجلة";
   };
+
+  const getFilterDescription = (filter: PartyViewType) => {
+    if (filter === "senders") return "قائمة بالجهات التي قامت بإرسال تجهيزات إلى المخزن.";
+    if (filter === "receivers") return "قائمة بالجهات التي قامت بتسلم تجهيزات من المخزن.";
+    return "إدارة جميع الجهات المتعامل معها في النظام.";
+  };
   
-  const getEmptyStateMessage = (tab: PartyViewType) => {
-    if (tab === "senders") return "لا توجد جهات قامت بإرسال تجهيزات بعد.";
-    if (tab === "receivers") return "لا توجد جهات قامت بتسلم تجهيزات بعد.";
+  const getEmptyStateMessage = (filter: PartyViewType) => {
+    if (filter === "senders") return "لا توجد جهات قامت بإرسال تجهيزات بعد.";
+    if (filter === "receivers") return "لا توجد جهات قامت بتسلم تجهيزات بعد.";
     return "لم يتم تسجيل أي جهات بعد. ابدأ بإضافة جهة جديدة.";
   };
+
+  const getFilterIcon = (filter: PartyViewType) => {
+    if (filter === "senders") return <Send className="h-6 w-6" />;
+    if (filter === "receivers") return <Download className="h-6 w-6" />;
+    return <Building className="h-6 w-6" />;
+  }
 
   return (
     <AlertDialog open={!!partyToDelete} onOpenChange={(isOpen) => !isOpen && setPartyToDelete(null)}>
@@ -143,94 +161,95 @@ export default function PartiesPage() {
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as PartyViewType)}>
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-            <TabsTrigger value="all">
-              <Building className="ml-2 h-4 w-4" />
-              كل الجهات
-            </TabsTrigger>
-            <TabsTrigger value="senders">
-              <Send className="ml-2 h-4 w-4" /> 
-              الجهات المرسِلة
-            </TabsTrigger>
-            <TabsTrigger value="receivers">
-              <Download className="ml-2 h-4 w-4" />
-              الجهات المتسلمة
-            </TabsTrigger>
-          </TabsList>
-
-          {["all", "senders", "receivers"].map((tabValue) => (
-            <TabsContent key={tabValue} value={tabValue as PartyViewType}>
-              <Card className="shadow-lg mt-4">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {activeTab === "all" && <Building className="h-6 w-6" />}
-                    {activeTab === "senders" && <Send className="h-6 w-6" />}
-                    {activeTab === "receivers" && <Download className="h-6 w-6" />}
-                    {getTabTitle(activeTab)}
-                  </CardTitle>
-                  <CardDescription>
-                    {activeTab === "all" && "إدارة جميع الجهات المتعامل معها في النظام."}
-                    {activeTab === "senders" && "قائمة بالجهات التي قامت بإرسال تجهيزات إلى المخزن."}
-                    {activeTab === "receivers" && "قائمة بالجهات التي قامت بتسلم تجهيزات من المخزن."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {partiesToDisplay.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>اسم الجهة</TableHead>
-                            <TableHead className="text-center">إجراءات</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {partiesToDisplay.map((party) => (
-                            <TableRow key={party.id}>
-                              <TableCell className="font-medium">
-                                <Link href={`/dashboard/parties/${party.id}`} className="text-primary hover:underline hover:text-primary/80 flex items-center gap-2">
-                                  <Eye className="h-4 w-4" />
-                                  {party.name}
-                                </Link>
-                              </TableCell>
-                              <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
-                                  <Edit2 className="h-4 w-4 text-blue-600" />
-                                </Button>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-10 text-muted-foreground">
-                      <Users className="mx-auto h-12 w-12 mb-4" />
-                      <p className="text-lg">{getEmptyStateMessage(activeTab)}</p>
-                    </div>
-                  )}
-                </CardContent>
-                {partiesToDisplay.length > 0 && (
-                  <CardFooter className="text-sm text-muted-foreground">
-                    يتم عرض {partiesToDisplay.length}{" "}
-                    {partiesToDisplay.length === 1 ? 'جهة' : 
-                     partiesToDisplay.length === 2 ? 'جهتين' : 
-                     partiesToDisplay.length > 2 && partiesToDisplay.length <= 10 ? 'جهات' : 'جهة'}
-                    {activeTab === "all" && " مسجلة"}
-                    {activeTab === "senders" && " مرسِلة"}
-                    {activeTab === "receivers" && " متسلمة"}.
-                  </CardFooter>
-                )}
-              </Card>
-            </TabsContent>
-          ))}
-        </Tabs>
+        <Card className="shadow-lg">
+            <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <CardTitle className="flex items-center gap-2">
+                        {getFilterIcon(partyFilterType)}
+                        {getFilterTitle(partyFilterType)}
+                    </CardTitle>
+                    <CardDescription>
+                        {getFilterDescription(partyFilterType)}
+                    </CardDescription>
+                </div>
+                <div className="w-full sm:w-auto sm:min-w-[200px]">
+                    <Select value={partyFilterType} onValueChange={(value) => setPartyFilterType(value as PartyViewType)}>
+                        <SelectTrigger className="w-full h-10">
+                            <SelectValue placeholder="تصفية عرض الجهات" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                <div className="flex items-center gap-2">
+                                    <Building className="h-4 w-4" /> كل الجهات
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="senders">
+                                <div className="flex items-center gap-2">
+                                    <Send className="h-4 w-4" /> الجهات المرسِلة
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="receivers">
+                                <div className="flex items-center gap-2">
+                                    <Download className="h-4 w-4" /> الجهات المتسلمة
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardHeader>
+            <CardContent>
+              {partiesToDisplay.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>اسم الجهة</TableHead>
+                        <TableHead className="text-center">إجراءات</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {partiesToDisplay.map((party) => (
+                        <TableRow key={party.id}>
+                          <TableCell className="font-medium">
+                            <Link href={`/dashboard/parties/${party.id}`} className="text-primary hover:underline hover:text-primary/80 flex items-center gap-2">
+                              <Eye className="h-4 w-4" />
+                              {party.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(party)} title="تعديل">
+                              <Edit2 className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="حذف" onClick={() => setPartyToDelete(party)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Users className="mx-auto h-12 w-12 mb-4" />
+                  <p className="text-lg">{getEmptyStateMessage(partyFilterType)}</p>
+                </div>
+              )}
+            </CardContent>
+            {partiesToDisplay.length > 0 && (
+              <CardFooter className="text-sm text-muted-foreground">
+                يتم عرض {partiesToDisplay.length}{" "}
+                {partiesToDisplay.length === 1 ? 'جهة' : 
+                 partiesToDisplay.length === 2 ? 'جهتين' : 
+                 partiesToDisplay.length > 2 && partiesToDisplay.length <= 10 ? 'جهات' : 'جهة'}
+                {partyFilterType === "all" && " مسجلة"}
+                {partyFilterType === "senders" && " مرسِلة"}
+                {partyFilterType === "receivers" && " متسلمة"}.
+              </CardFooter>
+            )}
+        </Card>
 
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogContent className="sm:max-w-[425px]">
@@ -273,3 +292,4 @@ export default function PartiesPage() {
   );
 }
     
+
