@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download, Eye, Filter } from "lucide-react";
+import { PlusCircle, Building, Edit2, Trash2, Users, Send, Download, Eye } from "lucide-react";
 import type { Party, Transaction } from "@/lib/types";
 import { getParties, addParty, updateParty, deleteParty, getTransactions } from "@/lib/store";
 import { PartyForm, type PartyFormValues } from "@/components/forms/party-form";
@@ -141,7 +141,7 @@ export default function PartiesPage() {
   const getEmptyStateMessage = (filter: PartyViewType) => {
     if (filter === "senders") return "لا توجد جهات قامت بإرسال تجهيزات بعد.";
     if (filter === "receivers") return "لا توجد جهات قامت بتسلم تجهيزات بعد.";
-    return "لم يتم تسجيل أي جهات بعد. ابدأ بإضافة جهة جديدة.";
+    return "لم يتم تسجيل أي جهات بعد.";
   };
 
   const getFilterIcon = (filter: PartyViewType) => {
@@ -235,6 +235,12 @@ export default function PartiesPage() {
                 <div className="text-center py-10 text-muted-foreground">
                   <Users className="mx-auto h-12 w-12 mb-4" />
                   <p className="text-lg">{getEmptyStateMessage(partyFilterType)}</p>
+                  {partyFilterType === 'all' && (
+                    <Button onClick={handleOpenAddDialog} className="mt-4">
+                      <PlusCircle className="ml-2 h-5 w-5" />
+                      ابدأ بإضافة جهة جديدة
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -292,4 +298,3 @@ export default function PartiesPage() {
   );
 }
     
-
