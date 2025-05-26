@@ -1,6 +1,6 @@
 
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowRightLeft, AlertTriangle, Package, BarChart as BarChartIcon, CalendarClock } from 'lucide-react';
 import type { Transaction, Equipment, CalendarEvent } from '@/lib/types';
