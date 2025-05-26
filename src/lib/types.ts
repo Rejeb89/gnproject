@@ -29,7 +29,7 @@ export interface PartyEmployee {
   rank: string;
   firstName: string;
   lastName: string;
-  employeeNumber: string; 
+  employeeNumber: string;
 }
 
 export interface EquipmentSetting {
@@ -44,3 +44,11 @@ export interface EquipmentDefinition {
   unitOfMeasurement?: string;
 }
 
+export interface AppNotification {
+  id: string;
+  message: string;
+  timestamp: string; // ISO date string
+  isRead: boolean;
+  type: 'low_stock' | 'info' | 'system_update'; // Example types
+  link?: string; // Optional link for navigation
+}

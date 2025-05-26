@@ -2,15 +2,15 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, Package, BarChart as BarChartIcon } from 'lucide-react'; // Changed AreaChartIcon to BarChartIcon
+import { ArrowRightLeft, ListChecks, AlertTriangle, Package, BarChart as BarChartIcon } from 'lucide-react';
 import type { Transaction, Equipment } from '@/lib/types';
-import { getTransactions, calculateStock, getEquipmentSettings } from '@/lib/store';
+import { getTransactions, calculateStock, getEquipmentSettings, addNotification } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
-  BarChart, // Changed from AreaChart
-  Bar,      // Changed from Area
-  Cell,     // Added for individual bar colors
+  BarChart,
+  Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,7 +22,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 const chartConfig = {
   quantity: {
     label: "الكمية",
-    // color is no longer globally set for the chart as bars are individually colored
   },
 } satisfies ChartConfig;
 
@@ -49,7 +48,7 @@ export default function DashboardPage() {
     setStock(currentStock);
 
     const equipmentSettings = getEquipmentSettings();
-    
+
     const aggregatedStockByName: Record<string, number> = {};
     currentStock.forEach(item => {
       aggregatedStockByName[item.name] = (aggregatedStockByName[item.name] || 0) + item.quantity;
@@ -66,10 +65,22 @@ export default function DashboardPage() {
       });
     setLowStockItems(lowStockItemsForAlert);
 
+    if (lowStockItemsForAlert.length > 0) {
+      const message = `يوجد ${lowStockItemsForAlert.length} ${lowStockItemsForAlert.length === 1 ? 'تجهيز' : lowStockItemsForAlert.length === 2 ? 'تجهيزين' : 'تجهيزات'} بمخزون منخفض.`;
+      addNotification({
+        message: message,
+        type: 'low_stock',
+        link: '/dashboard/equipment' // Link to the equipment page
+      });
+      // Dispatch a custom event to notify layout to reload notifications
+      window.dispatchEvent(new CustomEvent('notificationsUpdated'));
+    }
+
+
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
     const chartDataFilteredAndColored = currentStock
-      .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0) 
+      .filter(item => namesOfLowStockItems.has(item.name) && item.quantity > 0)
       .map((item, index) => ({
         name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
         quantity: item.quantity,
@@ -84,10 +95,10 @@ export default function DashboardPage() {
   const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
 
   const legendPayload = displayChartData.map(item => ({
-    value: item.name, // The name of the equipment for the legend item
-    type: 'square' as const, // Shape of the legend icon
+    value: item.name,
+    type: 'square' as const,
     id: item.name,
-    color: item.fill, // Color of the legend icon, matching the bar
+    color: item.fill,
   }));
 
 
@@ -138,7 +149,7 @@ export default function DashboardPage() {
             </ul>
           </CardContent>
         </Card>
-        
+
         {/* Skeleton for Low Stock Chart Card */}
         <Card>
           <CardHeader>
@@ -149,7 +160,7 @@ export default function DashboardPage() {
             <Skeleton className="h-4 w-full mt-1" />
           </CardHeader>
           <CardContent className="pt-4">
-            <Skeleton className="h-[450px] w-full" /> 
+            <Skeleton className="h-[450px] w-full" />
           </CardContent>
         </Card>
       </div>
@@ -165,7 +176,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/receive">تسجيل استلام جديد</Link>
           </Button>
           <Button asChild variant="destructive" className="w-full sm:w-auto">
-            <Link href="/dashboard/dispatch">تسليم تجهيزات</Link> 
+            <Link href="/dashboard/dispatch">تسليم تجهيزات</Link>
           </Button>
         </div>
       </div>
@@ -209,7 +220,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{lowStockItems.length.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {lowStockItems.length === 0 ? "لا يوجد تجهيزات حاليًا تحت حد التنبيه" : 
+              {lowStockItems.length === 0 ? "لا يوجد تجهيزات حاليًا تحت حد التنبيه" :
                lowStockItems.length === 1 ? "نوع تجهيز واحد وصل لحد التنبيه" :
                lowStockItems.length === 2 ? "نوعان من التجهيزات وصلا لحد التنبيه" :
                lowStockItems.length > 2 && lowStockItems.length <= 10 ? `${lowStockItems.length} أنواع تجهيزات وصلت لحد التنبيه` :
@@ -259,17 +270,17 @@ export default function DashboardPage() {
                   top: 20, // For legend
                   right: 30,
                   left: 0, // Adjust if Y-axis labels are cut
-                  bottom: 70, 
+                  bottom: 70,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                    dataKey="name" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={80} 
-                    interval={0} 
-                    tick={{fontSize: '0.75rem'}} 
+                <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    tick={{fontSize: '0.75rem'}}
                 />
                 <YAxis
                     allowDecimals={false}
@@ -278,13 +289,13 @@ export default function DashboardPage() {
                 />
                 <ChartTooltip
                   cursor={{ fill: "hsl(var(--accent) / 0.2)" }}
-                  content={<ChartTooltipContent 
-                    indicator="dot" 
+                  content={<ChartTooltipContent
+                    indicator="dot"
                     formatter={(value, name, props) => { // 'name' here is the dataKey ('quantity')
                         const equipmentDisplayName = props.payload?.name; // Actual name from data item
                         return (
                           <div className="flex flex-col">
-                            <span className="font-semibold">{equipmentDisplayName}</span> 
+                            <span className="font-semibold">{equipmentDisplayName}</span>
                             <span>الكمية: {Number(value).toLocaleString()}</span>
                           </div>
                         );
@@ -314,8 +325,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-    
-
-      
-
-    

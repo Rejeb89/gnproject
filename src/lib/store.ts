@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -8,6 +8,7 @@ const PARTIES_KEY = 'equipTrack_parties_v1';
 const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for equipment settings
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
+const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -15,6 +16,7 @@ const ALL_APP_DATA_KEYS = [
   EQUIPMENT_SETTINGS_KEY,
   EQUIPMENT_DEFINITIONS_KEY,
   PARTY_EMPLOYEES_KEY,
+  NOTIFICATIONS_KEY,
 ];
 
 // Transactions
@@ -114,7 +116,7 @@ export function addParty(partyName: string): Party {
 
 export function updateParty(partyId: string, newName: string): { success: boolean, message?: string } {
   if (typeof window === 'undefined') return { success: false, message: "لا يمكن تحديث الجهة من الخادم." };
-  
+
   if (!newName.trim()) {
     return { success: false, message: "اسم الجهة لا يمكن أن يكون فارغًا." };
   }
@@ -255,7 +257,7 @@ export function updateEquipmentDefinition(updatedDefinition: EquipmentDefinition
   const definitions = getEquipmentDefinitions();
   const index = definitions.findIndex(d => d.id === updatedDefinition.id);
   if (index === -1) {
-    return false; 
+    return false;
   }
   definitions[index] = updatedDefinition;
   localStorage.setItem(EQUIPMENT_DEFINITIONS_KEY, JSON.stringify(definitions));
@@ -269,8 +271,8 @@ export function deleteEquipmentDefinition(definitionId: string): boolean {
   let definitions = getEquipmentDefinitions();
   const definitionToDelete = definitions.find(d => d.id === definitionId);
 
-  if (!definitionToDelete) return false; 
-  
+  if (!definitionToDelete) return false;
+
   const transactions = getTransactions();
   const isUsed = transactions.some(tx => tx.equipmentName === definitionToDelete.name);
 
@@ -280,7 +282,7 @@ export function deleteEquipmentDefinition(definitionId: string): boolean {
 
   definitions = definitions.filter(d => d.id !== definitionId);
   localStorage.setItem(EQUIPMENT_DEFINITIONS_KEY, JSON.stringify(definitions));
-  
+
   return true;
 }
 
@@ -330,16 +332,16 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
           const workbook = XLSX.read(arrayBuffer, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]; 
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-          if (jsonData.length < 2) { 
+          if (jsonData.length < 2) {
             resolve({ success: false, message: "ملف Excel فارغ أو لا يحتوي على بيانات كافية." });
             return;
           }
-          
+
           const header = jsonData[0].map(h => String(h).trim().toLowerCase());
           const expectedHeaders = ["الرتبة", "الاسم", "اللقب", "الرقم"].map(h => h.toLowerCase());
-          
+
           const rankIndex = header.indexOf(expectedHeaders[0]);
           const firstNameIndex = header.indexOf(expectedHeaders[1]);
           const lastNameIndex = header.indexOf(expectedHeaders[2]);
@@ -353,7 +355,7 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
           const employees: PartyEmployee[] = [];
           for (let i = 1; i < jsonData.length; i++) {
             const row = jsonData[i];
-            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue; 
+            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue;
 
             const rank = String(row[rankIndex] || '').trim();
             const firstName = String(row[firstNameIndex] || '').trim();
@@ -372,7 +374,7 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
               console.warn(`Skipping row ${i+1} due to missing data: Rank=${rank}, FirstName=${firstName}, LastName=${lastName}, Number=${employeeNumber}`);
             }
           }
-          
+
           setPartyEmployees(partyId, employees);
           resolve({ success: true, message: `تم استيراد وتحديث بيانات الموظفين بنجاح. عدد السجلات: ${employees.length}`, data: employees });
 
@@ -391,6 +393,81 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
       resolve({ success: false, message: "حدث خطأ غير متوقع أثناء عملية الاستيراد." });
     }
   });
+}
+
+
+// Notifications
+export function getNotifications(): AppNotification[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(NOTIFICATIONS_KEY);
+    const notifications: AppNotification[] = data ? JSON.parse(data) : [];
+    return notifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch (error) {
+    console.error("Error reading notifications from localStorage:", error);
+    return [];
+  }
+}
+
+export function addNotification(notificationData: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>): AppNotification | null {
+  if (typeof window === 'undefined') return null;
+
+  const notifications = getNotifications();
+  // Prevent adding duplicate unread notifications of the same type and message
+  const existingUnread = notifications.find(
+    n => !n.isRead && n.type === notificationData.type && n.message === notificationData.message
+  );
+  if (existingUnread) {
+    return existingUnread; // Don't add if a similar unread notification exists
+  }
+
+  const newNotification: AppNotification = {
+    ...notificationData,
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    isRead: false,
+  };
+  notifications.unshift(newNotification); // Add to the beginning
+  try {
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+    return newNotification;
+  } catch (error) {
+    console.error("Error saving notification to localStorage:", error);
+    return null;
+  }
+}
+
+export function markNotificationAsRead(notificationId: string): void {
+  if (typeof window === 'undefined') return;
+  const notifications = getNotifications();
+  const updatedNotifications = notifications.map(n =>
+    n.id === notificationId ? { ...n, isRead: true } : n
+  );
+  try {
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+  } catch (error) {
+    console.error("Error marking notification as read in localStorage:", error);
+  }
+}
+
+export function markAllNotificationsAsRead(): void {
+  if (typeof window === 'undefined') return;
+  const notifications = getNotifications();
+  const updatedNotifications = notifications.map(n => ({ ...n, isRead: true }));
+  try {
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updatedNotifications));
+  } catch (error) {
+    console.error("Error marking all notifications as read in localStorage:", error);
+  }
+}
+
+export function clearAllNotifications(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify([]));
+  } catch (error) {
+    console.error("Error clearing notifications from localStorage:", error);
+  }
 }
 
 
@@ -414,7 +491,14 @@ export function exportAllData(): void {
       if (data) {
         appData[key] = JSON.parse(data);
       } else {
-        appData[key] = []; // Or appropriate default empty state
+        // Use appropriate default empty state based on key
+        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === PARTY_EMPLOYEES_KEY) {
+          appData[key] = [];
+        } else if (key === EQUIPMENT_SETTINGS_KEY) {
+           appData[key] = {};
+        } else {
+          appData[key] = null; // Default for unknown keys
+        }
       }
     } catch (error) {
       console.error(`Error reading ${key} from localStorage during export:`, error);
@@ -452,8 +536,18 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         let allKeysPresent = true;
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
-            allKeysPresent = false;
-            break;
+             // Allow EQUIPMENT_SETTINGS_KEY to be missing in older backups
+            if (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) {
+                console.warn(`Key ${EQUIPMENT_SETTINGS_KEY} missing in import file, will default to empty object.`);
+                importedData[key] = {}; // Default to empty object if missing
+            } else if (key === NOTIFICATIONS_KEY && importedData[key] === undefined) {
+                 console.warn(`Key ${NOTIFICATIONS_KEY} missing in import file, will default to empty array.`);
+                 importedData[key] = [];
+            }
+            else {
+                allKeysPresent = false;
+                break;
+            }
           }
         }
 
@@ -464,7 +558,12 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
 
         // Clear existing data and import new data
         ALL_APP_DATA_KEYS.forEach(key => {
-          localStorage.setItem(key, JSON.stringify(importedData[key] || [])); // Use empty array as fallback
+           if (importedData[key] !== undefined) { // Ensure data exists in import for the key
+            localStorage.setItem(key, JSON.stringify(importedData[key]));
+          } else {
+            // If a key is somehow missing from ALL_APP_DATA_KEYS but not handled above, clear it
+            localStorage.removeItem(key);
+          }
         });
 
         resolve({ success: true, message: "تم استيراد البيانات بنجاح. سيتم إعادة تحميل الصفحة." });
