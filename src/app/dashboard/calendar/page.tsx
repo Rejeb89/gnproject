@@ -35,6 +35,7 @@ export default function CalendarPage() {
 
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
   const [daysWithEvents, setDaysWithEvents] = useState<Date[]>([]);
+  const [defaultDateForNewEvent, setDefaultDateForNewEvent] = useState<Date | null>(null);
 
   useEffect(() => {
     loadEvents();
@@ -53,11 +54,22 @@ export default function CalendarPage() {
 
   const handleOpenAddDialog = () => {
     setEditingEvent(null);
+    setDefaultDateForNewEvent(selectedDay || null); // Use selectedDay if available, else null (form will use new Date())
     setIsFormDialogOpen(true);
+  };
+
+  const handleCalendarDayClick = (day: Date | undefined) => {
+    setSelectedDay(day); // For filtering list
+    if (day) {
+      setEditingEvent(null);
+      setDefaultDateForNewEvent(day);
+      setIsFormDialogOpen(true);
+    }
   };
 
   const handleOpenEditDialog = (event: CalendarEvent) => {
     setEditingEvent(event);
+    setDefaultDateForNewEvent(null); // Not pre-filling date when editing
     setIsFormDialogOpen(true);
   };
 
@@ -71,7 +83,7 @@ export default function CalendarPage() {
         reminderValue: values.reminderUnit === "none" || !values.reminderValue ? undefined : values.reminderValue,
       };
 
-      if (editingEvent) {
+      if (editingEvent && editingEvent.id) { // Ensure editingEvent has an id for update
         updateCalendarEvent({ ...editingEvent, ...eventData });
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث الحدث: ${values.title}` });
       } else {
@@ -80,6 +92,8 @@ export default function CalendarPage() {
       }
       loadEvents();
       setIsFormDialogOpen(false);
+      setEditingEvent(null); // Reset editing state
+      setDefaultDateForNewEvent(null); // Reset prefill date
     } catch (error) {
       console.error("Error saving event:", error);
       toast({ title: "حدث خطأ", description: "لم يتم حفظ الحدث.", variant: "destructive" });
@@ -146,14 +160,14 @@ export default function CalendarPage() {
           <CardHeader>
             <CardTitle>الروزنامة الشهرية</CardTitle>
             <CardDescription>
-              انقر على يوم في الروزنامة أدناه لتصفية قائمة الأحداث. الأيام التي تحتوي على أحداث مميزة.
+              انقر على يوم في الروزنامة أدناه لتصفية قائمة الأحداث أو لإضافة حدث جديد لذلك اليوم. الأيام التي تحتوي على أحداث مميزة.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex justify-center">
             <Calendar
               mode="single"
               selected={selectedDay}
-              onSelect={setSelectedDay}
+              onSelect={handleCalendarDayClick} // Changed to handleCalendarDayClick
               locale={arSA}
               dir="rtl"
               className="rounded-md border shadow-sm"
@@ -249,6 +263,7 @@ export default function CalendarPage() {
               <li><span className="font-semibold text-green-600">[تم]</span> إضافة أحداث جديدة (عنوان, تاريخ, وصف, إعدادات تذكير).</li>
               <li><span className="font-semibold text-green-600">[تم]</span> تعديل وحذف الأحداث.</li>
               <li><span className="font-semibold text-green-600">[تم]</span> عرض روزنامة شهرية أساسية مع تمييز أيام الأحداث وتصفية القائمة.</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> النقر على يوم في الروزنامة يفتح نافذة إضافة حدث جديد لذلك اليوم.</li>
               <li><span className="font-semibold text-amber-600">[جزئيًا]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
               <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية متقدمة مع عرض تفاصيل الأحداث مباشرة على خلايا الروزنامة.</li>
               <li>إمكانية ربط الأحداث بالتجهيزات أو وسائل النقل.</li>
@@ -256,18 +271,29 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
 
-        <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+        <Dialog open={isFormDialogOpen} onOpenChange={(isOpen) => {
+            setIsFormDialogOpen(isOpen);
+            if (!isOpen) {
+                setEditingEvent(null); // Clear editing state when dialog closes
+                setDefaultDateForNewEvent(null); // Clear prefill date
+            }
+        }}>
           <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
-              <DialogTitle>{editingEvent ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
+              <DialogTitle>{editingEvent && editingEvent.id ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
               <DialogDesc>
-                {editingEvent ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
+                {editingEvent && editingEvent.id ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
               </DialogDesc>
             </DialogHeader>
             <CalendarEventForm
               onSubmit={handleFormSubmit}
-              onCancel={() => setIsFormDialogOpen(false)}
+              onCancel={() => {
+                setIsFormDialogOpen(false);
+                setEditingEvent(null);
+                setDefaultDateForNewEvent(null);
+              }}
               initialData={editingEvent}
+              defaultDate={defaultDateForNewEvent}
             />
           </DialogContent>
         </Dialog>

@@ -30,14 +30,15 @@ interface CalendarEventFormProps {
   onSubmit: (values: CalendarEventFormValues) => void;
   onCancel: () => void;
   initialData?: CalendarEvent | null;
+  defaultDate?: Date | null; // New prop for pre-filling date on add
 }
 
-export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarEventFormProps) {
+export function CalendarEventForm({ onSubmit, onCancel, initialData, defaultDate }: CalendarEventFormProps) {
   const form = useForm<CalendarEventFormValues>({
     resolver: zodResolver(calendarEventFormSchema),
     defaultValues: {
       title: initialData?.title || "",
-      date: initialData ? new Date(initialData.date) : new Date(),
+      date: initialData?.date ? new Date(initialData.date) : (defaultDate || new Date()),
       description: initialData?.description || "",
       reminderUnit: initialData?.reminderUnit || "none",
       reminderValue: initialData?.reminderValue || undefined,
@@ -45,7 +46,7 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
   });
 
   React.useEffect(() => {
-    if (initialData) {
+    if (initialData && initialData.id) { // Editing existing event (check for id)
       form.reset({
         title: initialData.title,
         date: new Date(initialData.date),
@@ -53,16 +54,16 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
         reminderUnit: initialData.reminderUnit || "none",
         reminderValue: initialData.reminderValue || undefined,
       });
-    } else {
+    } else { // Adding new event or pre-filling with defaultDate
       form.reset({
         title: "",
-        date: new Date(),
+        date: defaultDate ? new Date(defaultDate) : new Date(),
         description: "",
         reminderUnit: "none",
         reminderValue: undefined,
       });
     }
-  }, [initialData, form]);
+  }, [initialData, defaultDate, form]);
 
   const handleSubmit = (values: CalendarEventFormValues) => {
     const finalValues = {
@@ -120,18 +121,18 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                   <Calendar
                     mode="single"
                     selected={field.value}
-                    onSelect={(selectedDate) => {
+                    onSelect={(selectedDateOption) => {
+                        const selectedDate = selectedDateOption; // No need for undefined check, DayPicker handles it.
                         if (!selectedDate) {
-                            field.onChange(undefined);
+                            field.onChange(undefined); // Or handle as per your logic for unsetting date
                             return;
                         }
-                        // Get existing time from field.value or default to 00:00
+                        
                         const currentHours = field.value instanceof Date ? field.value.getHours() : 0;
                         const currentMinutes = field.value instanceof Date ? field.value.getMinutes() : 0;
 
-                        // Create a new Date object from the selectedDay, then set the time
-                        const newDateTime = new Date(selectedDate); // This ensures we're working with the selected day
-                        newDateTime.setHours(currentHours, currentMinutes, 0, 0); // Set time, clear seconds/ms
+                        const newDateTime = new Date(selectedDate);
+                        newDateTime.setHours(currentHours, currentMinutes, 0, 0);
                         
                         field.onChange(newDateTime);
                     }}
@@ -145,14 +146,13 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                         id="event-time"
                         type="time"
                         className="mt-1"
-                        defaultValue={field.value ? format(field.value, "HH:mm") : "00:00"}
+                        defaultValue={field.value ? format(new Date(field.value), "HH:mm") : "00:00"}
                         onChange={(e) => {
                             const [hoursStr, minutesStr] = e.target.value.split(':');
                             const hours = parseInt(hoursStr, 10);
                             const minutes = parseInt(minutesStr, 10);
 
                             if (!isNaN(hours) && !isNaN(minutes)) {
-                                // Use current field date as base, or today if field.value is not a Date
                                 const baseDate = field.value instanceof Date ? new Date(field.value.getTime()) : new Date();
                                 
                                 const newDateTime = new Date(
@@ -162,7 +162,7 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                                     hours,
                                     minutes
                                 );
-                                newDateTime.setSeconds(0,0); // Clear seconds and milliseconds
+                                newDateTime.setSeconds(0,0); 
                                 field.onChange(newDateTime);
                             }
                         }}
@@ -225,9 +225,9 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                 )}
                 />
             </div>
-            {reminderUnit && reminderUnit !== "none" && (
+            {reminderUnit && reminderUnit !== "none" && form.getValues("reminderValue") && (
                  <FormDescription className="text-xs pt-1">
-                    سيتم إرسال تذكير قبل الحدث بـ {form.getValues("reminderValue") || "..."} {
+                    سيتم إرسال تذكير قبل الحدث بـ {form.getValues("reminderValue")} {
                         {"hours": "ساعات", "days": "أيام", "weeks": "أسابيع"}[reminderUnit as "hours" | "days" | "weeks"] || ""
                     }.
                 </FormDescription>
@@ -259,7 +259,7 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
           </Button>
           <Button type="submit" className="bg-primary hover:bg-primary/90">
             <Save className="ml-2 h-4 w-4" />
-            {initialData ? 'حفظ التعديلات' : 'إضافة الحدث'}
+            {initialData && initialData.id ? 'حفظ التعديلات' : 'إضافة الحدث'}
           </Button>        
         </div>
       </form>
