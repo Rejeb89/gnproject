@@ -7,9 +7,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX } from 'lucide-react'; 
-import type { Party, Transaction, PartyEmployee } from '@/lib/types';
-import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel } from '@/lib/store';
+import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX, Archive, Edit2, Trash2, PlusCircle } from 'lucide-react'; 
+import type { Party, Transaction, PartyEmployee, FixedFurnitureItem } from '@/lib/types';
+import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel, getFixedFurniture, importFixedFurnitureFromExcel } from '@/lib/store';
 import {
   Table,
   TableBody,
@@ -30,6 +30,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { exportTransactionsToExcel } from '@/lib/excel';
 import { useToast } from '@/hooks/use-toast';
+// Placeholder for a future FixedFurnitureForm if manual entry is implemented
+// import { FixedFurnitureForm, type FixedFurnitureFormValues } from '@/components/forms/fixed-furniture-form';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription as DialogDesc,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription as AlertDesc,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle as AlertTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export default function PartyDetailPage() {
   const router = useRouter();
@@ -39,9 +59,19 @@ export default function PartyDetailPage() {
 
   const [party, setParty] = useState<Party | null>(null);
   const [partyTransactions, setPartyTransactions] = useState<Transaction[]>([]);
+  
   const [partyEmployees, setPartyEmployees] = useState<PartyEmployee[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
+  const [employeeFile, setEmployeeFile] = useState<File | null>(null);
+  const [isImportingEmployees, setIsImportingEmployees] = useState(false);
+
+  const [fixedFurniture, setFixedFurniture] = useState<FixedFurnitureItem[]>([]);
+  const [furnitureFile, setFurnitureFile] = useState<File | null>(null);
+  const [isImportingFurniture, setIsImportingFurniture] = useState(false);
+
+  // Placeholder for future manual add/edit furniture dialog
+  const [isFurnitureFormOpen, setIsFurnitureFormOpen] = useState(false);
+  const [editingFurnitureItem, setEditingFurnitureItem] = useState<FixedFurnitureItem | null>(null);
+  const [furnitureItemToDelete, setFurnitureItemToDelete] = useState<FixedFurnitureItem | null>(null);
 
 
   useEffect(() => {
@@ -59,30 +89,33 @@ export default function PartyDetailPage() {
 
         const employees = getPartyEmployees(partyId);
         setPartyEmployees(employees);
+
+        const furniture = getFixedFurniture(partyId);
+        setFixedFurniture(furniture);
       }
     }
   }, [partyId]);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleEmployeeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
-      setSelectedFile(event.target.files[0]);
+      setEmployeeFile(event.target.files[0]);
     } else {
-      setSelectedFile(null);
+      setEmployeeFile(null);
     }
   };
 
   const handleImportEmployees = async () => {
-    if (!selectedFile || !partyId) {
+    if (!employeeFile || !partyId) {
       toast({
         title: "خطأ في الاستيراد",
-        description: "يرجى اختيار ملف Excel أولاً.",
+        description: "يرجى اختيار ملف Excel للموظفين أولاً.",
         variant: "destructive",
       });
       return;
     }
-    setIsImporting(true);
-    const result = await importPartyEmployeesFromExcel(partyId, selectedFile);
-    setIsImporting(false);
+    setIsImportingEmployees(true);
+    const result = await importPartyEmployeesFromExcel(partyId, employeeFile);
+    setIsImportingEmployees(false);
     toast({
       title: result.success ? "نجاح الاستيراد" : "فشل الاستيراد",
       description: result.message,
@@ -91,12 +124,48 @@ export default function PartyDetailPage() {
     if (result.success && result.data) {
       setPartyEmployees(result.data);
     }
-    setSelectedFile(null); 
+    setEmployeeFile(null); 
     const fileInput = document.getElementById('employee-excel-file') as HTMLInputElement;
     if (fileInput) {
         fileInput.value = "";
     }
   };
+
+  const handleFurnitureFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setFurnitureFile(event.target.files[0]);
+    } else {
+      setFurnitureFile(null);
+    }
+  };
+
+  const handleImportFurniture = async () => {
+    if (!furnitureFile || !partyId) {
+      toast({
+        title: "خطأ في الاستيراد",
+        description: "يرجى اختيار ملف Excel للأثاث أولاً.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsImportingFurniture(true);
+    const result = await importFixedFurnitureFromExcel(partyId, furnitureFile);
+    setIsImportingFurniture(false);
+    toast({
+      title: result.success ? "نجاح الاستيراد" : "فشل الاستيراد",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+    if (result.success && result.data) {
+      setFixedFurniture(result.data);
+    }
+    setFurnitureFile(null);
+    const fileInput = document.getElementById('furniture-excel-file') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = "";
+    }
+  };
+
 
   const exportPartyTransactions = (periodType: 'month' | 'year') => {
     if (!party) return;
@@ -272,6 +341,84 @@ export default function PartyDetailPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Archive className="h-6 w-6 text-primary" />
+            الأثاث القار المعين للوحدة
+          </CardTitle>
+          <CardDescription>
+            إدارة بيانات الأثاث القار الخاص بهذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
+            <br />
+            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: نوع التجهيز، الكمية، الترقيم الإداري، الترقيم التسلسلي، مكان تواجده، الحالة.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <Input
+              id="furniture-excel-file"
+              type="file"
+              accept=".xlsx, .xls"
+              onChange={handleFurnitureFileChange}
+              className="flex-grow"
+              aria-label="اختيار ملف Excel لبيانات الأثاث القار"
+            />
+            <Button onClick={handleImportFurniture} disabled={!furnitureFile || isImportingFurniture} className="w-full sm:w-auto">
+              <UploadCloud className="ml-2 h-4 w-4" />
+              {isImportingFurniture ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+            </Button>
+             {/* Placeholder for future manual add button */}
+            <Button variant="outline" onClick={() => setIsFurnitureFormOpen(true)} className="w-full sm:w-auto" disabled>
+                <PlusCircle className="ml-2 h-4 w-4" />
+                إضافة قطعة أثاث (قيد التطوير)
+            </Button>
+          </div>
+          {fixedFurniture.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>نوع التجهيز</TableHead>
+                    <TableHead className="text-center">الكمية</TableHead>
+                    <TableHead>الترقيم الإداري</TableHead>
+                    <TableHead>الترقيم التسلسلي</TableHead>
+                    <TableHead>مكان تواجده</TableHead>
+                    <TableHead>الحالة</TableHead>
+                    {/* <TableHead className="text-center">إجراءات</TableHead> */}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fixedFurniture.map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.equipmentType}</TableCell>
+                      <TableCell className="text-center">{item.quantity.toLocaleString()}</TableCell>
+                      <TableCell>{item.administrativeNumbering || '-'}</TableCell>
+                      <TableCell>{item.serialNumber || '-'}</TableCell>
+                      <TableCell>{item.location || '-'}</TableCell>
+                      <TableCell>{item.status || '-'}</TableCell>
+                      {/* <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingFurnitureItem(item); setIsFurnitureFormOpen(true); }} title="تعديل" disabled>
+                          <Edit2 className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="حذف" onClick={() => setFurnitureItemToDelete(item)} disabled>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell> */}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              <Archive className="mx-auto h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg">لم يتم تسجيل أي أثاث قار لهذه الجهة بعد.</p>
+              <p className="text-sm">استخدم زر الاستيراد من Excel أو زر الإضافة اليدوية (قيد التطوير) لبدء الإدارة.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <UsersIcon className="h-6 w-6 text-primary" />
             بيانات موظفي الجهة
           </CardTitle>
@@ -287,13 +434,13 @@ export default function PartyDetailPage() {
               id="employee-excel-file"
               type="file"
               accept=".xlsx, .xls"
-              onChange={handleFileChange}
+              onChange={handleEmployeeFileChange}
               className="flex-grow"
               aria-label="اختيار ملف Excel لبيانات الموظفين"
             />
-            <Button onClick={handleImportEmployees} disabled={!selectedFile || isImporting} className="w-full sm:w-auto">
+            <Button onClick={handleImportEmployees} disabled={!employeeFile || isImportingEmployees} className="w-full sm:w-auto">
               <UploadCloud className="ml-2 h-4 w-4" />
-              {isImporting ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+              {isImportingEmployees ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
             </Button>
           </div>
           {partyEmployees.length > 0 ? (
@@ -328,7 +475,40 @@ export default function PartyDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Placeholder for Furniture Form Dialog - Future Development */}
+      <Dialog open={isFurnitureFormOpen} onOpenChange={setIsFurnitureFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingFurnitureItem ? "تعديل قطعة أثاث" : "إضافة قطعة أثاث جديدة"}</DialogTitle>
+            <DialogDesc>
+              {/* <FixedFurnitureForm onSubmit={handleFurnitureFormSubmit} initialData={editingFurnitureItem} /> */}
+              ميزة الإضافة/التعديل اليدوي للأثاث قيد التطوير.
+            </DialogDesc>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* Placeholder for Furniture Delete Confirmation - Future Development */}
+      {furnitureItemToDelete && (
+        <AlertDialog open={!!furnitureItemToDelete} onOpenChange={(isOpen) => !isOpen && setFurnitureItemToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertTitle>تأكيد الحذف</AlertTitle>
+                    <AlertDesc>
+                        هل أنت متأكد أنك تريد حذف قطعة الأثاث "{furnitureItemToDelete.equipmentType}"؟
+                    </AlertDesc>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setFurnitureItemToDelete(null)}>إلغاء</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => { /* handleDeleteFurnitureItemConfirm(); */ setFurnitureItemToDelete(null);}} disabled>
+                        نعم، قم بالحذف (قيد التطوير)
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
+
     </div>
   );
 }
-

@@ -71,3 +71,13 @@ export interface Vehicle {
   fuelAllowanceLiters?: number; // مقرر المحروقات باللتر
   status?: 'available' | 'on_mission' | 'maintenance'; // (للتطوير المستقبلي)
 }
+
+export interface FixedFurnitureItem {
+  id: string; // crypto.randomUUID()
+  equipmentType: string;
+  quantity: number;
+  administrativeNumbering?: string;
+  serialNumber?: string;
+  location?: string;
+  status?: string; // e.g., 'جيد', 'متوسط', 'تالف'
+}

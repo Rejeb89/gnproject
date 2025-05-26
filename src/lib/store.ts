@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle, FixedFurnitureItem } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -11,6 +11,7 @@ const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party em
 export const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
 const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
 const VEHICLES_KEY = 'equipTrack_vehicles_v1'; // Key for vehicles
+const FIXED_FURNITURE_KEY = 'equipTrack_fixed_furniture_v1'; // Key for fixed furniture
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -21,6 +22,7 @@ const ALL_APP_DATA_KEYS = [
   NOTIFICATIONS_KEY,
   CALENDAR_EVENTS_KEY,
   VEHICLES_KEY,
+  FIXED_FURNITURE_KEY,
 ];
 
 // Transactions
@@ -191,6 +193,13 @@ export function deleteParty(partyId: string): { success: boolean, message?: stri
       const allEmployees = JSON.parse(allPartyEmployeesData);
       delete allEmployees[partyId];
       localStorage.setItem(PARTY_EMPLOYEES_KEY, JSON.stringify(allEmployees));
+    }
+    // Also delete associated fixed furniture
+    const allFixedFurnitureData = localStorage.getItem(FIXED_FURNITURE_KEY);
+    if (allFixedFurnitureData) {
+      const allFurniture = JSON.parse(allFixedFurnitureData);
+      delete allFurniture[partyId];
+      localStorage.setItem(FIXED_FURNITURE_KEY, JSON.stringify(allFurniture));
     }
     return { success: true };
   } catch (error) {
@@ -569,6 +578,117 @@ export function deleteVehicle(vehicleId: string): boolean {
   return vehicles.length !== updatedVehicles.length;
 }
 
+// Fixed Furniture
+export function getFixedFurniture(partyId: string): FixedFurnitureItem[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const allFixedFurnitureData = localStorage.getItem(FIXED_FURNITURE_KEY);
+    const allFurniture = allFixedFurnitureData ? JSON.parse(allFixedFurnitureData) : {};
+    return (allFurniture[partyId] || []).sort((a: FixedFurnitureItem, b: FixedFurnitureItem) => 
+      a.equipmentType.localeCompare(b.equipmentType)
+    );
+  } catch (error) {
+    console.error(`Error reading fixed furniture for party ${partyId} from localStorage:`, error);
+    return [];
+  }
+}
+
+export function setFixedFurniture(partyId: string, items: FixedFurnitureItem[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const allFixedFurnitureData = localStorage.getItem(FIXED_FURNITURE_KEY);
+    const allFurniture = allFixedFurnitureData ? JSON.parse(allFixedFurnitureData) : {};
+    allFurniture[partyId] = items;
+    localStorage.setItem(FIXED_FURNITURE_KEY, JSON.stringify(allFurniture));
+  } catch (error) {
+    console.error(`Error saving fixed furniture for party ${partyId} to localStorage:`, error);
+  }
+}
+
+export async function importFixedFurnitureFromExcel(partyId: string, file: File): Promise<{ success: boolean; message: string; data?: FixedFurnitureItem[] }> {
+  if (typeof window === 'undefined') return { success: false, message: "لا يمكن معالجة الملف من الخادم." };
+  if (!file) return { success: false, message: "لم يتم اختيار ملف." };
+
+  return new Promise(async (resolve) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const arrayBuffer = event.target?.result;
+          if (!arrayBuffer) {
+            resolve({ success: false, message: "فشل في قراءة الملف." });
+            return;
+          }
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+          if (jsonData.length < 2) {
+            resolve({ success: false, message: "ملف Excel فارغ أو لا يحتوي على بيانات كافية (يجب أن يحتوي على صف ترويسة واحد على الأقل)." });
+            return;
+          }
+
+          const header = jsonData[0].map(h => String(h).trim().toLowerCase());
+          const expectedHeaders = ["نوع التجهيز", "الكمية", "الترقيم الاداري", "الترقيم التسلسلي", "مكان تواجده", "الحالة"].map(h => h.toLowerCase());
+          
+          const equipmentTypeIndex = header.indexOf(expectedHeaders[0]);
+          const quantityIndex = header.indexOf(expectedHeaders[1]);
+          const adminNumIndex = header.indexOf(expectedHeaders[2]);
+          const serialNumIndex = header.indexOf(expectedHeaders[3]);
+          const locationIndex = header.indexOf(expectedHeaders[4]);
+          const statusIndex = header.indexOf(expectedHeaders[5]);
+
+          if (equipmentTypeIndex === -1 || quantityIndex === -1) {
+            resolve({ success: false, message: `ملف Excel يجب أن يحتوي على الأقل على عمودي "نوع التجهيز" و "الكمية". الأعمدة المتوقعة هي: ${expectedHeaders.join(', ')}` });
+            return;
+          }
+
+          const furnitureItems: FixedFurnitureItem[] = [];
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue; // Skip empty rows
+
+            const equipmentType = String(row[equipmentTypeIndex] || '').trim();
+            const quantityStr = String(row[quantityIndex] || '0').trim();
+            const quantity = parseInt(quantityStr, 10);
+
+            if (!equipmentType || isNaN(quantity) || quantity <= 0) {
+              console.warn(`Skipping row ${i+1} due to missing or invalid equipment type/quantity: Type='${equipmentType}', Quantity='${quantityStr}'`);
+              continue;
+            }
+
+            furnitureItems.push({
+              id: crypto.randomUUID(),
+              equipmentType,
+              quantity,
+              administrativeNumbering: adminNumIndex !== -1 ? String(row[adminNumIndex] || '').trim() : undefined,
+              serialNumber: serialNumIndex !== -1 ? String(row[serialNumIndex] || '').trim() : undefined,
+              location: locationIndex !== -1 ? String(row[locationIndex] || '').trim() : undefined,
+              status: statusIndex !== -1 ? String(row[statusIndex] || '').trim() : undefined,
+            });
+          }
+
+          setFixedFurniture(partyId, furnitureItems);
+          resolve({ success: true, message: `تم استيراد وتحديث بيانات الأثاث القار بنجاح. عدد السجلات: ${furnitureItems.length}`, data: furnitureItems });
+
+        } catch (e) {
+          console.error("Error processing Excel file for fixed furniture:", e);
+          resolve({ success: false, message: "حدث خطأ أثناء معالجة ملف Excel الخاص بالأثاث." });
+        }
+      };
+      reader.onerror = () => {
+        resolve({ success: false, message: "فشل في قراءة الملف." });
+      };
+      reader.readAsArrayBuffer(file);
+
+    } catch (error) {
+      console.error("Error importing fixed furniture:", error);
+      resolve({ success: false, message: "حدث خطأ غير متوقع أثناء عملية استيراد الأثاث." });
+    }
+  });
+}
+
 
 // Clear All Data
 export function clearAllData(): void {
@@ -597,9 +717,9 @@ export function exportAllData(): void {
         appData[key] = JSON.parse(data);
       } else {
         // Use appropriate default empty state based on key
-        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) {
+        if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key)) {
           appData[key] = [];
-        } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) {
+        } else if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key)) {
            appData[key] = {};
         } else {
           appData[key] = null; // Default for unknown keys
@@ -642,10 +762,10 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
             // Allow some keys to be missing and default them
-             if ((key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) && importedData[key] === undefined) {
+             if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key) && importedData[key] === undefined) {
                 console.warn(`Key ${key} missing in import file, will default to empty object.`);
                 importedData[key] = {};
-            } else if ((key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) && importedData[key] === undefined) {
+            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key) && importedData[key] === undefined) {
                  console.warn(`Key ${key} missing in import file, will default to empty array.`);
                 importedData[key] = [];
             }
@@ -671,9 +791,9 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
           } else {
             // If a key is present in ALL_APP_DATA_KEYS but data is null/undefined in imported file,
             // ensure it's appropriately cleared or set to default empty state
-            if (key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) {
+            if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key)) {
               localStorage.setItem(key, JSON.stringify([]));
-            } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) {
+            } else if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key)) {
               localStorage.setItem(key, JSON.stringify({}));
             } else {
               localStorage.removeItem(key);
@@ -700,4 +820,3 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
     reader.readAsText(file);
   });
 }
-
