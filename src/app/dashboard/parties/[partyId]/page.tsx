@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useEffect, useState, ChangeEvent } from 'react';
+import { useEffect, useState, ChangeEvent, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX, Archive, Edit2, Trash2, PlusCircle } from 'lucide-react'; 
+import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX, Archive, Edit2, Trash2, PlusCircle, Search } from 'lucide-react'; 
 import type { Party, Transaction, PartyEmployee, FixedFurnitureItem } from '@/lib/types';
 import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel, getFixedFurniture, importFixedFurnitureFromExcel } from '@/lib/store';
 import {
@@ -67,6 +67,7 @@ export default function PartyDetailPage() {
   const [fixedFurniture, setFixedFurniture] = useState<FixedFurnitureItem[]>([]);
   const [furnitureFile, setFurnitureFile] = useState<File | null>(null);
   const [isImportingFurniture, setIsImportingFurniture] = useState(false);
+  const [furnitureSearchTerm, setFurnitureSearchTerm] = useState("");
 
   // Placeholder for future manual add/edit furniture dialog
   const [isFurnitureFormOpen, setIsFurnitureFormOpen] = useState(false);
@@ -95,6 +96,20 @@ export default function PartyDetailPage() {
       }
     }
   }, [partyId]);
+
+  const filteredFixedFurniture = useMemo(() => {
+    if (!furnitureSearchTerm.trim()) {
+      return fixedFurniture;
+    }
+    const lowercasedFilter = furnitureSearchTerm.toLowerCase().trim();
+    return fixedFurniture.filter(item =>
+      item.equipmentType.toLowerCase().includes(lowercasedFilter) ||
+      (item.administrativeNumbering || "").toLowerCase().includes(lowercasedFilter) ||
+      (item.serialNumber || "").toLowerCase().includes(lowercasedFilter) ||
+      (item.location || "").toLowerCase().includes(lowercasedFilter) ||
+      (item.status || "").toLowerCase().includes(lowercasedFilter)
+    );
+  }, [fixedFurniture, furnitureSearchTerm]);
 
   const handleEmployeeFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -364,13 +379,21 @@ export default function PartyDetailPage() {
               <UploadCloud className="ml-2 h-4 w-4" />
               {isImportingFurniture ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
             </Button>
-             {/* Placeholder for future manual add button */}
             <Button variant="outline" onClick={() => setIsFurnitureFormOpen(true)} className="w-full sm:w-auto" disabled>
                 <PlusCircle className="ml-2 h-4 w-4" />
                 إضافة قطعة أثاث (قيد التطوير)
             </Button>
           </div>
-          {fixedFurniture.length > 0 ? (
+          <div className="my-4">
+            <Input
+              type="search"
+              placeholder="ابحث في الأثاث (نوع، ترقيم، موقع...)"
+              value={furnitureSearchTerm}
+              onChange={(e) => setFurnitureSearchTerm(e.target.value)}
+              className="h-10 w-full sm:w-1/2"
+            />
+          </div>
+          {filteredFixedFurniture.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -385,7 +408,7 @@ export default function PartyDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fixedFurniture.map(item => (
+                  {filteredFixedFurniture.map(item => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.equipmentType}</TableCell>
                       <TableCell className="text-center">{item.quantity.toLocaleString()}</TableCell>
@@ -409,8 +432,14 @@ export default function PartyDetailPage() {
           ) : (
             <div className="text-center py-10 text-muted-foreground">
               <Archive className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg">لم يتم تسجيل أي أثاث قار لهذه الجهة بعد.</p>
-              <p className="text-sm">استخدم زر الاستيراد من Excel أو زر الإضافة اليدوية (قيد التطوير) لبدء الإدارة.</p>
+              {furnitureSearchTerm ? (
+                <p className="text-lg">لا يوجد أثاث يطابق معايير البحث الحالية.</p>
+              ) : (
+                <>
+                  <p className="text-lg">لم يتم تسجيل أي أثاث قار لهذه الجهة بعد.</p>
+                  <p className="text-sm">استخدم زر الاستيراد من Excel أو زر الإضافة اليدوية (قيد التطوير) لبدء الإدارة.</p>
+                </>
+              )}
             </div>
           )}
         </CardContent>
