@@ -9,6 +9,14 @@ const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for eq
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 
+const ALL_APP_DATA_KEYS = [
+  TRANSACTIONS_KEY,
+  PARTIES_KEY,
+  EQUIPMENT_SETTINGS_KEY,
+  EQUIPMENT_DEFINITIONS_KEY,
+  PARTY_EMPLOYEES_KEY,
+];
+
 // Transactions
 export function getTransactions(): Transaction[] {
   if (typeof window === 'undefined') return [];
@@ -205,7 +213,6 @@ export function setEquipmentThreshold(equipmentName: string, threshold?: number)
     if (threshold !== undefined && threshold > 0) {
       settings[equipmentName] = { lowStockThreshold: threshold };
     } else {
-      // If threshold is undefined or not positive, remove the setting for this equipment name
       delete settings[equipmentName];
     }
     localStorage.setItem(EQUIPMENT_SETTINGS_KEY, JSON.stringify(settings));
@@ -228,7 +235,6 @@ export function getEquipmentDefinitions(): EquipmentDefinition[] {
 
 export function addEquipmentDefinition(definition: Omit<EquipmentDefinition, 'id'>): EquipmentDefinition {
   if (typeof window === 'undefined') {
-    // Fallback for server-side, though this function is primarily client-side
     const newDef = { ...definition, id: crypto.randomUUID() };
     console.warn("addEquipmentDefinition called on server, returning fallback. This may indicate an issue.");
     return newDef;
@@ -238,7 +244,6 @@ export function addEquipmentDefinition(definition: Omit<EquipmentDefinition, 'id
   definitions.push(newDefinitionWithId);
   localStorage.setItem(EQUIPMENT_DEFINITIONS_KEY, JSON.stringify(definitions));
 
-  // Also set the default low stock threshold in the separate settings store
   if (newDefinitionWithId.defaultLowStockThreshold !== undefined) {
     setEquipmentThreshold(newDefinitionWithId.name, newDefinitionWithId.defaultLowStockThreshold);
   }
@@ -250,12 +255,11 @@ export function updateEquipmentDefinition(updatedDefinition: EquipmentDefinition
   const definitions = getEquipmentDefinitions();
   const index = definitions.findIndex(d => d.id === updatedDefinition.id);
   if (index === -1) {
-    return false; // Not found
+    return false; 
   }
   definitions[index] = updatedDefinition;
   localStorage.setItem(EQUIPMENT_DEFINITIONS_KEY, JSON.stringify(definitions));
 
-  // Also update the default low stock threshold
   setEquipmentThreshold(updatedDefinition.name, updatedDefinition.defaultLowStockThreshold);
   return true;
 }
@@ -265,16 +269,13 @@ export function deleteEquipmentDefinition(definitionId: string): boolean {
   let definitions = getEquipmentDefinitions();
   const definitionToDelete = definitions.find(d => d.id === definitionId);
 
-  if (!definitionToDelete) return false; // Not found
+  if (!definitionToDelete) return false; 
   
   const transactions = getTransactions();
   const isUsed = transactions.some(tx => tx.equipmentName === definitionToDelete.name);
 
   if (isUsed) {
-     // This case is handled in the UI now, but as a safeguard:
     console.warn(`Attempted to delete equipment definition "${definitionToDelete.name}" which is used in transactions. Store function prevented direct deletion if it were called without UI check.`);
-    // For safety, you might return false or throw an error here if this function were to be called directly
-    // without the UI pre-check. However, the page now handles this.
   }
 
   definitions = definitions.filter(d => d.id !== definitionId);
@@ -329,9 +330,9 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
           const workbook = XLSX.read(arrayBuffer, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]; // Read as array of arrays
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][]; 
 
-          if (jsonData.length < 2) { // Header + at least one data row
+          if (jsonData.length < 2) { 
             resolve({ success: false, message: "ملف Excel فارغ أو لا يحتوي على بيانات كافية." });
             return;
           }
@@ -345,14 +346,14 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
           const employeeNumberIndex = header.indexOf(expectedHeaders[3]);
 
           if (rankIndex === -1 || firstNameIndex === -1 || lastNameIndex === -1 || employeeNumberIndex === -1) {
-            resolve({ success: false, message: `ملف Excel يجب أن يحتوي على الأعمدة التالية: ${expectedHeaders.join(', ')} (بالترتيب أو بدون)` });
+            resolve({ success: false, message: `ملف Excel يجب أن يحتوي على الأعمدة التالية: ${expectedHeaders.join(', ')}` });
             return;
           }
 
           const employees: PartyEmployee[] = [];
           for (let i = 1; i < jsonData.length; i++) {
             const row = jsonData[i];
-            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue; // Skip empty rows
+            if (row.every(cell => cell === null || cell === undefined || String(cell).trim() === '')) continue; 
 
             const rank = String(row[rankIndex] || '').trim();
             const firstName = String(row[firstNameIndex] || '').trim();
@@ -397,12 +398,84 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(TRANSACTIONS_KEY);
-    localStorage.removeItem(PARTIES_KEY);
-    localStorage.removeItem(EQUIPMENT_SETTINGS_KEY);
-    localStorage.removeItem(EQUIPMENT_DEFINITIONS_KEY); // Clear equipment definitions
-    localStorage.removeItem(PARTY_EMPLOYEES_KEY); // Clear party employees
+    ALL_APP_DATA_KEYS.forEach(key => localStorage.removeItem(key));
   } catch (error) {
     console.error("Error clearing data from localStorage:", error);
   }
+}
+
+// Export All App Data
+export function exportAllData(): void {
+  if (typeof window === 'undefined') return;
+  const appData: Record<string, any> = {};
+  ALL_APP_DATA_KEYS.forEach(key => {
+    try {
+      const data = localStorage.getItem(key);
+      if (data) {
+        appData[key] = JSON.parse(data);
+      } else {
+        appData[key] = []; // Or appropriate default empty state
+      }
+    } catch (error) {
+      console.error(`Error reading ${key} from localStorage during export:`, error);
+      appData[key] = null; // Indicate error or missing data
+    }
+  });
+
+  const jsonString = JSON.stringify(appData, null, 2);
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  link.download = `app_data_backup_${timestamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// Import All App Data
+export async function importAllData(file: File): Promise<{ success: boolean; message: string }> {
+  if (typeof window === 'undefined') {
+    return { success: false, message: "لا يمكن استيراد البيانات من الخادم." };
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const jsonString = event.target?.result as string;
+        const importedData = JSON.parse(jsonString);
+
+        // Basic validation: check if all expected keys exist
+        let allKeysPresent = true;
+        for (const key of ALL_APP_DATA_KEYS) {
+          if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
+            allKeysPresent = false;
+            break;
+          }
+        }
+
+        if (!allKeysPresent) {
+          resolve({ success: false, message: "ملف البيانات غير صالح أو لا يحتوي على جميع الأقسام المطلوبة." });
+          return;
+        }
+
+        // Clear existing data and import new data
+        ALL_APP_DATA_KEYS.forEach(key => {
+          localStorage.setItem(key, JSON.stringify(importedData[key] || [])); // Use empty array as fallback
+        });
+
+        resolve({ success: true, message: "تم استيراد البيانات بنجاح. سيتم إعادة تحميل الصفحة." });
+      } catch (error) {
+        console.error("Error processing or importing data file:", error);
+        resolve({ success: false, message: "حدث خطأ أثناء قراءة أو معالجة ملف البيانات." });
+      }
+    };
+    reader.onerror = () => {
+      resolve({ success: false, message: "فشل في قراءة الملف." });
+    };
+    reader.readAsText(file);
+  });
 }

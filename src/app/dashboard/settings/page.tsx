@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,20 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck, Users } from "lucide-react"; // Added Users
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck, Users, DatabaseBackup, Upload, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { exportAllData, importAllData } from "@/lib/store";
 
 // Mock user type for local state demonstration
 interface MockUser {
@@ -41,17 +53,19 @@ export default function SettingsPage() {
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [mockUsers, setMockUsers] = useState<MockUser[]>([
     { id: '1', name: 'المشرف العام', email: 'admin@gn-met.tn', role: 'admin' },
-    // Add more mock users here for demonstration if needed
   ]);
   const [editingUser, setEditingUser] = useState<MockUser | null>(null);
 
-  // Mock form state for adding/editing user
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState<'admin' | 'employee'>('employee');
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [showImportConfirmDialog, setShowImportConfirmDialog] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleAddUser = () => {
-    // In a real app, this would involve API calls and secure password handling
     if (!userName || !userEmail) {
       toast({ title: "خطأ", description: "الرجاء إدخال الاسم والبريد الإلكتروني.", variant: "destructive" });
       return;
@@ -93,7 +107,6 @@ export default function SettingsPage() {
   };
   
   const handleDeleteUser = (userId: string) => {
-    // Prevent deleting the main admin for this mock
     if (mockUsers.find(u => u.id === userId)?.email === 'admin@gn-met.tn' && mockUsers.filter(u=>u.role ==='admin').length ===1) {
         toast({ title: "لا يمكن الحذف", description: "لا يمكن حذف حساب المشرف الرئيسي الوحيد. (محاكاة)", variant: "destructive" });
         return;
@@ -110,195 +123,307 @@ export default function SettingsPage() {
     setIsAddUserDialogOpen(true);
   }
 
+  const handleExportData = () => {
+    exportAllData();
+    toast({
+      title: "تم تصدير البيانات",
+      description: "تم تصدير جميع بيانات التطبيق بنجاح إلى ملف JSON.",
+    });
+  };
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    } else {
+      setSelectedFile(null);
+    }
+  };
+
+  const handleImportData = async () => {
+    if (!selectedFile) return;
+    setIsImporting(true);
+    const result = await importAllData(selectedFile);
+    setIsImporting(false);
+    setShowImportConfirmDialog(false);
+    toast({
+      title: result.success ? "نجاح الاستيراد" : "فشل الاستيراد",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+    if (result.success) {
+      // Optionally, trigger a refresh or notify user to refresh for changes to take full effect
+      window.location.reload(); // Force reload to reflect imported data everywhere
+    }
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input
+    }
+  };
+
+
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">إعدادات النظام</h1>
-      </div>
+    <AlertDialog open={showImportConfirmDialog} onOpenChange={setShowImportConfirmDialog}>
+      <div className="container mx-auto py-8 space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">إعدادات النظام</h1>
+        </div>
 
-      {/* User Management Card */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <UserCog className="h-6 w-6" />
-            إدارة المستخدمين (واجهة تجريبية)
-          </CardTitle>
-          <CardDescription>
-            إدارة حسابات الموظفين وصلاحياتهم. هذه الواجهة هي للعرض فقط حاليًا. يتطلب التنفيذ الكامل نظام مصادقة آمن.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex justify-end">
-            <Button onClick={openAddDialogClean}>
-              <PlusCircle className="ml-2 h-5 w-5" />
-              إضافة موظف جديد
-            </Button>
-          </div>
-
-          {mockUsers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>اسم الموظف</TableHead>
-                    <TableHead>البريد الإلكتروني</TableHead>
-                    <TableHead>الدور</TableHead>
-                    <TableHead className="text-center">إجراءات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role === 'admin' ? 'مشرف' : 'موظف'}</TableCell>
-                      <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                        <Button variant="ghost" size="icon" title="تعديل" onClick={() => handleOpenEditUserDialog(user)}>
-                          <Edit2 className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="حذف" onClick={() => handleDeleteUser(user.id)} disabled={user.email === 'admin@gn-met.tn' && mockUsers.filter(u=>u.role ==='admin').length ===1}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <Users className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-lg">لا يوجد مستخدمون معرفون حاليًا.</p>
-              <p className="text-sm">ابدأ بإضافة موظف جديد.</p>
-              <Button onClick={openAddDialogClean} className="mt-4">
+        {/* User Management Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <UserCog className="h-6 w-6" />
+              إدارة المستخدمين (واجهة تجريبية)
+            </CardTitle>
+            <CardDescription>
+              إدارة حسابات الموظفين وصلاحياتهم. هذه الواجهة هي للعرض فقط حاليًا. يتطلب التنفيذ الكامل نظام مصادقة آمن.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-end">
+              <Button onClick={openAddDialogClean}>
                 <PlusCircle className="ml-2 h-5 w-5" />
                 إضافة موظف جديد
               </Button>
             </div>
-          )}
-        </CardContent>
-        {mockUsers.length > 0 && (
-        <CardFooter className="text-sm text-muted-foreground">
-          يتم عرض {mockUsers.length} {mockUsers.length === 1 ? 'مستخدم' : mockUsers.length === 2 ? 'مستخدمين' : mockUsers.length <= 10 ? 'مستخدمين' : 'مستخدم'}. (بيانات محاكاة)
-        </CardFooter>
-        )}
-      </Card>
 
-      {/* Permissions Card */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <ShieldCheck className="h-6 w-6" />
-            إدارة الصلاحيات (للتطوير المستقبلي)
-          </CardTitle>
-          <CardDescription>
-            سيتم هنا تحديد الصلاحيات المتاحة لكل دور.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-2">المشرف:</h3>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>يمكنه إدارة المستخدمين (إنشاء، تعديل، حذف حسابات الموظفين).</li>
-              <li>يمكنه عرض جميع التقارير والإحصائيات.</li>
-              <li>يمكنه تعديل الإعدادات العامة للنظام.</li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-primary mb-2">الموظف:</h3>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>يمكنه تسجيل عمليات استلام التجهيزات.</li>
-              <li>يمكنه تسجيل عمليات تسليم التجهيزات.</li>
-              <li>يمكنه عرض تقارير محددة ذات صلة بعمله.</li>
-            </ul>
-          </div>
-           <p className="mt-6 text-sm text-amber-600 font-semibold border-t pt-4">
-            ملاحظة: يتطلب التنفيذ الفعلي لهذه الميزة نظام صلاحيات متقدم مرتبط بنظام مصادقة آمن (مثل Firebase Authentication مع قواعد أمان).
-          </p>
-        </CardContent>
-      </Card>
-      
-      {/* Password Reset Card */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <KeyRound className="h-6 w-6" />
-            إعادة تعيين كلمات المرور (للتطوير المستقبلي)
-          </CardTitle>
-          <CardDescription>
-            خاصية إعادة تعيين كلمات المرور للموظفين (عادةً ما يقوم بها المشرف أو يرسل الموظف طلبًا).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-           <p className="text-muted-foreground">
-            هذه الميزة تعتمد بشكل كبير على نظام المصادقة المستخدم (مثل Firebase Authentication)، والذي يوفر آليات آمنة لإعادة تعيين كلمات المرور.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Add/Edit User Dialog */}
-      <Dialog open={isAddUserDialogOpen || isEditUserDialogOpen} onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setIsAddUserDialogOpen(false);
-          setIsEditUserDialogOpen(false);
-          setEditingUser(null);
-        }
-      }}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{editingUser ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</DialogTitle>
-            <DialogDescription>
-              {editingUser ? 'قم بتحديث تفاصيل الموظف.' : 'أدخل تفاصيل الموظف الجديد. كلمة المرور هي للمحاكاة فقط.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right col-span-1">
-                الاسم
-              </Label>
-              <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right col-span-1">
-                البريد الإلكتروني
-              </Label>
-              <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className="col-span-3" />
-            </div>
-            {!editingUser && ( // Only show password field when adding, not editing for this mock
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password_mock" className="text-right col-span-1">
-                كلمة المرور
-              </Label>
-              <Input id="password_mock" type="password" placeholder=" (للمحاكاة فقط)" className="col-span-3" />
-            </div>
+            {mockUsers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>اسم الموظف</TableHead>
+                      <TableHead>البريد الإلكتروني</TableHead>
+                      <TableHead>الدور</TableHead>
+                      <TableHead className="text-center">إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {mockUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.role === 'admin' ? 'مشرف' : 'موظف'}</TableCell>
+                        <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                          <Button variant="ghost" size="icon" title="تعديل" onClick={() => handleOpenEditUserDialog(user)}>
+                            <Edit2 className="h-4 w-4 text-blue-600" />
+                          </Button>
+                          <Button variant="ghost" size="icon" title="حذف" onClick={() => handleDeleteUser(user.id)} disabled={user.email === 'admin@gn-met.tn' && mockUsers.filter(u=>u.role ==='admin').length ===1}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-10 text-muted-foreground">
+                <Users className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg">لا يوجد مستخدمون معرفون حاليًا.</p>
+                <p className="text-sm">ابدأ بإضافة موظف جديد.</p>
+                <Button onClick={openAddDialogClean} className="mt-4">
+                  <PlusCircle className="ml-2 h-5 w-5" />
+                  إضافة موظف جديد
+                </Button>
+              </div>
             )}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right col-span-1">
-                الدور
-              </Label>
-              <Select value={userRole} onValueChange={(value: 'admin' | 'employee') => setUserRole(value)}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="اختر الدور" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="employee">موظف</SelectItem>
-                  <SelectItem value="admin">مشرف</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-                <Button variant="outline">إلغاء</Button>
-            </DialogClose>
-            <Button onClick={editingUser ? handleEditUser : handleAddUser}>
-              {editingUser ? 'حفظ التعديلات' : 'إضافة موظف'}
+          </CardContent>
+          {mockUsers.length > 0 && (
+          <CardFooter className="text-sm text-muted-foreground">
+            يتم عرض {mockUsers.length} {mockUsers.length === 1 ? 'مستخدم' : mockUsers.length === 2 ? 'مستخدمين' : mockUsers.length <= 10 ? 'مستخدمين' : 'مستخدم'}. (بيانات محاكاة)
+          </CardFooter>
+          )}
+        </Card>
+
+        {/* App Data Management Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <DatabaseBackup className="h-6 w-6" />
+              إدارة بيانات التطبيق
+            </CardTitle>
+            <CardDescription>
+              تصدير جميع بيانات التطبيق للاحتفاظ بنسخة احتياطية، أو استيراد بيانات من ملف.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={handleExportData} className="w-full sm:w-auto">
+              <Download className="ml-2 h-5 w-5" />
+              تصدير كل بيانات التطبيق (JSON)
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            <div className="space-y-2">
+              <Label htmlFor="importFile">استيراد بيانات من ملف JSON</Label>
+              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                <Input
+                  id="importFile"
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileChange}
+                  ref={fileInputRef}
+                  className="flex-grow"
+                />
+                <AlertDialogTrigger asChild>
+                  <Button
+                    onClick={() => {
+                      if (selectedFile) {
+                        setShowImportConfirmDialog(true);
+                      } else {
+                        toast({ title: "خطأ", description: "يرجى اختيار ملف أولاً.", variant: "destructive" });
+                      }
+                    }}
+                    disabled={!selectedFile || isImporting}
+                    className="w-full sm:w-auto"
+                  >
+                    <Upload className="ml-2 h-5 w-5" />
+                    {isImporting ? "جارٍ الاستيراد..." : "استيراد البيانات"}
+                  </Button>
+                </AlertDialogTrigger>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                تحذير: استيراد البيانات سيقوم بالكتابة فوق جميع البيانات الحالية في التطبيق.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Permissions Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <ShieldCheck className="h-6 w-6" />
+              إدارة الصلاحيات
+            </CardTitle>
+            <CardDescription>
+              تحديد الصلاحيات المتاحة لكل دور في النظام.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-primary mb-2">المشرف:</h3>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>إدارة المستخدمين (إنشاء، تعديل، حذف حسابات الموظفين).</li>
+                <li>عرض جميع التقارير والإحصائيات.</li>
+                <li>تعديل الإعدادات العامة للنظام.</li>
+                <li>تصدير واستيراد بيانات التطبيق.</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-primary mb-2">الموظف (مثال):</h3>
+              <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                <li>تسجيل عمليات استلام التجهيزات.</li>
+                <li>تسجيل عمليات تسليم التجهيزات.</li>
+                <li>عرض تقارير محددة ذات صلة بعمله.</li>
+                <li>(لا يمكنه إدارة المستخدمين أو الإعدادات العامة أو تصدير/استيراد كل البيانات)</li>
+              </ul>
+            </div>
+            <p className="mt-6 text-sm text-amber-600 font-semibold border-t pt-4">
+              ملاحظة: التنفيذ الفعلي لهذه الصلاحيات يتطلب نظام مصادقة وتخويل متقدم (مثل Firebase Authentication مع قواعد أمان). الواجهة الحالية هي للعرض التوضيحي.
+            </p>
+          </CardContent>
+        </Card>
+        
+        {/* Password Reset Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <KeyRound className="h-6 w-6" />
+              إعادة تعيين كلمات المرور (للتطوير المستقبلي)
+            </CardTitle>
+            <CardDescription>
+              خاصية إعادة تعيين كلمات المرور للموظفين (عادةً ما يقوم بها المشرف أو يرسل الموظف طلبًا).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              هذه الميزة تعتمد بشكل كبير على نظام المصادقة المستخدم (مثل Firebase Authentication)، والذي يوفر آليات آمنة لإعادة تعيين كلمات المرور.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Add/Edit User Dialog */}
+        <Dialog open={isAddUserDialogOpen || isEditUserDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setIsAddUserDialogOpen(false);
+            setIsEditUserDialogOpen(false);
+            setEditingUser(null);
+          }
+        }}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>{editingUser ? 'تعديل بيانات الموظف' : 'إضافة موظف جديد'}</DialogTitle>
+              <DialogDescription>
+                {editingUser ? 'قم بتحديث تفاصيل الموظف.' : 'أدخل تفاصيل الموظف الجديد. كلمة المرور هي للمحاكاة فقط.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right col-span-1">
+                  الاسم
+                </Label>
+                <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right col-span-1">
+                  البريد الإلكتروني
+                </Label>
+                <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} className="col-span-3" />
+              </div>
+              {!editingUser && ( 
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="password_mock" className="text-right col-span-1">
+                  كلمة المرور
+                </Label>
+                <Input id="password_mock" type="password" placeholder=" (للمحاكاة فقط)" className="col-span-3" />
+              </div>
+              )}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="role" className="text-right col-span-1">
+                  الدور
+                </Label>
+                <Select value={userRole} onValueChange={(value: 'admin' | 'employee') => setUserRole(value)}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="اختر الدور" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">موظف</SelectItem>
+                    <SelectItem value="admin">مشرف</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                  <Button variant="outline">إلغاء</Button>
+              </DialogClose>
+              <Button onClick={editingUser ? handleEditUser : handleAddUser}>
+                {editingUser ? 'حفظ التعديلات' : 'إضافة موظف'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import Confirmation Dialog */}
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد الاستيراد</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد أنك تريد استيراد البيانات من الملف المحدد؟ سيؤدي هذا إلى الكتابة فوق جميع البيانات الحالية في التطبيق. لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowImportConfirmDialog(false)}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleImportData}
+              disabled={isImporting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isImporting ? "جارٍ الاستيراد..." : "نعم، قم بالاستيراد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </div>
+    </AlertDialog>
   );
 }
     
-
