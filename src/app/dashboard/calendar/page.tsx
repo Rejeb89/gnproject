@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDesc } from "@/components/ui/dialog"; // Renamed DialogDescription
-import { CalendarDays, PlusCircle, Edit2, Trash2, ListChecks, BellRing, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDesc } from "@/components/ui/dialog";
+import { Calendar as CalendarIconUI, PlusCircle, Edit2, Trash2, ListChecks, BellRing, Clock, Eye } from "lucide-react";
 import type { CalendarEvent } from "@/lib/types";
 import { getCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "@/lib/store";
 import { CalendarEventForm, type CalendarEventFormValues } from "@/components/forms/calendar-event-form";
@@ -21,9 +21,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format, formatDistanceToNowStrict } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar"; // Shadcn Calendar for display
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -32,9 +33,19 @@ export default function CalendarPage() {
   const [eventToDelete, setEventToDelete] = useState<CalendarEvent | null>(null);
   const { toast } = useToast();
 
+  const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
+  const [daysWithEvents, setDaysWithEvents] = useState<Date[]>([]);
+
   useEffect(() => {
     loadEvents();
   }, []);
+
+  useEffect(() => {
+    const uniqueEventDays = Array.from(
+      new Set(events.map(event => format(new Date(event.date), 'yyyy-MM-dd')))
+    ).map(dateStr => new Date(dateStr + 'T00:00:00')); // Ensure correct date parsing for comparison
+    setDaysWithEvents(uniqueEventDays);
+  }, [events]);
 
   const loadEvents = () => {
     setEvents(getCalendarEvents().sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
@@ -101,13 +112,28 @@ export default function CalendarPage() {
     return null;
   };
 
+  const displayedEvents = useMemo(() => {
+    if (!selectedDay) {
+      return events;
+    }
+    return events.filter(event => isSameDay(new Date(event.date), selectedDay));
+  }, [events, selectedDay]);
+
+  const modifiersStyles = {
+    hasEvent: { 
+        fontWeight: 'bold' as 'bold', // Type assertion for fontWeight
+        textDecoration: 'underline',
+        textDecorationColor: 'hsl(var(--primary))',
+        textUnderlineOffset: '2px',
+     }
+  };
 
   return (
     <AlertDialog open={!!eventToDelete} onOpenChange={(isOpen) => !isOpen && setEventToDelete(null)}>
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarDays className="h-8 w-8" />
+            <CalendarIconUI className="h-8 w-8" />
             الروزنامة
           </h1>
           <Button onClick={handleOpenAddDialog} className="w-full sm:w-auto">
@@ -118,32 +144,47 @@ export default function CalendarPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>عرض الروزنامة (قيد التطوير)</CardTitle>
+            <CardTitle>الروزنامة الشهرية</CardTitle>
             <CardDescription>
-              سيتم هنا عرض الروزنامة الفعلية (شهرية/أسبوعية/يومية). حاليًا، الأحداث تُعرض كقائمة أدناه.
+              انقر على يوم في الروزنامة أدناه لتصفية قائمة الأحداث. الأيام التي تحتوي على أحداث مميزة.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-64 border-2 border-dashed border-muted-foreground/50 rounded-md flex items-center justify-center">
-              <p className="text-muted-foreground">مكون الروزنامة المرئي سيعرض هنا (قيد التطوير)</p>
-            </div>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDay}
+              onSelect={setSelectedDay}
+              locale={arSA}
+              dir="rtl"
+              className="rounded-md border shadow-sm"
+              modifiers={{ hasEvent: daysWithEvents }}
+              modifiersStyles={modifiersStyles}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ListChecks className="h-6 w-6"/>
-              قائمة الأحداث المسجلة
-            </CardTitle>
+            <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-6 w-6"/>
+                {selectedDay ? `أحداث يوم ${format(selectedDay, "d MMMM yyyy", { locale: arSA })}` : "قائمة الأحداث المسجلة"}
+                </CardTitle>
+                {selectedDay && (
+                    <Button variant="outline" size="sm" onClick={() => setSelectedDay(undefined)}>
+                        <Eye className="ml-2 h-4 w-4" />
+                        عرض كل الأحداث
+                    </Button>
+                )}
+            </div>
           </CardHeader>
           <CardContent>
-            {events.length > 0 ? (
+            {displayedEvents.length > 0 ? (
               <div className="space-y-4">
-                {events.map(event => {
+                {displayedEvents.map(event => {
                   const reminderText = getReminderText(event);
                   const eventDate = new Date(event.date);
-                  const isPast = eventDate < new Date();
+                  const isPast = eventDate < new Date() && !isSameDay(eventDate, new Date());
                   return (
                     <Card key={event.id} className={`shadow-sm ${isPast ? 'opacity-60 bg-muted/30' : ''}`}>
                       <CardHeader className="pb-2">
@@ -184,12 +225,14 @@ export default function CalendarPage() {
                 })}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-4">لا توجد أحداث مسجلة حاليًا.</p>
+              <p className="text-muted-foreground text-center py-4">
+                {selectedDay ? "لا توجد أحداث مسجلة لهذا اليوم." : "لا توجد أحداث مسجلة حاليًا."}
+              </p>
             )}
           </CardContent>
-           {events.length > 0 && (
+           {displayedEvents.length > 0 && (
             <CardFooter className="text-sm text-muted-foreground pt-4">
-              يتم عرض {events.length} {events.length === 1 ? 'حدث' : events.length === 2 ? 'حدثين' : events.length <=10 ? 'أحداث' : 'حدث'}.
+              يتم عرض {displayedEvents.length} {displayedEvents.length === 1 ? 'حدث' : displayedEvents.length === 2 ? 'حدثين' : displayedEvents.length <=10 ? 'أحداث' : 'حدث'}.
             </CardFooter>
           )}
         </Card>
@@ -205,18 +248,19 @@ export default function CalendarPage() {
             <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
               <li><span className="font-semibold text-green-600">[تم]</span> إضافة أحداث جديدة (عنوان, تاريخ, وصف, إعدادات تذكير).</li>
               <li><span className="font-semibold text-green-600">[تم]</span> تعديل وحذف الأحداث.</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> عرض روزنامة شهرية أساسية مع تمييز أيام الأحداث وتصفية القائمة.</li>
               <li><span className="font-semibold text-amber-600">[جزئيًا]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
-              <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية مع عرض الأحداث عليها.</li>
+              <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية متقدمة مع عرض تفاصيل الأحداث مباشرة على خلايا الروزنامة.</li>
               <li>إمكانية ربط الأحداث بالتجهيزات أو وسائل النقل.</li>
             </ul>
           </CardContent>
         </Card>
 
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-          <DialogContent className="sm:max-w-[525px]"> {/* Increased width for reminder fields */}
+          <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
               <DialogTitle>{editingEvent ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
-              <DialogDesc> {/* Use DialogDesc alias */}
+              <DialogDesc>
                 {editingEvent ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
               </DialogDesc>
             </DialogHeader>
@@ -247,7 +291,6 @@ export default function CalendarPage() {
               </AlertDialogFooter>
           </AlertDialogContent>
         )}
-
       </div>
     </AlertDialog>
   );
