@@ -120,13 +120,22 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                   <Calendar
                     mode="single"
                     selected={field.value}
-                    onSelect={(date) => {
-                        if (date) {
-                            const currentSelectedDate = field.value || new Date();
-                            date.setHours(currentSelectedDate.getHours());
-                            date.setMinutes(currentSelectedDate.getMinutes());
-                        }
-                        field.onChange(date);
+                    onSelect={(selectedDay) => {
+                      if (selectedDay) {
+                        const currentTime = field.value || new Date(); // Get current time from form or now
+                        const newDateTime = new Date(
+                          selectedDay.getFullYear(),
+                          selectedDay.getMonth(),
+                          selectedDay.getDate(),
+                          currentTime.getHours(),
+                          currentTime.getMinutes(),
+                          currentTime.getSeconds(),
+                          currentTime.getMilliseconds()
+                        );
+                        field.onChange(newDateTime);
+                      } else {
+                        field.onChange(undefined); // Handle cases where selection might be cleared
+                      }
                     }}
                     initialFocus
                     locale={arSA}
@@ -144,8 +153,16 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                             const hours = parseInt(timeParts[0], 10);
                             const minutes = parseInt(timeParts[1], 10);
                             if (!isNaN(hours) && !isNaN(minutes)) {
-                                const newDate = field.value ? new Date(field.value) : new Date();
-                                newDate.setHours(hours, minutes);
+                                const currentDatePart = field.value ? new Date(field.value) : new Date();
+                                const newDate = new Date(
+                                  currentDatePart.getFullYear(),
+                                  currentDatePart.getMonth(),
+                                  currentDatePart.getDate(),
+                                  hours,
+                                  minutes
+                                );
+                                newDate.setSeconds(0);
+                                newDate.setMilliseconds(0);
                                 field.onChange(newDate);
                             }
                         }}
@@ -249,3 +266,4 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
     </Form>
   );
 }
+
