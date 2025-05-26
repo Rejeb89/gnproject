@@ -206,7 +206,7 @@ export default function PartyDetailPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
                 <FileDown className="ml-2 h-4 w-4" />
-                تصدير تقارير المعاملات
+                تصدير كل المعاملات
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -245,7 +245,7 @@ export default function PartyDetailPage() {
                                   'font-semibold px-2.5 py-1 text-xs', 
                                   tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
                                )}>
-                          {tx.type === 'receive' ? `استلام من ${tx.party}` : `تسليم إلى ${tx.party}`}
+                          {tx.type === 'receive' ? 'استلام' : 'تسليم'}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{tx.equipmentName}</TableCell>
