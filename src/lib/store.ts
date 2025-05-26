@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -10,6 +10,7 @@ const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key 
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 export const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
 const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
+const VEHICLES_KEY = 'equipTrack_vehicles_v1'; // Key for vehicles
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -19,6 +20,7 @@ const ALL_APP_DATA_KEYS = [
   PARTY_EMPLOYEES_KEY,
   NOTIFICATIONS_KEY,
   CALENDAR_EVENTS_KEY,
+  VEHICLES_KEY,
 ];
 
 // Transactions
@@ -417,13 +419,13 @@ export function addNotification(notificationData: Omit<AppNotification, 'id' | '
   const notifications = getNotifications();
   // Prevent adding duplicate unread notifications of the same type, message and eventId (if present)
   const existingUnread = notifications.find(
-    n => !n.isRead && 
-         n.type === notificationData.type && 
+    n => !n.isRead &&
+         n.type === notificationData.type &&
          n.message === notificationData.message &&
          n.eventId === notificationData.eventId // Check eventId for event_reminders
   );
   if (existingUnread) {
-    return existingUnread; 
+    return existingUnread;
   }
 
   const newNotification: AppNotification = {
@@ -523,6 +525,50 @@ export function deleteCalendarEvent(eventId: string): boolean {
   return events.length !== updatedEvents.length;
 }
 
+// Vehicles
+export function getVehicles(): Vehicle[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(VEHICLES_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error("Error reading vehicles from localStorage:", error);
+    return [];
+  }
+}
+
+export function addVehicle(vehicle: Omit<Vehicle, 'id' | 'status'>): Vehicle {
+  if (typeof window === 'undefined') {
+    const newVeh = { ...vehicle, id: crypto.randomUUID(), status: 'available' as const };
+    console.warn("addVehicle called on server, returning fallback.");
+    return newVeh;
+  }
+  const vehicles = getVehicles();
+  const newVehicleWithId: Vehicle = { ...vehicle, id: crypto.randomUUID(), status: 'available' };
+  vehicles.push(newVehicleWithId);
+  localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
+  return newVehicleWithId;
+}
+
+export function updateVehicle(updatedVehicle: Vehicle): boolean {
+  if (typeof window === 'undefined') return false;
+  const vehicles = getVehicles();
+  const index = vehicles.findIndex(v => v.id === updatedVehicle.id);
+  if (index === -1) return false;
+  vehicles[index] = updatedVehicle;
+  localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
+  return true;
+}
+
+export function deleteVehicle(vehicleId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const vehicles = getVehicles();
+  // In the future, add checks if vehicle is used in missions before deleting
+  const updatedVehicles = vehicles.filter(v => v.id !== vehicleId);
+  localStorage.setItem(VEHICLES_KEY, JSON.stringify(updatedVehicles));
+  return vehicles.length !== updatedVehicles.length;
+}
+
 
 // Clear All Data
 export function clearAllData(): void {
@@ -551,9 +597,9 @@ export function exportAllData(): void {
         appData[key] = JSON.parse(data);
       } else {
         // Use appropriate default empty state based on key
-        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === CALENDAR_EVENTS_KEY) { // PARTY_EMPLOYEES_KEY handled below
+        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) {
           appData[key] = [];
-        } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) { // PARTY_EMPLOYEES is an object
+        } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) {
            appData[key] = {};
         } else {
           appData[key] = null; // Default for unknown keys
@@ -596,17 +642,13 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
             // Allow some keys to be missing and default them
-             if (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) {
+             if ((key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) && importedData[key] === undefined) {
                 console.warn(`Key ${key} missing in import file, will default to empty object.`);
                 importedData[key] = {};
-            } else if (key === NOTIFICATIONS_KEY && importedData[key] === undefined) {
+            } else if ((key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) && importedData[key] === undefined) {
                  console.warn(`Key ${key} missing in import file, will default to empty array.`);
                 importedData[key] = [];
-            } else if (key === CALENDAR_EVENTS_KEY && importedData[key] === undefined) {
-                console.warn(`Key ${key} missing in import file, will default to empty array. This might be because it's an older backup or the key name changed (e.g. _v1 to _v2).`);
-                importedData[key] = [];
             }
-            // For other keys like PARTY_EMPLOYEES_KEY, if missing it might default to {} correctly by the setter logic
             else if (!Object.prototype.hasOwnProperty.call(importedData, key)){
                  allKeysPresent = false; // If critical key is missing and not handled above
                  console.error(`Critical key ${key} is missing in import file.`);
@@ -619,17 +661,17 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
           resolve({ success: false, message: "ملف البيانات غير صالح أو لا يحتوي على جميع الأقسام المطلوبة." });
           return;
         }
-        
+
         clearAllData(); // Clear existing data first, including reminder flags
 
         // Import new data
         ALL_APP_DATA_KEYS.forEach(key => {
-           if (importedData[key] !== undefined && importedData[key] !== null) { 
+           if (importedData[key] !== undefined && importedData[key] !== null) {
             localStorage.setItem(key, JSON.stringify(importedData[key]));
           } else {
             // If a key is present in ALL_APP_DATA_KEYS but data is null/undefined in imported file,
             // ensure it's appropriately cleared or set to default empty state
-            if (key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY) {
+            if (key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY || key === VEHICLES_KEY) {
               localStorage.setItem(key, JSON.stringify([]));
             } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) {
               localStorage.setItem(key, JSON.stringify({}));
@@ -659,4 +701,3 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
   });
 }
 
-    

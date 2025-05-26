@@ -63,3 +63,11 @@ export interface CalendarEvent {
   reminderUnit?: 'none' | 'days' | 'hours' | 'weeks';
 }
 
+export interface Vehicle {
+  id: string;
+  type: string; // e.g., 'سيارة خفيفة', 'شاحنة'
+  registrationNumber: string; // الرقم المنجمي
+  owningParty: string; // الجهة التابعة لها (اسم الجهة)
+  fuelAllowanceLiters?: number; // مقرر المحروقات باللتر
+  status?: 'available' | 'on_mission' | 'maintenance'; // (للتطوير المستقبلي)
+}
