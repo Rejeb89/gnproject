@@ -68,6 +68,8 @@ interface ThemeColorSet {
   popoverForeground: string;
   sidebarBackground: string;
   sidebarForeground: string;
+  sidebarPrimary: string; 
+  sidebarPrimaryForeground: string;
   sidebarAccent: string;
   sidebarAccentForeground: string;
   sidebarBorder: string;
@@ -75,106 +77,49 @@ interface ThemeColorSet {
 }
 
 interface AppTheme {
-  name: string;
+  name: string; // e.g., "default", "ocean"
   displayName: string;
-  colors: Partial<ThemeColorSet>; // Partial to allow themes to override only some colors
+  // Colors are kept here for PalettePreview, but actual styling is done via CSS.
+  colors: Partial<ThemeColorSet>; 
 }
 
-const THEME_STORAGE_KEY = 'equipTrack_selected_theme_v1';
+const THEME_STORAGE_KEY = 'equipTrack_selected_app_theme_v1'; // Changed key slightly
 
-const defaultThemeColors: ThemeColorSet = {
+// These color values are for PalettePreview. Actual theme values are in globals.css
+const defaultPreviewColors: Partial<ThemeColorSet> = {
   background: "0 0% 100%",
   foreground: "210 15% 20%",
   primary: "207 88% 70%",
-  primaryForeground: "210 100% 10%",
-  secondary: "207 80% 88%",
-  secondaryForeground: "210 15% 20%",
   accent: "125 37% 75%",
-  accentForeground: "125 40% 20%",
-  muted: "207 50% 90%",
-  mutedForeground: "210 10% 45%",
-  border: "207 30% 80%",
-  input: "207 30% 85%",
-  ring: "207 88% 65%",
-  card: "0 0% 100%",
-  cardForeground: "210 15% 20%",
-  popover: "0 0% 100%",
-  popoverForeground: "210 15% 20%",
-  sidebarBackground: "220 16% 96%",
-  sidebarForeground: "210 15% 20%",
-  sidebarPrimary: "207 88% 70%", // Used by nav-links.tsx for border
-  sidebarPrimaryForeground: "210 100% 10%",
-  sidebarAccent: "207 88% 75%",
-  sidebarAccentForeground: "210 100% 10%",
-  sidebarBorder: "220 10% 88%",
-  sidebarRing: "207 88% 65%",
+  secondary: "207 80% 88%",
 };
-
 
 const availableThemes: AppTheme[] = [
   {
     name: "default",
     displayName: "الافتراضي",
-    colors: defaultThemeColors,
+    colors: defaultPreviewColors,
   },
   {
     name: "ocean",
     displayName: "أعماق المحيط",
-    colors: {
+    colors: { // For PalettePreview
       background: "210 40% 98%",
       foreground: "210 30% 15%",
       primary: "200 90% 55%",
-      primaryForeground: "0 0% 100%",
-      secondary: "190 70% 90%",
-      secondaryForeground: "200 30% 25%",
       accent: "170 60% 70%",
-      accentForeground: "170 40% 10%",
-      muted: "210 30% 92%",
-      mutedForeground: "210 20% 50%",
-      border: "200 30% 80%",
-      input: "200 30% 85%",
-      ring: "200 90% 50%",
-      card: "210 40% 98%",
-      cardForeground: "210 30% 15%",
-      popover: "210 40% 98%",
-      popoverForeground: "210 30% 15%",
-      sidebarBackground: "220 25% 90%",
-      sidebarForeground: "210 30% 15%",
-      sidebarAccent: "200 90% 65%",
-      sidebarAccentForeground: "0 0% 100%",
-      sidebarBorder: "210 30% 85%",
-      sidebarRing: "200 90% 50%",
-      sidebarPrimary: "200 90% 55%",
+      secondary: "190 70% 90%",
     },
   },
   {
     name: "forest",
     displayName: "غابة خضراء",
-    colors: {
-      background: "120 10% 98%", // Very light green
-      foreground: "120 25% 15%", // Dark green
-      primary: "130 50% 45%",   // Forest green
-      primaryForeground: "0 0% 100%", // White
-      secondary: "120 30% 88%", // Light muted green
-      secondaryForeground: "120 25% 25%",
-      accent: "90 60% 65%",     // Lime green
-      accentForeground: "90 40% 10%",
-      muted: "120 20% 92%",
-      mutedForeground: "120 15% 50%",
-      border: "120 20% 80%",
-      input: "120 20% 85%",
-      ring: "130 50% 40%",
-      card: "120 10% 98%",
-      cardForeground: "120 25% 15%",
-      popover: "120 10% 98%",
-      popoverForeground: "120 25% 15%",
-      sidebarBackground: "120 15% 94%",
-      sidebarForeground: "120 25% 15%",
-      sidebarAccent: "130 50% 55%",
-      sidebarAccentForeground: "0 0% 100%",
-      sidebarBorder: "120 15% 88%",
-      sidebarRing: "130 50% 40%",
-      sidebarPrimary: "130 50% 45%",
+    colors: { // For PalettePreview
+      background: "120 10% 98%", 
+      foreground: "120 25% 15%", 
+      primary: "130 50% 45%",   
+      accent: "90 60% 65%",     
+      secondary: "120 30% 88%", 
     },
   },
 ];
@@ -220,40 +165,24 @@ export default function SettingsPage() {
   const [showImportConfirmDialog, setShowImportConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeThemeName, setActiveThemeName] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(THEME_STORAGE_KEY) || 'default';
+  const [activeAppTheme, setActiveAppTheme] = useState<string>('default');
+
+  // Apply theme by setting data-attribute on HTML element
+  const applyAppTheme = (themeName: string) => {
+    document.documentElement.setAttribute('data-app-theme', themeName);
+    localStorage.setItem(THEME_STORAGE_KEY, themeName);
+    setActiveAppTheme(themeName);
+    const selectedTheme = availableThemes.find(t => t.name === themeName);
+    if (selectedTheme) {
+        toast({ title: "تم تطبيق السمة", description: `تم تغيير السمة إلى: ${selectedTheme.displayName}` });
     }
-    return 'default';
-  });
-
-  const applyTheme = (theme: AppTheme) => {
-    const root = document.documentElement;
-    const colorsToApply = { ...defaultThemeColors, ...theme.colors }; // Merge with default to ensure all vars are set
-
-    (Object.keys(colorsToApply) as Array<keyof ThemeColorSet>).forEach(key => {
-        const cssVarName = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
-        root.style.setProperty(cssVarName, colorsToApply[key] as string);
-    });
-    
-    // Handle sidebar primary specifically if not directly in colorsToApply
-    if (theme.colors.sidebarPrimary) {
-        root.style.setProperty('--sidebar-primary', theme.colors.sidebarPrimary);
-    } else if (theme.colors.primary) {
-        root.style.setProperty('--sidebar-primary', theme.colors.primary);
-    }
-
-
-    localStorage.setItem(THEME_STORAGE_KEY, theme.name);
-    setActiveThemeName(theme.name);
-    toast({ title: "تم تطبيق السمة", description: `تم تغيير السمة إلى: ${theme.displayName}` });
   };
 
+  // Load saved theme on mount
   useEffect(() => {
     const savedThemeName = localStorage.getItem(THEME_STORAGE_KEY) || 'default';
-    const themeToLoad = availableThemes.find(t => t.name === savedThemeName) || availableThemes[0];
-    applyTheme(themeToLoad);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    document.documentElement.setAttribute('data-app-theme', savedThemeName);
+    setActiveAppTheme(savedThemeName);
   }, []);
 
 
@@ -343,7 +272,8 @@ export default function SettingsPage() {
       variant: result.success ? "default" : "destructive",
     });
     if (result.success) {
-      window.location.reload();
+      // Reload to apply imported theme and other settings
+      window.location.reload(); 
     }
     setSelectedFile(null);
     if (fileInputRef.current) {
@@ -364,10 +294,10 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <Palette className="h-6 w-6" />
-              تخصيص سمة التطبيق
+              تخصيص سمة التطبيق (الوضع الفاتح)
             </CardTitle>
             <CardDescription>
-              اختر السمة التي تفضلها لواجهة المستخدم. التغييرات ستطبق على الوضع الفاتح.
+              اختر السمة الأساسية لواجهة المستخدم عند استخدام الوضع الفاتح. الوضع الداكن له سمة ثابتة.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -378,13 +308,13 @@ export default function SettingsPage() {
                   variant="outline"
                   className={cn(
                     "h-auto p-4 flex flex-col items-start justify-start text-right relative",
-                    activeThemeName === theme.name && "ring-2 ring-primary border-primary"
+                    activeAppTheme === theme.name && "ring-2 ring-primary border-primary"
                   )}
-                  onClick={() => applyTheme(theme)}
+                  onClick={() => applyAppTheme(theme.name)}
                 >
                   <div className="flex justify-between items-center w-full">
                     <span className="font-semibold">{theme.displayName}</span>
-                    {activeThemeName === theme.name && (
+                    {activeAppTheme === theme.name && (
                       <CheckCircle className="h-5 w-5 text-primary" />
                     )}
                   </div>
@@ -658,5 +588,3 @@ export default function SettingsPage() {
     </AlertDialog>
   );
 }
-
-    
