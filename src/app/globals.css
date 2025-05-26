@@ -3,10 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Tajawal', Arial, Helvetica, sans-serif; /* Added Tajawal for Arabic, fallback to Arial */
-}
-
 @layer base {
   /* Default Theme (Light) - also acts as base :root */
   html[data-app-theme="default"], :root {
@@ -38,13 +34,13 @@ body {
     --chart-5: 27 87% 67%;
 
     /* Sidebar specific colors for default theme */
-    --sidebar-background: 220 16% 96%; 
+    --sidebar-background: 220 16% 96%;
     --sidebar-foreground: 210 15% 20%;
-    --sidebar-primary: 207 88% 70%; 
+    --sidebar-primary: 207 88% 70%;
     --sidebar-primary-foreground: 210 100% 10%;
-    --sidebar-accent: 207 88% 75%; 
+    --sidebar-accent: 207 88% 75%;
     --sidebar-accent-foreground: 210 100% 10%;
-    --sidebar-border: 220 10% 88%; 
+    --sidebar-border: 220 10% 88%;
     --sidebar-ring: 207 88% 65%;
   }
 
@@ -111,7 +107,7 @@ body {
   }
 
   /* Dark Mode - Overrides all app themes */
-  .dark {
+  html.dark { /* Explicitly target html.dark */
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
@@ -138,22 +134,22 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     
-    --sidebar-background: 220 10% 12%; 
+    --sidebar-background: 220 10% 12%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 220 5% 25%; 
+    --sidebar-border: 220 5% 25%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
+  /* Global base styles */
   * {
     @apply border-border;
   }
   body {
+    font-family: 'Tajawal', Arial, Helvetica, sans-serif;
     @apply bg-background text-foreground;
     direction: rtl; /* Set default direction to RTL for Arabic */
   }
