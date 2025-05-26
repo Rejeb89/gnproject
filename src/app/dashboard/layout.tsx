@@ -70,15 +70,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadNotifications();
-    // Optionally, set up an interval or event listener to refresh notifications
-    // For simplicity, we'll rely on page loads or specific actions to refresh for now.
     const handleStorageChange = (event: StorageEvent) => {
         if (event.key === 'equipTrack_notifications_v1') {
             loadNotifications();
         }
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+
+    const handleNotificationsUpdated = () => {
+        loadNotifications();
+    };
+    window.addEventListener('notificationsUpdated', handleNotificationsUpdated);
+
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('notificationsUpdated', handleNotificationsUpdated);
+    };
   }, []);
 
 
@@ -191,9 +198,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <UserNav />
+          
           <ThemeToggle />
+          <UserNav />
         </header>
         <main className="flex-1 p-6 overflow-auto">
           {children}
