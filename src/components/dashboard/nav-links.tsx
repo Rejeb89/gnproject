@@ -65,7 +65,7 @@ export function NavLinks() {
               isActive={isActive}
               className={cn(
                 "justify-start",
-                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                isActive && "bg-sidebar-accent text-sidebar-accent-foreground border-r-2 border-sidebar-primary"
               )}
               tooltip={{ children: link.name, className: "text-xs p-1" }}
             >
