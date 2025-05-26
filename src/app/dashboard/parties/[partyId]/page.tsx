@@ -78,6 +78,8 @@ export default function PartyDetailPage() {
   const [editingFurnitureItem, setEditingFurnitureItem] = useState<FixedFurnitureItem | null>(null);
   const [furnitureItemToDelete, setFurnitureItemToDelete] = useState<FixedFurnitureItem | null>(null);
 
+  const [isTransactionsSectionOpen, setIsTransactionsSectionOpen] = useState(true);
+
 
   useEffect(() => {
     if (partyId) {
@@ -285,76 +287,89 @@ export default function PartyDetailPage() {
       </div>
 
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <CardTitle>معاملات الجهة</CardTitle>
-            <CardDescription>قائمة بجميع عمليات الاستلام والتسليم المرتبطة بالجهة: {party.name}.</CardDescription>
+        <CardHeader 
+            className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 cursor-pointer"
+            onClick={() => setIsTransactionsSectionOpen(!isTransactionsSectionOpen)}
+        >
+          <div className="flex-grow">
+            <CardTitle className="flex items-center gap-2">
+                <ListX className="h-6 w-6 text-primary" /> {/* Or other suitable icon */}
+                معاملات الجهة
+                <ChevronDown
+                    className={cn("h-5 w-5 text-muted-foreground transition-transform", isTransactionsSectionOpen && "rotate-180")}
+                />
+            </CardTitle>
+            <CardDescription>
+                قائمة بجميع عمليات الاستلام والتسليم المرتبطة بالجهة: {party.name}. انقر لعرض/إخفاء التفاصيل.
+            </CardDescription>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
+              <Button variant="outline" className="w-full sm:w-auto mt-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
                 <FileDown className="ml-2 h-4 w-4" />
                 تصدير كل المعاملات
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuItem onClick={() => exportPartyTransactions('month')}>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); exportPartyTransactions('month'); }}>
                 <FileDown className="ml-2 h-4 w-4" />
                 تقرير كل المعاملات الشهري
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportPartyTransactions('year')}>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); exportPartyTransactions('year'); }}>
                 <FileDown className="ml-2 h-4 w-4" />
                 تقرير كل المعاملات السنوي
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
-        <CardContent>
-          {partyTransactions.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>نوع العملية</TableHead>
-                    <TableHead>اسم التجهيز</TableHead>
-                    <TableHead>صنف التجهيز</TableHead>
-                    <TableHead className="text-center">الكمية</TableHead>
-                    <TableHead>التاريخ</TableHead>
-                    <TableHead>رقم الوصل</TableHead>
-                    <TableHead>ملاحظات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {partyTransactions.map(tx => (
-                    <TableRow key={tx.id}>
-                      <TableCell>
-                        <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'}
-                               className={cn(
-                                  'font-semibold px-2.5 py-1 text-xs', 
-                                  tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
-                               )}>
-                          {tx.type === 'receive' ? 'استلام' : 'تسليم'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">{tx.equipmentName}</TableCell>
-                      <TableCell>{tx.category || '-'}</TableCell>
-                      <TableCell className="text-center">{tx.quantity.toLocaleString()}</TableCell>
-                      <TableCell>{format(new Date(tx.date), 'PPpp', { locale: arSA })}</TableCell>
-                      <TableCell>{tx.receiptNumber}</TableCell>
-                      <TableCell className="max-w-xs truncate" title={tx.notes}>{tx.notes || '-'}</TableCell>
+        {isTransactionsSectionOpen && (
+            <CardContent>
+            {partyTransactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>نوع العملية</TableHead>
+                        <TableHead>اسم التجهيز</TableHead>
+                        <TableHead>صنف التجهيز</TableHead>
+                        <TableHead className="text-center">الكمية</TableHead>
+                        <TableHead>التاريخ</TableHead>
+                        <TableHead>رقم الوصل</TableHead>
+                        <TableHead>ملاحظات</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <ListX className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-lg">لا توجد معاملات مسجلة لهذه الجهة.</p>
-              <p className="text-sm">ابدأ بتسجيل عمليات استلام أو تسليم لترى المعاملات هنا.</p>
-            </div>
-          )}
-        </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                    {partyTransactions.map(tx => (
+                        <TableRow key={tx.id}>
+                        <TableCell>
+                            <Badge variant={tx.type === 'receive' ? 'default' : 'secondary'}
+                                className={cn(
+                                    'font-semibold px-2.5 py-1 text-xs', 
+                                    tx.type === 'receive' ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200' : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
+                                )}>
+                            {tx.type === 'receive' ? 'استلام' : 'تسليم'}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium">{tx.equipmentName}</TableCell>
+                        <TableCell>{tx.category || '-'}</TableCell>
+                        <TableCell className="text-center">{tx.quantity.toLocaleString()}</TableCell>
+                        <TableCell>{format(new Date(tx.date), 'PPpp', { locale: arSA })}</TableCell>
+                        <TableCell>{tx.receiptNumber}</TableCell>
+                        <TableCell className="max-w-xs truncate" title={tx.notes}>{tx.notes || '-'}</TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </div>
+            ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                <ListX className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg">لا توجد معاملات مسجلة لهذه الجهة.</p>
+                <p className="text-sm">ابدأ بتسجيل عمليات استلام أو تسليم لترى المعاملات هنا.</p>
+                </div>
+            )}
+            </CardContent>
+        )}
       </Card>
 
       <Card className="shadow-lg">
