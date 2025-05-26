@@ -120,22 +120,20 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                   <Calendar
                     mode="single"
                     selected={field.value}
-                    onSelect={(selectedDay) => {
-                      if (selectedDay) {
-                        const currentTime = field.value || new Date(); // Get current time from form or now
-                        const newDateTime = new Date(
-                          selectedDay.getFullYear(),
-                          selectedDay.getMonth(),
-                          selectedDay.getDate(),
-                          currentTime.getHours(),
-                          currentTime.getMinutes(),
-                          currentTime.getSeconds(),
-                          currentTime.getMilliseconds()
-                        );
+                    onSelect={(selectedDate) => {
+                        if (!selectedDate) {
+                            field.onChange(undefined);
+                            return;
+                        }
+                        // Get existing time from field.value or default to 00:00
+                        const currentHours = field.value instanceof Date ? field.value.getHours() : 0;
+                        const currentMinutes = field.value instanceof Date ? field.value.getMinutes() : 0;
+
+                        // Create a new Date object from the selectedDay, then set the time
+                        const newDateTime = new Date(selectedDate); // This ensures we're working with the selected day
+                        newDateTime.setHours(currentHours, currentMinutes, 0, 0); // Set time, clear seconds/ms
+                        
                         field.onChange(newDateTime);
-                      } else {
-                        field.onChange(undefined); // Handle cases where selection might be cleared
-                      }
                     }}
                     initialFocus
                     locale={arSA}
@@ -149,21 +147,23 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
                         className="mt-1"
                         defaultValue={field.value ? format(field.value, "HH:mm") : "00:00"}
                         onChange={(e) => {
-                            const timeParts = e.target.value.split(':');
-                            const hours = parseInt(timeParts[0], 10);
-                            const minutes = parseInt(timeParts[1], 10);
+                            const [hoursStr, minutesStr] = e.target.value.split(':');
+                            const hours = parseInt(hoursStr, 10);
+                            const minutes = parseInt(minutesStr, 10);
+
                             if (!isNaN(hours) && !isNaN(minutes)) {
-                                const currentDatePart = field.value ? new Date(field.value) : new Date();
-                                const newDate = new Date(
-                                  currentDatePart.getFullYear(),
-                                  currentDatePart.getMonth(),
-                                  currentDatePart.getDate(),
-                                  hours,
-                                  minutes
+                                // Use current field date as base, or today if field.value is not a Date
+                                const baseDate = field.value instanceof Date ? new Date(field.value.getTime()) : new Date();
+                                
+                                const newDateTime = new Date(
+                                    baseDate.getFullYear(),
+                                    baseDate.getMonth(),
+                                    baseDate.getDate(),
+                                    hours,
+                                    minutes
                                 );
-                                newDate.setSeconds(0);
-                                newDate.setMilliseconds(0);
-                                field.onChange(newDate);
+                                newDateTime.setSeconds(0,0); // Clear seconds and milliseconds
+                                field.onChange(newDateTime);
                             }
                         }}
                     />
@@ -266,4 +266,3 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData }: CalendarE
     </Form>
   );
 }
-
