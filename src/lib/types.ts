@@ -52,3 +52,10 @@ export interface AppNotification {
   type: 'low_stock' | 'info' | 'system_update'; // Example types
   link?: string; // Optional link for navigation
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // ISO date string
+  description?: string;
+}

@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -9,6 +9,7 @@ const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for eq
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
+const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v1'; // Key for calendar events
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -17,6 +18,7 @@ const ALL_APP_DATA_KEYS = [
   EQUIPMENT_DEFINITIONS_KEY,
   PARTY_EMPLOYEES_KEY,
   NOTIFICATIONS_KEY,
+  CALENDAR_EVENTS_KEY,
 ];
 
 // Transactions
@@ -470,6 +472,52 @@ export function clearAllNotifications(): void {
   }
 }
 
+// Calendar Events
+export function getCalendarEvents(): CalendarEvent[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(CALENDAR_EVENTS_KEY);
+    const events: CalendarEvent[] = data ? JSON.parse(data) : [];
+    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch (error) {
+    console.error("Error reading calendar events from localStorage:", error);
+    return [];
+  }
+}
+
+export function addCalendarEvent(event: Omit<CalendarEvent, 'id'>): CalendarEvent {
+   if (typeof window === 'undefined') {
+    const newEvent = { ...event, id: crypto.randomUUID() };
+    console.warn("addCalendarEvent called on server, returning fallback.");
+    return newEvent;
+  }
+  const events = getCalendarEvents();
+  const newEventWithId: CalendarEvent = { ...event, id: crypto.randomUUID() };
+  events.push(newEventWithId);
+  localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(events));
+  return newEventWithId;
+}
+
+export function updateCalendarEvent(updatedEvent: CalendarEvent): boolean {
+  if (typeof window === 'undefined') return false;
+  const events = getCalendarEvents();
+  const index = events.findIndex(e => e.id === updatedEvent.id);
+  if (index === -1) {
+    return false;
+  }
+  events[index] = updatedEvent;
+  localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(events));
+  return true;
+}
+
+export function deleteCalendarEvent(eventId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const events = getCalendarEvents();
+  const updatedEvents = events.filter(e => e.id !== eventId);
+  localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(updatedEvents));
+  return events.length !== updatedEvents.length;
+}
+
 
 // Clear All Data
 export function clearAllData(): void {
@@ -492,7 +540,7 @@ export function exportAllData(): void {
         appData[key] = JSON.parse(data);
       } else {
         // Use appropriate default empty state based on key
-        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === PARTY_EMPLOYEES_KEY) {
+        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === PARTY_EMPLOYEES_KEY || key === CALENDAR_EVENTS_KEY) {
           appData[key] = [];
         } else if (key === EQUIPMENT_SETTINGS_KEY) {
            appData[key] = {};
@@ -536,13 +584,14 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         let allKeysPresent = true;
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
-             // Allow EQUIPMENT_SETTINGS_KEY to be missing in older backups
-            if (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) {
-                console.warn(`Key ${EQUIPMENT_SETTINGS_KEY} missing in import file, will default to empty object.`);
-                importedData[key] = {}; // Default to empty object if missing
-            } else if (key === NOTIFICATIONS_KEY && importedData[key] === undefined) {
-                 console.warn(`Key ${NOTIFICATIONS_KEY} missing in import file, will default to empty array.`);
-                 importedData[key] = [];
+            if (
+                (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) ||
+                (key === NOTIFICATIONS_KEY && importedData[key] === undefined) ||
+                (key === CALENDAR_EVENTS_KEY && importedData[key] === undefined)
+            ) {
+                console.warn(`Key ${key} missing in import file, will default to empty object/array.`);
+                if (key === EQUIPMENT_SETTINGS_KEY) importedData[key] = {};
+                else importedData[key] = [];
             }
             else {
                 allKeysPresent = false;
