@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Settings, Building, Package, Car, CalendarDays } from 'lucide-react'; // Added CalendarDays
+import { Home, FileText, Settings, Building, Package, Car, CalendarDays, Landmark } from 'lucide-react'; // Added Landmark
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -18,9 +18,10 @@ const links = [
   { name: 'لوحة التحكم', href: '/dashboard', icon: Home, exact: true },
   { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
   { name: 'وسائل النقل الادارية', href: '/dashboard/vehicles', icon: Car },
-  { name: 'الروزنامة', href: '/dashboard/calendar', icon: CalendarDays }, // New link for Calendar
+  { name: 'الروزنامة', href: '/dashboard/calendar', icon: CalendarDays },
   { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
   { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
+  { name: 'الاعتمادات', href: '/dashboard/appropriations', icon: Landmark }, // New link for Appropriations
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 
@@ -30,7 +31,6 @@ export function NavLinks() {
 
   useEffect(() => {
     // Calculate low stock count
-    // This logic is similar to what's in dashboard/page.tsx
     if (typeof window !== 'undefined') {
       const loadedTransactions = getTransactions();
       const currentStock = calculateStock(loadedTransactions);
