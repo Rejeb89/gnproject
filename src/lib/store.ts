@@ -9,7 +9,7 @@ const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for eq
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
-const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v1'; // Key for calendar events
+const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -415,12 +415,15 @@ export function addNotification(notificationData: Omit<AppNotification, 'id' | '
   if (typeof window === 'undefined') return null;
 
   const notifications = getNotifications();
-  // Prevent adding duplicate unread notifications of the same type and message
+  // Prevent adding duplicate unread notifications of the same type, message and eventId (if present)
   const existingUnread = notifications.find(
-    n => !n.isRead && n.type === notificationData.type && n.message === notificationData.message
+    n => !n.isRead && 
+         n.type === notificationData.type && 
+         n.message === notificationData.message &&
+         n.eventId === notificationData.eventId // Check eventId for event_reminders
   );
   if (existingUnread) {
-    return existingUnread; // Don't add if a similar unread notification exists
+    return existingUnread; 
   }
 
   const newNotification: AppNotification = {
@@ -431,7 +434,9 @@ export function addNotification(notificationData: Omit<AppNotification, 'id' | '
   };
   notifications.unshift(newNotification); // Add to the beginning
   try {
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications.slice(0, 50))); // Limit to 50 notifications
+    // Dispatch a custom event to notify layout to reload notifications
+    window.dispatchEvent(new CustomEvent('notificationsUpdated'));
     return newNotification;
   } catch (error) {
     console.error("Error saving notification to localStorage:", error);
@@ -524,6 +529,12 @@ export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
     ALL_APP_DATA_KEYS.forEach(key => localStorage.removeItem(key));
+    // Clear any reminder sent flags
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('reminder_sent_')) {
+            localStorage.removeItem(key);
+        }
+    });
   } catch (error) {
     console.error("Error clearing data from localStorage:", error);
   }
@@ -540,9 +551,9 @@ export function exportAllData(): void {
         appData[key] = JSON.parse(data);
       } else {
         // Use appropriate default empty state based on key
-        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === PARTY_EMPLOYEES_KEY || key === CALENDAR_EVENTS_KEY) {
+        if (key === NOTIFICATIONS_KEY || key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === CALENDAR_EVENTS_KEY) { // PARTY_EMPLOYEES_KEY handled below
           appData[key] = [];
-        } else if (key === EQUIPMENT_SETTINGS_KEY) {
+        } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) { // PARTY_EMPLOYEES is an object
            appData[key] = {};
         } else {
           appData[key] = null; // Default for unknown keys
@@ -584,18 +595,22 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         let allKeysPresent = true;
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
-            if (
-                (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) ||
-                (key === NOTIFICATIONS_KEY && importedData[key] === undefined) ||
-                (key === CALENDAR_EVENTS_KEY && importedData[key] === undefined)
-            ) {
-                console.warn(`Key ${key} missing in import file, will default to empty object/array.`);
-                if (key === EQUIPMENT_SETTINGS_KEY) importedData[key] = {};
-                else importedData[key] = [];
+            // Allow some keys to be missing and default them
+             if (key === EQUIPMENT_SETTINGS_KEY && importedData[key] === undefined) {
+                console.warn(`Key ${key} missing in import file, will default to empty object.`);
+                importedData[key] = {};
+            } else if (key === NOTIFICATIONS_KEY && importedData[key] === undefined) {
+                 console.warn(`Key ${key} missing in import file, will default to empty array.`);
+                importedData[key] = [];
+            } else if (key === CALENDAR_EVENTS_KEY && importedData[key] === undefined) {
+                console.warn(`Key ${key} missing in import file, will default to empty array. This might be because it's an older backup or the key name changed (e.g. _v1 to _v2).`);
+                importedData[key] = [];
             }
-            else {
-                allKeysPresent = false;
-                break;
+            // For other keys like PARTY_EMPLOYEES_KEY, if missing it might default to {} correctly by the setter logic
+            else if (!Object.prototype.hasOwnProperty.call(importedData, key)){
+                 allKeysPresent = false; // If critical key is missing and not handled above
+                 console.error(`Critical key ${key} is missing in import file.`);
+                 break;
             }
           }
         }
@@ -604,16 +619,32 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
           resolve({ success: false, message: "ملف البيانات غير صالح أو لا يحتوي على جميع الأقسام المطلوبة." });
           return;
         }
+        
+        clearAllData(); // Clear existing data first, including reminder flags
 
-        // Clear existing data and import new data
+        // Import new data
         ALL_APP_DATA_KEYS.forEach(key => {
-           if (importedData[key] !== undefined) { // Ensure data exists in import for the key
+           if (importedData[key] !== undefined && importedData[key] !== null) { 
             localStorage.setItem(key, JSON.stringify(importedData[key]));
           } else {
-            // If a key is somehow missing from ALL_APP_DATA_KEYS but not handled above, clear it
-            localStorage.removeItem(key);
+            // If a key is present in ALL_APP_DATA_KEYS but data is null/undefined in imported file,
+            // ensure it's appropriately cleared or set to default empty state
+            if (key === TRANSACTIONS_KEY || key === PARTIES_KEY || key === EQUIPMENT_DEFINITIONS_KEY || key === NOTIFICATIONS_KEY || key === CALENDAR_EVENTS_KEY) {
+              localStorage.setItem(key, JSON.stringify([]));
+            } else if (key === EQUIPMENT_SETTINGS_KEY || key === PARTY_EMPLOYEES_KEY) {
+              localStorage.setItem(key, JSON.stringify({}));
+            } else {
+              localStorage.removeItem(key);
+            }
           }
         });
+        // After importing, clear any old reminder sent flags as new events are in place
+        Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('reminder_sent_')) {
+                localStorage.removeItem(k);
+            }
+        });
+
 
         resolve({ success: true, message: "تم استيراد البيانات بنجاح. سيتم إعادة تحميل الصفحة." });
       } catch (error) {

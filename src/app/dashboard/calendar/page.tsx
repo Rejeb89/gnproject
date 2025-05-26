@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { CalendarDays, PlusCircle, Edit2, Trash2, ListChecks } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDesc } from "@/components/ui/dialog"; // Renamed DialogDescription
+import { CalendarDays, PlusCircle, Edit2, Trash2, ListChecks, BellRing, Clock } from "lucide-react";
 import type { CalendarEvent } from "@/lib/types";
 import { getCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "@/lib/store";
 import { CalendarEventForm, type CalendarEventFormValues } from "@/components/forms/calendar-event-form";
@@ -21,8 +21,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { format } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { arSA } from "date-fns/locale";
+import { Badge } from "@/components/ui/badge";
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -36,7 +37,7 @@ export default function CalendarPage() {
   }, []);
 
   const loadEvents = () => {
-    setEvents(getCalendarEvents());
+    setEvents(getCalendarEvents().sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
   };
 
   const handleOpenAddDialog = () => {
@@ -51,10 +52,12 @@ export default function CalendarPage() {
 
   const handleFormSubmit = (values: CalendarEventFormValues) => {
     try {
-      const eventData = {
+      const eventData: Omit<CalendarEvent, 'id'> = {
         title: values.title,
         date: values.date.toISOString(),
         description: values.description,
+        reminderUnit: values.reminderUnit === "none" ? undefined : values.reminderUnit,
+        reminderValue: values.reminderUnit === "none" || !values.reminderValue ? undefined : values.reminderValue,
       };
 
       if (editingEvent) {
@@ -83,6 +86,19 @@ export default function CalendarPage() {
       toast({ title: "حدث خطأ", description: "لم يتم حذف الحدث.", variant: "destructive" });
     }
     setEventToDelete(null);
+  };
+
+  const getReminderText = (event: CalendarEvent): string | null => {
+    if (event.reminderUnit && event.reminderUnit !== "none" && event.reminderValue) {
+      let unitText = "";
+      switch (event.reminderUnit) {
+        case "hours": unitText = event.reminderValue === 1 ? "ساعة" : event.reminderValue === 2 ? "ساعتين" : event.reminderValue <= 10 ? "ساعات" : "ساعة"; break;
+        case "days": unitText = event.reminderValue === 1 ? "يوم" : event.reminderValue === 2 ? "يومين" : event.reminderValue <= 10 ? "أيام" : "يوم"; break;
+        case "weeks": unitText = event.reminderValue === 1 ? "أسبوع" : event.reminderValue === 2 ? "أسبوعين" : event.reminderValue <= 10 ? "أسابيع" : "أسبوع"; break;
+      }
+      return `تذكير قبل بـ ${event.reminderValue} ${unitText}`;
+    }
+    return null;
   };
 
 
@@ -124,33 +140,48 @@ export default function CalendarPage() {
           <CardContent>
             {events.length > 0 ? (
               <div className="space-y-4">
-                {events.map(event => (
-                  <Card key={event.id} className="shadow-sm">
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{event.title}</CardTitle>
-                          <CardDescription>{format(new Date(event.date), "eeee, d MMMM yyyy", { locale: arSA })}</CardDescription>
-                        </div>
-                        <div className="flex space-x-1 rtl:space-x-reverse">
-                           <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(event)} title="تعديل الحدث">
-                            <Edit2 className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="حذف الحدث" onClick={() => setEventToDelete(event)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                {events.map(event => {
+                  const reminderText = getReminderText(event);
+                  const eventDate = new Date(event.date);
+                  const isPast = eventDate < new Date();
+                  return (
+                    <Card key={event.id} className={`shadow-sm ${isPast ? 'opacity-60 bg-muted/30' : ''}`}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">{event.title}</CardTitle>
+                            <CardDescription className="flex items-center gap-1.5">
+                                <Clock className="h-4 w-4" />
+                                {format(eventDate, "eeee, d MMMM yyyy 'الساعة' HH:mm", { locale: arSA })}
+                                {isPast && <Badge variant="outline" className="text-xs px-1.5 py-0.5">منتهي</Badge>}
+                            </CardDescription>
+                            {reminderText && (
+                                <Badge variant="secondary" className="mt-1 text-xs px-1.5 py-0.5">
+                                    <BellRing className="h-3 w-3 mr-1" />
+                                    {reminderText}
+                                </Badge>
+                            )}
+                          </div>
+                          <div className="flex space-x-1 rtl:space-x-reverse">
+                             <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(event)} title="تعديل الحدث">
+                              <Edit2 className="h-4 w-4 text-blue-600" />
                             </Button>
-                          </AlertDialogTrigger>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" title="حذف الحدث" onClick={() => setEventToDelete(event)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    {event.description && (
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description}</p>
-                        </CardContent>
-                    )}
-                  </Card>
-                ))}
+                      </CardHeader>
+                      {event.description && (
+                          <CardContent className="pt-2">
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+                          </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-4">لا توجد أحداث مسجلة حاليًا.</p>
@@ -172,22 +203,22 @@ export default function CalendarPage() {
           </CardHeader>
           <CardContent>
             <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
-              <li><span className="font-semibold text-green-600">[تم جزئيًا]</span> إضافة أحداث جديدة (عنوان, تاريخ, وصف).</li>
-              <li><span className="font-semibold text-green-600">[تم جزئيًا]</span> تعديل وحذف الأحداث.</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> إضافة أحداث جديدة (عنوان, تاريخ, وصف, إعدادات تذكير).</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> تعديل وحذف الأحداث.</li>
+              <li><span className="font-semibold text-amber-600">[جزئيًا]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
               <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية مع عرض الأحداث عليها.</li>
               <li>إمكانية ربط الأحداث بالتجهيزات أو وسائل النقل.</li>
-              <li>تنبيهات وتذكيرات بالأحداث القادمة.</li>
             </ul>
           </CardContent>
         </Card>
 
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-          <DialogContent className="sm:max-w-[480px]">
+          <DialogContent className="sm:max-w-[525px]"> {/* Increased width for reminder fields */}
             <DialogHeader>
               <DialogTitle>{editingEvent ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
-              <DialogDescription>
+              <DialogDesc> {/* Use DialogDesc alias */}
                 {editingEvent ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
-              </DialogDescription>
+              </DialogDesc>
             </DialogHeader>
             <CalendarEventForm
               onSubmit={handleFormSubmit}

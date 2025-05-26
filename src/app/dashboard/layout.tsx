@@ -19,7 +19,7 @@ import { AppLogo } from '@/components/dashboard/app-logo';
 import { NavLinks } from '@/components/dashboard/nav-links';
 import { UserNav } from '@/components/dashboard/user-nav';
 import { Separator } from '@/components/ui/separator';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, subDays, subHours, subWeeks, isAfter, isBefore } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { ThemeToggle } from '@/components/dashboard/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AppNotification } from '@/lib/types';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications as clearNotificationsFromStore } from '@/lib/store';
+import type { AppNotification, CalendarEvent } from '@/lib/types';
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications as clearNotificationsFromStore, addNotification, getCalendarEvents } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -68,10 +68,60 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     setUnreadCount(storedNotifications.filter(n => !n.isRead).length);
   };
 
+  // Check for calendar event reminders
+  useEffect(() => {
+    const checkEventReminders = () => {
+      if (typeof window === 'undefined') return;
+
+      const now = new Date();
+      const events = getCalendarEvents();
+
+      events.forEach(event => {
+        if (event.reminderUnit && event.reminderUnit !== 'none' && event.reminderValue) {
+          const eventDate = new Date(event.date);
+          if (isBefore(now, eventDate)) { // Only process future events
+            let reminderDateTime: Date | null = null;
+            switch (event.reminderUnit) {
+              case 'hours':
+                reminderDateTime = subHours(eventDate, event.reminderValue);
+                break;
+              case 'days':
+                reminderDateTime = subDays(eventDate, event.reminderValue);
+                break;
+              case 'weeks':
+                reminderDateTime = subWeeks(eventDate, event.reminderValue);
+                break;
+            }
+
+            if (reminderDateTime && isAfter(now, reminderDateTime)) {
+              const reminderSentKey = `reminder_sent_${event.id}_${event.reminderUnit}${event.reminderValue}`;
+              if (!localStorage.getItem(reminderSentKey)) {
+                const timeToEvent = formatDistanceToNowStrict(eventDate, { locale: arSA, addSuffix: true });
+                addNotification({
+                  message: `تذكير: لديك حدث "${event.title}" ${timeToEvent}.`,
+                  type: 'event_reminder',
+                  link: '/dashboard/calendar',
+                  eventId: event.id,
+                });
+                localStorage.setItem(reminderSentKey, 'true');
+              }
+            }
+          }
+        }
+      });
+    };
+
+    checkEventReminders(); // Check on load
+    const intervalId = setInterval(checkEventReminders, 60 * 1000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+
   useEffect(() => {
     loadNotifications();
     const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === 'equipTrack_notifications_v1') {
+        if (event.key === NOTIFICATIONS_KEY) { // Use the constant from store.ts if exported
             loadNotifications();
         }
     };
@@ -136,7 +186,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               <span className="text-sm text-muted-foreground">جارٍ تحميل الوقت...</span>
             )}
           </div>
-
+          
+          <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
@@ -199,7 +250,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <ThemeToggle />
           <UserNav />
         </header>
         <main className="flex-1 p-6 overflow-auto">

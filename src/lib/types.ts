@@ -49,8 +49,9 @@ export interface AppNotification {
   message: string;
   timestamp: string; // ISO date string
   isRead: boolean;
-  type: 'low_stock' | 'info' | 'system_update'; // Example types
+  type: 'low_stock' | 'info' | 'system_update' | 'event_reminder'; // Added event_reminder
   link?: string; // Optional link for navigation
+  eventId?: string; // To link notification to a specific event
 }
 
 export interface CalendarEvent {
@@ -58,4 +59,7 @@ export interface CalendarEvent {
   title: string;
   date: string; // ISO date string
   description?: string;
+  reminderValue?: number;
+  reminderUnit?: 'none' | 'days' | 'hours' | 'weeks';
 }
+
