@@ -63,6 +63,8 @@ export default function PartyDetailPage() {
   const [partyEmployees, setPartyEmployees] = useState<PartyEmployee[]>([]);
   const [employeeFile, setEmployeeFile] = useState<File | null>(null);
   const [isImportingEmployees, setIsImportingEmployees] = useState(false);
+  const [isEmployeeSectionOpen, setIsEmployeeSectionOpen] = useState(false);
+
 
   const [fixedFurniture, setFixedFurniture] = useState<FixedFurnitureItem[]>([]);
   const [furnitureFile, setFurnitureFile] = useState<File | null>(null);
@@ -462,63 +464,77 @@ export default function PartyDetailPage() {
       </Card>
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UsersIcon className="h-6 w-6 text-primary" />
-            بيانات موظفي الجهة
-          </CardTitle>
-          <CardDescription>
-            إدارة بيانات موظفي هذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
-            <br />
-            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: الرتبة, الاسم, اللقب, الرقم.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <Input
-              id="employee-excel-file"
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleEmployeeFileChange}
-              className="flex-grow"
-              aria-label="اختيار ملف Excel لبيانات الموظفين"
-            />
-            <Button onClick={handleImportEmployees} disabled={!employeeFile || isImportingEmployees} className="w-full sm:w-auto">
-              <UploadCloud className="ml-2 h-4 w-4" />
-              {isImportingEmployees ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
-            </Button>
+        <CardHeader 
+            className="cursor-pointer flex flex-row justify-between items-center"
+            onClick={() => setIsEmployeeSectionOpen(!isEmployeeSectionOpen)}
+        >
+          <div className="flex flex-col">
+            <CardTitle className="flex items-center gap-2">
+                <UsersIcon className="h-6 w-6 text-primary" />
+                بيانات موظفي الجهة
+            </CardTitle>
+            <CardDescription>
+                إدارة بيانات موظفي هذه الجهة. انقر لعرض/إخفاء التفاصيل.
+                {isEmployeeSectionOpen && (
+                    <>
+                    <br/>
+                    قم باستيراد أو تحديث البيانات باستخدام ملف Excel. يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: الرتبة, الاسم, اللقب, الرقم.
+                    </>
+                )}
+            </CardDescription>
           </div>
-          {partyEmployees.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>الرتبة</TableHead>
-                    <TableHead>الاسم</TableHead>
-                    <TableHead>اللقب</TableHead>
-                    <TableHead>الرقم</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {partyEmployees.map(emp => (
-                    <TableRow key={emp.id}>
-                      <TableCell>{emp.rank}</TableCell>
-                      <TableCell>{emp.firstName}</TableCell>
-                      <TableCell>{emp.lastName}</TableCell>
-                      <TableCell>{emp.employeeNumber}</TableCell>
+          <ChevronDown
+            className={cn("h-5 w-5 text-muted-foreground transition-transform", isEmployeeSectionOpen && "rotate-180")}
+          />
+        </CardHeader>
+        {isEmployeeSectionOpen && (
+            <CardContent className="space-y-4 pt-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+                <Input
+                id="employee-excel-file"
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleEmployeeFileChange}
+                className="flex-grow"
+                aria-label="اختيار ملف Excel لبيانات الموظفين"
+                />
+                <Button onClick={handleImportEmployees} disabled={!employeeFile || isImportingEmployees} className="w-full sm:w-auto">
+                <UploadCloud className="ml-2 h-4 w-4" />
+                {isImportingEmployees ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+                </Button>
+            </div>
+            {partyEmployees.length > 0 ? (
+                <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>الرتبة</TableHead>
+                        <TableHead>الاسم</TableHead>
+                        <TableHead>اللقب</TableHead>
+                        <TableHead>الرقم</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <UserX className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-lg">لم يتم استيراد بيانات موظفين لهذه الجهة بعد.</p>
-              <p className="text-sm">استخدم الزر أعلاه للاستيراد من ملف Excel.</p>
-            </div>
-          )}
-        </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                    {partyEmployees.map(emp => (
+                        <TableRow key={emp.id}>
+                        <TableCell>{emp.rank}</TableCell>
+                        <TableCell>{emp.firstName}</TableCell>
+                        <TableCell>{emp.lastName}</TableCell>
+                        <TableCell>{emp.employeeNumber}</TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </div>
+            ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                <UserX className="mx-auto h-12 w-12 mb-4" />
+                <p className="text-lg">لم يتم استيراد بيانات موظفين لهذه الجهة بعد.</p>
+                <p className="text-sm">استخدم الزر أعلاه للاستيراد من ملف Excel.</p>
+                </div>
+            )}
+            </CardContent>
+        )}
       </Card>
 
       {/* Placeholder for Furniture Form Dialog - Future Development */}
@@ -557,3 +573,4 @@ export default function PartyDetailPage() {
     </div>
   );
 }
+
