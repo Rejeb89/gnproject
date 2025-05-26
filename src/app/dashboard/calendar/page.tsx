@@ -19,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format, isSameDay } from "date-fns";
 import { arSA } from "date-fns/locale";
@@ -36,6 +35,7 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
   const [daysWithEvents, setDaysWithEvents] = useState<Date[]>([]);
   const [defaultDateForNewEvent, setDefaultDateForNewEvent] = useState<Date | null>(null);
+  const [dayToConfirmForNewEvent, setDayToConfirmForNewEvent] = useState<Date | null>(null);
 
   useEffect(() => {
     loadEvents();
@@ -54,22 +54,28 @@ export default function CalendarPage() {
 
   const handleOpenAddDialog = () => {
     setEditingEvent(null);
-    setDefaultDateForNewEvent(selectedDay || null); // Use selectedDay if available, else null (form will use new Date())
+    setDefaultDateForNewEvent(selectedDay || null);
     setIsFormDialogOpen(true);
   };
 
   const handleCalendarDayClick = (day: Date | undefined) => {
     setSelectedDay(day); // For filtering list
     if (day) {
-      setEditingEvent(null);
-      setDefaultDateForNewEvent(day);
-      setIsFormDialogOpen(true);
+      setDayToConfirmForNewEvent(day); // Set day for confirmation
     }
+  };
+
+  const handleConfirmAddEventForDay = () => {
+    if (!dayToConfirmForNewEvent) return;
+    setEditingEvent(null);
+    setDefaultDateForNewEvent(dayToConfirmForNewEvent);
+    setIsFormDialogOpen(true);
+    setDayToConfirmForNewEvent(null); // Close confirmation dialog
   };
 
   const handleOpenEditDialog = (event: CalendarEvent) => {
     setEditingEvent(event);
-    setDefaultDateForNewEvent(null); // Not pre-filling date when editing
+    setDefaultDateForNewEvent(null);
     setIsFormDialogOpen(true);
   };
 
@@ -83,7 +89,7 @@ export default function CalendarPage() {
         reminderValue: values.reminderUnit === "none" || !values.reminderValue ? undefined : values.reminderValue,
       };
 
-      if (editingEvent && editingEvent.id) { // Ensure editingEvent has an id for update
+      if (editingEvent && editingEvent.id) {
         updateCalendarEvent({ ...editingEvent, ...eventData });
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث الحدث: ${values.title}` });
       } else {
@@ -92,8 +98,8 @@ export default function CalendarPage() {
       }
       loadEvents();
       setIsFormDialogOpen(false);
-      setEditingEvent(null); // Reset editing state
-      setDefaultDateForNewEvent(null); // Reset prefill date
+      setEditingEvent(null);
+      setDefaultDateForNewEvent(null);
     } catch (error) {
       console.error("Error saving event:", error);
       toast({ title: "حدث خطأ", description: "لم يتم حفظ الحدث.", variant: "destructive" });
@@ -135,7 +141,7 @@ export default function CalendarPage() {
 
   const modifiersStyles = {
     hasEvent: { 
-        fontWeight: 'bold' as 'bold', // Type assertion for fontWeight
+        fontWeight: 'bold' as 'bold',
         textDecoration: 'underline',
         textDecorationColor: 'hsl(var(--primary))',
         textUnderlineOffset: '2px',
@@ -143,7 +149,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <AlertDialog open={!!eventToDelete} onOpenChange={(isOpen) => !isOpen && setEventToDelete(null)}>
+    <>
       <div className="container mx-auto py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -167,7 +173,7 @@ export default function CalendarPage() {
             <Calendar
               mode="single"
               selected={selectedDay}
-              onSelect={handleCalendarDayClick} // Changed to handleCalendarDayClick
+              onSelect={handleCalendarDayClick}
               locale={arSA}
               dir="rtl"
               className="rounded-md border shadow-sm"
@@ -221,11 +227,9 @@ export default function CalendarPage() {
                              <Button variant="ghost" size="icon" onClick={() => handleOpenEditDialog(event)} title="تعديل الحدث">
                               <Edit2 className="h-4 w-4 text-blue-600" />
                             </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" title="حذف الحدث" onClick={() => setEventToDelete(event)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
+                            <Button variant="ghost" size="icon" title="حذف الحدث" onClick={() => setEventToDelete(event)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </div>
                         </div>
                       </CardHeader>
@@ -263,41 +267,45 @@ export default function CalendarPage() {
               <li><span className="font-semibold text-green-600">[تم]</span> إضافة أحداث جديدة (عنوان, تاريخ, وصف, إعدادات تذكير).</li>
               <li><span className="font-semibold text-green-600">[تم]</span> تعديل وحذف الأحداث.</li>
               <li><span className="font-semibold text-green-600">[تم]</span> عرض روزنامة شهرية أساسية مع تمييز أيام الأحداث وتصفية القائمة.</li>
-              <li><span className="font-semibold text-green-600">[تم]</span> النقر على يوم في الروزنامة يفتح نافذة إضافة حدث جديد لذلك اليوم.</li>
-              <li><span className="font-semibold text-amber-600">[جزئيًا]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> النقر على يوم في الروزنامة يفتح نافذة إضافة حدث جديد لذلك اليوم (مع تأكيد).</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
               <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية متقدمة مع عرض تفاصيل الأحداث مباشرة على خلايا الروزنامة.</li>
               <li>إمكانية ربط الأحداث بالتجهيزات أو وسائل النقل.</li>
             </ul>
           </CardContent>
         </Card>
+      </div>
 
-        <Dialog open={isFormDialogOpen} onOpenChange={(isOpen) => {
-            setIsFormDialogOpen(isOpen);
-            if (!isOpen) {
-                setEditingEvent(null); // Clear editing state when dialog closes
-                setDefaultDateForNewEvent(null); // Clear prefill date
-            }
-        }}>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>{editingEvent && editingEvent.id ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
-              <DialogDesc>
-                {editingEvent && editingEvent.id ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
-              </DialogDesc>
-            </DialogHeader>
-            <CalendarEventForm
-              onSubmit={handleFormSubmit}
-              onCancel={() => {
-                setIsFormDialogOpen(false);
-                setEditingEvent(null);
-                setDefaultDateForNewEvent(null);
-              }}
-              initialData={editingEvent}
-              defaultDate={defaultDateForNewEvent}
-            />
-          </DialogContent>
-        </Dialog>
+      {/* Event Form Dialog */}
+      <Dialog open={isFormDialogOpen} onOpenChange={(isOpen) => {
+          setIsFormDialogOpen(isOpen);
+          if (!isOpen) {
+              setEditingEvent(null);
+              setDefaultDateForNewEvent(null);
+          }
+      }}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>{editingEvent && editingEvent.id ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
+            <DialogDesc>
+              {editingEvent && editingEvent.id ? 'قم بتحديث تفاصيل الحدث.' : 'أدخل تفاصيل الحدث الجديد.'}
+            </DialogDesc>
+          </DialogHeader>
+          <CalendarEventForm
+            onSubmit={handleFormSubmit}
+            onCancel={() => {
+              setIsFormDialogOpen(false);
+              setEditingEvent(null);
+              setDefaultDateForNewEvent(null);
+            }}
+            initialData={editingEvent}
+            defaultDate={defaultDateForNewEvent}
+          />
+        </DialogContent>
+      </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!eventToDelete} onOpenChange={(isOpen) => !isOpen && setEventToDelete(null)}>
         {eventToDelete && (
           <AlertDialogContent>
               <AlertDialogHeader>
@@ -317,7 +325,26 @@ export default function CalendarPage() {
               </AlertDialogFooter>
           </AlertDialogContent>
         )}
-      </div>
-    </AlertDialog>
+      </AlertDialog>
+
+      {/* Add Event for Day Confirmation Dialog */}
+      <AlertDialog open={!!dayToConfirmForNewEvent} onOpenChange={(isOpen) => !isOpen && setDayToConfirmForNewEvent(null)}>
+        {dayToConfirmForNewEvent && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>إضافة حدث جديد</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل تريد إضافة حدث جديد ليوم {format(dayToConfirmForNewEvent, "d MMMM yyyy", { locale: arSA })}؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDayToConfirmForNewEvent(null)}>لا</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmAddEventForDay}>نعم</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
+    </>
   );
 }
+    
