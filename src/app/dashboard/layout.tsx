@@ -19,11 +19,11 @@ import { AppLogo } from '@/components/dashboard/app-logo';
 import { NavLinks } from '@/components/dashboard/nav-links';
 import { UserNav } from '@/components/dashboard/user-nav';
 import { Separator } from '@/components/ui/separator';
-import { format, formatDistanceToNow, subDays, subHours, subWeeks, isAfter, isBefore } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { ThemeToggle } from '@/components/dashboard/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { Bell, Trash2, CheckCheck } from 'lucide-react';
+import { Bell, Trash2, CheckCheck, Search as SearchIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,9 +33,33 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AppNotification, CalendarEvent } from '@/lib/types';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications as clearNotificationsFromStore, addNotification, getCalendarEvents } from '@/lib/store';
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, clearAllNotifications as clearNotificationsFromStore, addNotification, getCalendarEvents, NOTIFICATIONS_KEY } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { GlobalSearchDialog } from '@/components/dashboard/global-search-dialog';
+
+function calculateReminderDateTime(event: CalendarEvent): Date | null {
+  if (!event.reminderUnit || event.reminderUnit === "none" || !event.reminderValue) {
+    return null;
+  }
+  const eventDate = new Date(event.date);
+  let reminderDateTime: Date;
+  switch (event.reminderUnit) {
+    case 'hours':
+      reminderDateTime = new Date(eventDate.getTime() - event.reminderValue * 60 * 60 * 1000);
+      break;
+    case 'days':
+      reminderDateTime = new Date(eventDate.getTime() - event.reminderValue * 24 * 60 * 60 * 1000);
+      break;
+    case 'weeks':
+      reminderDateTime = new Date(eventDate.getTime() - event.reminderValue * 7 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      return null;
+  }
+  return reminderDateTime;
+}
+
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -43,6 +67,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [currentDateTime, setCurrentDateTime] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -63,50 +88,41 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, []);
 
   const loadNotifications = () => {
-    const storedNotifications = getNotifications();
-    setNotifications(storedNotifications);
-    setUnreadCount(storedNotifications.filter(n => !n.isRead).length);
+    if (typeof window !== 'undefined') {
+      const storedNotifications = getNotifications();
+      setNotifications(storedNotifications);
+      setUnreadCount(storedNotifications.filter(n => !n.isRead).length);
+    }
   };
 
   // Check for calendar event reminders
   useEffect(() => {
-    const checkEventReminders = () => {
-      if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
+    const checkEventReminders = () => {
       const now = new Date();
       const events = getCalendarEvents();
 
       events.forEach(event => {
-        if (event.reminderUnit && event.reminderUnit !== 'none' && event.reminderValue) {
-          const eventDate = new Date(event.date);
-          if (isBefore(now, eventDate)) { // Only process future events
-            let reminderDateTime: Date | null = null;
-            switch (event.reminderUnit) {
-              case 'hours':
-                reminderDateTime = subHours(eventDate, event.reminderValue);
-                break;
-              case 'days':
-                reminderDateTime = subDays(eventDate, event.reminderValue);
-                break;
-              case 'weeks':
-                reminderDateTime = subWeeks(eventDate, event.reminderValue);
-                break;
+        const eventDate = new Date(event.date);
+        if (eventDate < now && !format(eventDate, 'yyyy-MM-dd').includes(format(now, 'yyyy-MM-dd'))) { // Skip past events unless it's today
+            return;
+        }
+        
+        const reminderDateTime = calculateReminderDateTime(event);
+        
+        if (reminderDateTime && now >= reminderDateTime && now < eventDate) {
+            const reminderSentKey = `reminder_sent_${event.id}_${event.reminderUnit}${event.reminderValue}`;
+            if (!localStorage.getItem(reminderSentKey)) {
+            const timeToEvent = formatDistanceToNowStrict(eventDate, { locale: arSA, addSuffix: true });
+            addNotification({
+                message: `تذكير: لديك حدث "${event.title}" ${timeToEvent}.`,
+                type: 'event_reminder',
+                link: '/dashboard/calendar',
+                eventId: event.id,
+            });
+            localStorage.setItem(reminderSentKey, 'true');
             }
-
-            if (reminderDateTime && isAfter(now, reminderDateTime)) {
-              const reminderSentKey = `reminder_sent_${event.id}_${event.reminderUnit}${event.reminderValue}`;
-              if (!localStorage.getItem(reminderSentKey)) {
-                const timeToEvent = formatDistanceToNowStrict(eventDate, { locale: arSA, addSuffix: true });
-                addNotification({
-                  message: `تذكير: لديك حدث "${event.title}" ${timeToEvent}.`,
-                  type: 'event_reminder',
-                  link: '/dashboard/calendar',
-                  eventId: event.id,
-                });
-                localStorage.setItem(reminderSentKey, 'true');
-              }
-            }
-          }
         }
       });
     };
@@ -121,7 +137,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadNotifications();
     const handleStorageChange = (event: StorageEvent) => {
-        if (event.key === NOTIFICATIONS_KEY) { // Use the constant from store.ts if exported
+        if (event.key === NOTIFICATIONS_KEY) { 
             loadNotifications();
         }
     };
@@ -177,16 +193,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-6 shadow-sm">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b bg-background/80 backdrop-blur-sm px-4 sm:px-6 shadow-sm">
           <SidebarTrigger className="md:hidden" />
           <div className="flex-1">
             {currentDateTime ? (
-              <span className="text-sm text-muted-foreground">{currentDateTime}</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">{currentDateTime}</span>
             ) : (
-              <span className="text-sm text-muted-foreground">جارٍ تحميل الوقت...</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">جارٍ تحميل الوقت...</span>
             )}
           </div>
           
+          <Button variant="ghost" size="icon" onClick={() => setIsGlobalSearchOpen(true)} title="بحث شامل">
+            <SearchIcon className="h-5 w-5" />
+            <span className="sr-only">بحث شامل</span>
+          </Button>
+
           <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -194,7 +215,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                    {unreadCount}
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
                 <span className="sr-only">فتح الإشعارات</span>
@@ -223,13 +244,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                         !notification.isRead && "bg-accent/50 font-semibold"
                     )}
                     onClick={() => {
-                        handleMarkAsRead(notification.id);
+                        markNotificationAsRead(notification.id); // Mark as read before navigation
+                        loadNotifications(); // Update UI immediately
                         if (notification.link) router.push(notification.link);
                     }}
                   >
                     <p className="w-full">{notification.message}</p>
                     <p className={cn("text-xs", notification.isRead ? "text-muted-foreground" : "text-primary/80")}>
-                      {formatDistanceToNow(new Date(notification.timestamp), { addSuffix: true, locale: arSA })}
+                      {formatDistanceToNowStrict(new Date(notification.timestamp), { addSuffix: true, locale: arSA })}
                     </p>
                   </DropdownMenuItem>
                 ))
@@ -237,12 +259,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {notifications.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleMarkAllAsRead} className="text-sm">
-                    <CheckCheck className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem onClick={handleMarkAllAsRead} className="text-sm cursor-pointer">
+                    <CheckCheck className="ml-2 h-4 w-4" />
                     تمييز الكل كمقروء
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleClearAll} className="text-sm text-destructive focus:text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem onClick={handleClearAll} className="text-sm text-destructive focus:text-destructive cursor-pointer">
+                    <Trash2 className="ml-2 h-4 w-4" />
                     مسح كل الإشعارات
                   </DropdownMenuItem>
                 </>
@@ -252,10 +274,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           
           <UserNav />
         </header>
-        <main className="flex-1 p-6 overflow-auto">
+        <main className="flex-1 p-4 sm:p-6 overflow-auto">
           {children}
         </main>
       </SidebarInset>
+      <GlobalSearchDialog open={isGlobalSearchOpen} onOpenChange={setIsGlobalSearchOpen} />
     </SidebarProvider>
   );
 }
