@@ -2,9 +2,9 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, ListChecks, AlertTriangle, Package, BarChart as BarChartIcon } from 'lucide-react';
-import type { Transaction, Equipment } from '@/lib/types';
-import { getTransactions, calculateStock, getEquipmentSettings, addNotification } from '@/lib/store';
+import { ArrowRightLeft, AlertTriangle, Package, BarChart as BarChartIcon, CalendarClock } from 'lucide-react';
+import type { Transaction, Equipment, CalendarEvent } from '@/lib/types';
+import { getTransactions, calculateStock, getEquipmentSettings, addNotification, getCalendarEvents } from '@/lib/store';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,9 +15,13 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { startOfDay } from 'date-fns';
 
 const chartConfig = {
   quantity: {
@@ -36,16 +40,15 @@ const BAR_COLORS = [
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stock, setStock] = useState<Equipment[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
   const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
+  const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
 
   useEffect(() => {
     setIsLoading(true);
     const loadedTransactions = getTransactions();
     setTransactions(loadedTransactions);
     const currentStock = calculateStock(loadedTransactions);
-    setStock(currentStock);
 
     const equipmentSettings = getEquipmentSettings();
 
@@ -67,15 +70,16 @@ export default function DashboardPage() {
 
     if (lowStockItemsForAlert.length > 0) {
       const message = `يوجد ${lowStockItemsForAlert.length} ${lowStockItemsForAlert.length === 1 ? 'تجهيز' : lowStockItemsForAlert.length === 2 ? 'تجهيزين' : 'تجهيزات'} بمخزون منخفض.`;
+      // Check if a similar notification already exists and is unread
+      // This specific check is better handled within addNotification or a dedicated service
+      // For now, we rely on addNotification's internal check
       addNotification({
         message: message,
         type: 'low_stock',
-        link: '/dashboard/equipment' // Link to the equipment page
+        link: '/dashboard/equipment' 
       });
-      // Dispatch a custom event to notify layout to reload notifications
       window.dispatchEvent(new CustomEvent('notificationsUpdated'));
     }
-
 
     const namesOfLowStockItems = new Set(lowStockItemsForAlert.map(item => item.name));
 
@@ -84,22 +88,37 @@ export default function DashboardPage() {
       .map((item, index) => ({
         name: `${item.name}${item.category ? ` (${item.category})` : ''}`,
         quantity: item.quantity,
-        fill: BAR_COLORS[index % BAR_COLORS.length], // Assign color cyclically
+        fill: BAR_COLORS[index % BAR_COLORS.length], 
       }));
     setDisplayChartData(chartDataFilteredAndColored);
+
+    // Calculate upcoming events
+    const allCalendarEvents = getCalendarEvents();
+    const today = startOfDay(new Date());
+    const futureEvents = allCalendarEvents.filter(event => {
+        try {
+            return new Date(event.date) >= today;
+        } catch (e) {
+            console.error("Invalid date in calendar event:", event);
+            return false;
+        }
+    });
+    setUpcomingEventsCount(futureEvents.length);
+
     setIsLoading(false);
   }, []);
 
   const totalReceived = transactions.filter(tx => tx.type === 'receive').reduce((sum, tx) => sum + tx.quantity, 0);
   const totalDispatched = transactions.filter(tx => tx.type === 'dispatch').reduce((sum, tx) => sum + tx.quantity, 0);
-  const uniqueItemsInStockCount = new Set(stock.map(s => `${s.name}-${s.category || 'N/A'}`)).size;
-
-  const legendPayload = displayChartData.map(item => ({
-    value: item.name,
-    type: 'square' as const,
-    id: item.name,
-    color: item.fill,
-  }));
+  
+  const legendPayload = useMemo(() => 
+    displayChartData.map(item => ({
+      value: `${item.name} (${item.quantity.toLocaleString()})`,
+      type: 'circle' as const, 
+      id: item.name,
+      color: item.fill,
+    })), [displayChartData]
+  );
 
 
   if (isLoading) {
@@ -150,11 +169,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Skeleton for Low Stock Chart Card */}
+        {/* Skeleton for Chart Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Skeleton className="h-6 w-6 rounded-sm" /> {/* BarChartIcon Skeleton */}
+              <Skeleton className="h-6 w-6 rounded-sm" /> 
               <Skeleton className="h-6 w-64" />
             </CardTitle>
             <Skeleton className="h-4 w-full mt-1" />
@@ -203,14 +222,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">أنواع التجهيزات في المخزون</CardTitle>
-            <ListChecks className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{uniqueItemsInStockCount.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">صنف تجهيز فريد حاليًا (بالاسم والصنف)</p>
-          </CardContent>
+          <Link href="/dashboard/calendar">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">الأحداث القادمة</CardTitle>
+              <CalendarClock className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{upcomingEventsCount.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {upcomingEventsCount === 0 ? "لا توجد أحداث قادمة" :
+                 upcomingEventsCount === 1 ? "حدث واحد مجدول" :
+                 upcomingEventsCount === 2 ? "حدثان مجدولان" :
+                 upcomingEventsCount > 2 && upcomingEventsCount <= 10 ? `${upcomingEventsCount} أحداث مجدولة` :
+                 `${upcomingEventsCount} حدث مجدول`
+                }
+              </p>
+            </CardContent>
+          </Link>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -256,7 +284,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChartIcon className="h-6 w-6 text-primary" /> {/* Using BarChartIcon */}
+            <BarChartIcon className="h-6 w-6 text-primary" /> 
             تحليل مخزون التجهيزات المنخفض (رسم بياني شريطي)
           </CardTitle>
           <CardDescription>رسم بياني شريطي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
@@ -266,33 +294,36 @@ export default function DashboardPage() {
             <ChartContainer config={chartConfig} className="h-[450px] w-full">
               <BarChart
                 data={displayChartData}
+                layout="vertical"
                 margin={{
-                  top: 20, // For legend
+                  top: 20, 
                   right: 30,
-                  left: 0, // Adjust if Y-axis labels are cut
-                  bottom: 70,
+                  left: 20,
+                  bottom: 20,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
-                    dataKey="name"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                    tick={{fontSize: '0.75rem'}}
-                />
-                <YAxis
+                    type="number"
                     allowDecimals={false}
                     tickFormatter={(value) => value.toLocaleString()}
                     tick={{fontSize: '0.75rem'}}
+                />
+                <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={120}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{fontSize: '0.75rem'}}
+                    interval={0}
                 />
                 <ChartTooltip
                   cursor={{ fill: "hsl(var(--accent) / 0.2)" }}
                   content={<ChartTooltipContent
                     indicator="dot"
-                    formatter={(value, name, props) => { // 'name' here is the dataKey ('quantity')
-                        const equipmentDisplayName = props.payload?.name; // Actual name from data item
+                    formatter={(value, name, props) => { 
+                        const equipmentDisplayName = props.payload?.name; 
                         return (
                           <div className="flex flex-col">
                             <span className="font-semibold">{equipmentDisplayName}</span>
@@ -309,8 +340,11 @@ export default function DashboardPage() {
                   verticalAlign="top"
                   align="center"
                   wrapperStyle={{paddingBottom: "20px"}}
+                  formatter={(value, entry) => (
+                    <span style={{ color: entry.color }}>{value}</span>
+                  )}
                 />
-                <Bar dataKey="quantity" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="quantity" radius={[0, 4, 4, 0]}>
                   {displayChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
@@ -325,3 +359,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
