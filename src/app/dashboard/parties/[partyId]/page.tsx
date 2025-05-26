@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX, Archive, Edit2, Trash2, PlusCircle, Search } from 'lucide-react'; 
+import { ArrowRight, BuildingIcon, FileDown, UploadCloud, UsersIcon, ListX, UserX, Archive, Edit2, Trash2, PlusCircle, Search, ChevronDown } from 'lucide-react'; 
 import type { Party, Transaction, PartyEmployee, FixedFurnitureItem } from '@/lib/types';
 import { getParties, getTransactions, getPartyEmployees, importPartyEmployeesFromExcel, getFixedFurniture, importFixedFurnitureFromExcel } from '@/lib/store';
 import {
@@ -68,6 +68,8 @@ export default function PartyDetailPage() {
   const [furnitureFile, setFurnitureFile] = useState<File | null>(null);
   const [isImportingFurniture, setIsImportingFurniture] = useState(false);
   const [furnitureSearchTerm, setFurnitureSearchTerm] = useState("");
+  const [isFurnitureSectionOpen, setIsFurnitureSectionOpen] = useState(false);
+
 
   // Placeholder for future manual add/edit furniture dialog
   const [isFurnitureFormOpen, setIsFurnitureFormOpen] = useState(false);
@@ -354,95 +356,109 @@ export default function PartyDetailPage() {
       </Card>
 
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Archive className="h-6 w-6 text-primary" />
-            الأثاث القار المعين للوحدة
-          </CardTitle>
-          <CardDescription>
-            إدارة بيانات الأثاث القار الخاص بهذه الجهة. قم باستيراد أو تحديث البيانات باستخدام ملف Excel.
-            <br />
-            يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: نوع التجهيز، الكمية، الترقيم الإداري، الترقيم التسلسلي، مكان تواجده، الحالة.
-          </CardDescription>
+        <CardHeader 
+            className="cursor-pointer flex flex-row justify-between items-center" 
+            onClick={() => setIsFurnitureSectionOpen(!isFurnitureSectionOpen)}
+        >
+          <div className="flex flex-col">
+            <CardTitle className="flex items-center gap-2">
+                <Archive className="h-6 w-6 text-primary" />
+                الأثاث القار المعين للوحدة
+            </CardTitle>
+            <CardDescription>
+                إدارة بيانات الأثاث القار الخاص بهذه الجهة. انقر لعرض/إخفاء التفاصيل.
+                {isFurnitureSectionOpen && (
+                    <>
+                    <br />
+                    يجب أن يحتوي ملف Excel على الأعمدة التالية بالترتيب: نوع التجهيز، الكمية، الترقيم الإداري، الترقيم التسلسلي، مكان تواجده، الحالة.
+                    </>
+                )}
+            </CardDescription>
+          </div>
+          <ChevronDown
+            className={cn("h-5 w-5 text-muted-foreground transition-transform", isFurnitureSectionOpen && "rotate-180")}
+          />
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <Input
-              id="furniture-excel-file"
-              type="file"
-              accept=".xlsx, .xls"
-              onChange={handleFurnitureFileChange}
-              className="flex-grow"
-              aria-label="اختيار ملف Excel لبيانات الأثاث القار"
-            />
-            <Button onClick={handleImportFurniture} disabled={!furnitureFile || isImportingFurniture} className="w-full sm:w-auto">
-              <UploadCloud className="ml-2 h-4 w-4" />
-              {isImportingFurniture ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
-            </Button>
-            <Button variant="outline" onClick={() => setIsFurnitureFormOpen(true)} className="w-full sm:w-auto" disabled>
-                <PlusCircle className="ml-2 h-4 w-4" />
-                إضافة قطعة أثاث (قيد التطوير)
-            </Button>
-          </div>
-          <div className="my-4">
-            <Input
-              type="search"
-              placeholder="ابحث في الأثاث (نوع، ترقيم، موقع...)"
-              value={furnitureSearchTerm}
-              onChange={(e) => setFurnitureSearchTerm(e.target.value)}
-              className="h-10 w-full sm:w-1/2"
-            />
-          </div>
-          {filteredFixedFurniture.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>نوع التجهيز</TableHead>
-                    <TableHead className="text-center">الكمية</TableHead>
-                    <TableHead>الترقيم الإداري</TableHead>
-                    <TableHead>الترقيم التسلسلي</TableHead>
-                    <TableHead>مكان تواجده</TableHead>
-                    <TableHead>الحالة</TableHead>
-                    {/* <TableHead className="text-center">إجراءات</TableHead> */}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredFixedFurniture.map(item => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.equipmentType}</TableCell>
-                      <TableCell className="text-center">{item.quantity.toLocaleString()}</TableCell>
-                      <TableCell>{item.administrativeNumbering || '-'}</TableCell>
-                      <TableCell>{item.serialNumber || '-'}</TableCell>
-                      <TableCell>{item.location || '-'}</TableCell>
-                      <TableCell>{item.status || '-'}</TableCell>
-                      {/* <TableCell className="text-center space-x-1 rtl:space-x-reverse">
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingFurnitureItem(item); setIsFurnitureFormOpen(true); }} title="تعديل" disabled>
-                          <Edit2 className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button variant="ghost" size="icon" title="حذف" onClick={() => setFurnitureItemToDelete(item)} disabled>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell> */}
+        {isFurnitureSectionOpen && (
+            <CardContent className="space-y-4 pt-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+                <Input
+                id="furniture-excel-file"
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={handleFurnitureFileChange}
+                className="flex-grow"
+                aria-label="اختيار ملف Excel لبيانات الأثاث القار"
+                />
+                <Button onClick={handleImportFurniture} disabled={!furnitureFile || isImportingFurniture} className="w-full sm:w-auto">
+                <UploadCloud className="ml-2 h-4 w-4" />
+                {isImportingFurniture ? "جارٍ الاستيراد..." : "استيراد / تحديث من Excel"}
+                </Button>
+                <Button variant="outline" onClick={() => setIsFurnitureFormOpen(true)} className="w-full sm:w-auto" disabled>
+                    <PlusCircle className="ml-2 h-4 w-4" />
+                    إضافة قطعة أثاث (قيد التطوير)
+                </Button>
+            </div>
+            <div className="my-4">
+                <Input
+                type="search"
+                placeholder="ابحث في الأثاث (نوع، ترقيم، موقع...)"
+                value={furnitureSearchTerm}
+                onChange={(e) => setFurnitureSearchTerm(e.target.value)}
+                className="h-10 w-full sm:w-1/2"
+                />
+            </div>
+            {filteredFixedFurniture.length > 0 ? (
+                <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>نوع التجهيز</TableHead>
+                        <TableHead className="text-center">الكمية</TableHead>
+                        <TableHead>الترقيم الإداري</TableHead>
+                        <TableHead>الترقيم التسلسلي</TableHead>
+                        <TableHead>مكان تواجده</TableHead>
+                        <TableHead>الحالة</TableHead>
+                        {/* <TableHead className="text-center">إجراءات</TableHead> */}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-muted-foreground">
-              <Archive className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              {furnitureSearchTerm ? (
-                <p className="text-lg">لا يوجد أثاث يطابق معايير البحث الحالية.</p>
-              ) : (
-                <>
-                  <p className="text-lg">لم يتم تسجيل أي أثاث قار لهذه الجهة بعد.</p>
-                  <p className="text-sm">استخدم زر الاستيراد من Excel أو زر الإضافة اليدوية (قيد التطوير) لبدء الإدارة.</p>
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
+                    </TableHeader>
+                    <TableBody>
+                    {filteredFixedFurniture.map(item => (
+                        <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.equipmentType}</TableCell>
+                        <TableCell className="text-center">{item.quantity.toLocaleString()}</TableCell>
+                        <TableCell>{item.administrativeNumbering || '-'}</TableCell>
+                        <TableCell>{item.serialNumber || '-'}</TableCell>
+                        <TableCell>{item.location || '-'}</TableCell>
+                        <TableCell>{item.status || '-'}</TableCell>
+                        {/* <TableCell className="text-center space-x-1 rtl:space-x-reverse">
+                            <Button variant="ghost" size="icon" onClick={() => { setEditingFurnitureItem(item); setIsFurnitureFormOpen(true); }} title="تعديل" disabled>
+                            <Edit2 className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button variant="ghost" size="icon" title="حذف" onClick={() => setFurnitureItemToDelete(item)} disabled>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </TableCell> */}
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+                </div>
+            ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                <Archive className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                {furnitureSearchTerm ? (
+                    <p className="text-lg">لا يوجد أثاث يطابق معايير البحث الحالية.</p>
+                ) : (
+                    <>
+                    <p className="text-lg">لم يتم تسجيل أي أثاث قار لهذه الجهة بعد.</p>
+                    <p className="text-sm">استخدم زر الاستيراد من Excel أو زر الإضافة اليدوية (قيد التطوير) لبدء الإدارة.</p>
+                    </>
+                )}
+                </div>
+            )}
+            </CardContent>
+        )}
       </Card>
 
       <Card className="shadow-lg">
