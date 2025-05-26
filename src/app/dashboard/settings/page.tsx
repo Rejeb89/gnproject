@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, ChangeEvent, useRef } from 'react';
+import React, { useState, ChangeEvent, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck, Users, DatabaseBackup, Upload, Download } from "lucide-react";
+import { UserCog, PlusCircle, Edit2, Trash2, KeyRound, ShieldCheck, Users, DatabaseBackup, Upload, Download, Palette, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { exportAllData, importAllData } from "@/lib/store";
+import { cn } from '@/lib/utils';
 
 // Mock user type for local state demonstration
 interface MockUser {
@@ -46,6 +47,160 @@ interface MockUser {
   email: string;
   role: 'admin' | 'employee';
 }
+
+interface ThemeColorSet {
+  background: string;
+  foreground: string;
+  primary: string;
+  primaryForeground: string;
+  secondary: string;
+  secondaryForeground: string;
+  accent: string;
+  accentForeground: string;
+  muted: string;
+  mutedForeground: string;
+  border: string;
+  input: string;
+  ring: string;
+  card: string;
+  cardForeground: string;
+  popover: string;
+  popoverForeground: string;
+  sidebarBackground: string;
+  sidebarForeground: string;
+  sidebarAccent: string;
+  sidebarAccentForeground: string;
+  sidebarBorder: string;
+  sidebarRing: string;
+}
+
+interface AppTheme {
+  name: string;
+  displayName: string;
+  colors: Partial<ThemeColorSet>; // Partial to allow themes to override only some colors
+}
+
+const THEME_STORAGE_KEY = 'equipTrack_selected_theme_v1';
+
+const defaultThemeColors: ThemeColorSet = {
+  background: "0 0% 100%",
+  foreground: "210 15% 20%",
+  primary: "207 88% 70%",
+  primaryForeground: "210 100% 10%",
+  secondary: "207 80% 88%",
+  secondaryForeground: "210 15% 20%",
+  accent: "125 37% 75%",
+  accentForeground: "125 40% 20%",
+  muted: "207 50% 90%",
+  mutedForeground: "210 10% 45%",
+  border: "207 30% 80%",
+  input: "207 30% 85%",
+  ring: "207 88% 65%",
+  card: "0 0% 100%",
+  cardForeground: "210 15% 20%",
+  popover: "0 0% 100%",
+  popoverForeground: "210 15% 20%",
+  sidebarBackground: "220 16% 96%",
+  sidebarForeground: "210 15% 20%",
+  sidebarPrimary: "207 88% 70%", // Used by nav-links.tsx for border
+  sidebarPrimaryForeground: "210 100% 10%",
+  sidebarAccent: "207 88% 75%",
+  sidebarAccentForeground: "210 100% 10%",
+  sidebarBorder: "220 10% 88%",
+  sidebarRing: "207 88% 65%",
+};
+
+
+const availableThemes: AppTheme[] = [
+  {
+    name: "default",
+    displayName: "الافتراضي",
+    colors: defaultThemeColors,
+  },
+  {
+    name: "ocean",
+    displayName: "أعماق المحيط",
+    colors: {
+      background: "210 40% 98%",
+      foreground: "210 30% 15%",
+      primary: "200 90% 55%",
+      primaryForeground: "0 0% 100%",
+      secondary: "190 70% 90%",
+      secondaryForeground: "200 30% 25%",
+      accent: "170 60% 70%",
+      accentForeground: "170 40% 10%",
+      muted: "210 30% 92%",
+      mutedForeground: "210 20% 50%",
+      border: "200 30% 80%",
+      input: "200 30% 85%",
+      ring: "200 90% 50%",
+      card: "210 40% 98%",
+      cardForeground: "210 30% 15%",
+      popover: "210 40% 98%",
+      popoverForeground: "210 30% 15%",
+      sidebarBackground: "220 25% 90%",
+      sidebarForeground: "210 30% 15%",
+      sidebarAccent: "200 90% 65%",
+      sidebarAccentForeground: "0 0% 100%",
+      sidebarBorder: "210 30% 85%",
+      sidebarRing: "200 90% 50%",
+      sidebarPrimary: "200 90% 55%",
+    },
+  },
+  {
+    name: "forest",
+    displayName: "غابة خضراء",
+    colors: {
+      background: "120 10% 98%", // Very light green
+      foreground: "120 25% 15%", // Dark green
+      primary: "130 50% 45%",   // Forest green
+      primaryForeground: "0 0% 100%", // White
+      secondary: "120 30% 88%", // Light muted green
+      secondaryForeground: "120 25% 25%",
+      accent: "90 60% 65%",     // Lime green
+      accentForeground: "90 40% 10%",
+      muted: "120 20% 92%",
+      mutedForeground: "120 15% 50%",
+      border: "120 20% 80%",
+      input: "120 20% 85%",
+      ring: "130 50% 40%",
+      card: "120 10% 98%",
+      cardForeground: "120 25% 15%",
+      popover: "120 10% 98%",
+      popoverForeground: "120 25% 15%",
+      sidebarBackground: "120 15% 94%",
+      sidebarForeground: "120 25% 15%",
+      sidebarAccent: "130 50% 55%",
+      sidebarAccentForeground: "0 0% 100%",
+      sidebarBorder: "120 15% 88%",
+      sidebarRing: "130 50% 40%",
+      sidebarPrimary: "130 50% 45%",
+    },
+  },
+];
+
+const PalettePreview = ({ colors }: { colors: Partial<ThemeColorSet> }) => {
+  const previewColors = [
+    colors.primary,
+    colors.accent,
+    colors.secondary,
+    colors.background,
+    colors.foreground,
+  ].filter(Boolean) as string[];
+
+  return (
+    <div className="flex gap-1 mt-1 h-4">
+      {previewColors.map((color, index) => (
+        <div
+          key={index}
+          className="w-4 h-4 rounded-xs border border-border"
+          style={{ backgroundColor: `hsl(${color})` }}
+        />
+      ))}
+    </div>
+  );
+};
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -64,6 +219,43 @@ export default function SettingsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [showImportConfirmDialog, setShowImportConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeThemeName, setActiveThemeName] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(THEME_STORAGE_KEY) || 'default';
+    }
+    return 'default';
+  });
+
+  const applyTheme = (theme: AppTheme) => {
+    const root = document.documentElement;
+    const colorsToApply = { ...defaultThemeColors, ...theme.colors }; // Merge with default to ensure all vars are set
+
+    (Object.keys(colorsToApply) as Array<keyof ThemeColorSet>).forEach(key => {
+        const cssVarName = `--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`;
+        root.style.setProperty(cssVarName, colorsToApply[key] as string);
+    });
+    
+    // Handle sidebar primary specifically if not directly in colorsToApply
+    if (theme.colors.sidebarPrimary) {
+        root.style.setProperty('--sidebar-primary', theme.colors.sidebarPrimary);
+    } else if (theme.colors.primary) {
+        root.style.setProperty('--sidebar-primary', theme.colors.primary);
+    }
+
+
+    localStorage.setItem(THEME_STORAGE_KEY, theme.name);
+    setActiveThemeName(theme.name);
+    toast({ title: "تم تطبيق السمة", description: `تم تغيير السمة إلى: ${theme.displayName}` });
+  };
+
+  useEffect(() => {
+    const savedThemeName = localStorage.getItem(THEME_STORAGE_KEY) || 'default';
+    const themeToLoad = availableThemes.find(t => t.name === savedThemeName) || availableThemes[0];
+    applyTheme(themeToLoad);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const handleAddUser = () => {
     if (!userName || !userEmail) {
@@ -151,12 +343,11 @@ export default function SettingsPage() {
       variant: result.success ? "default" : "destructive",
     });
     if (result.success) {
-      // Optionally, trigger a refresh or notify user to refresh for changes to take full effect
-      window.location.reload(); // Force reload to reflect imported data everywhere
+      window.location.reload();
     }
     setSelectedFile(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      fileInputRef.current.value = "";
     }
   };
 
@@ -167,6 +358,46 @@ export default function SettingsPage() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
           <h1 className="text-3xl font-bold tracking-tight">إعدادات النظام</h1>
         </div>
+
+        {/* Theme Customization Card */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Palette className="h-6 w-6" />
+              تخصيص سمة التطبيق
+            </CardTitle>
+            <CardDescription>
+              اختر السمة التي تفضلها لواجهة المستخدم. التغييرات ستطبق على الوضع الفاتح.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {availableThemes.map((theme) => (
+                <Button
+                  key={theme.name}
+                  variant="outline"
+                  className={cn(
+                    "h-auto p-4 flex flex-col items-start justify-start text-right relative",
+                    activeThemeName === theme.name && "ring-2 ring-primary border-primary"
+                  )}
+                  onClick={() => applyTheme(theme)}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <span className="font-semibold">{theme.displayName}</span>
+                    {activeThemeName === theme.name && (
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    )}
+                  </div>
+                  <PalettePreview colors={theme.colors} />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {theme.name === 'default' ? 'السمة الأساسية للتطبيق.' : `سمة بألوان مستوحاة من ${theme.displayName.toLowerCase()}.`}
+                  </p>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
 
         {/* User Management Card */}
         <Card className="shadow-lg">
@@ -306,6 +537,7 @@ export default function SettingsPage() {
                 <li>عرض جميع التقارير والإحصائيات.</li>
                 <li>تعديل الإعدادات العامة للنظام.</li>
                 <li>تصدير واستيراد بيانات التطبيق.</li>
+                <li>تخصيص سمة التطبيق.</li>
               </ul>
             </div>
             <div>
@@ -314,7 +546,7 @@ export default function SettingsPage() {
                 <li>تسجيل عمليات استلام التجهيزات.</li>
                 <li>تسجيل عمليات تسليم التجهيزات.</li>
                 <li>عرض تقارير محددة ذات صلة بعمله.</li>
-                <li>(لا يمكنه إدارة المستخدمين أو الإعدادات العامة أو تصدير/استيراد كل البيانات)</li>
+                <li>(لا يمكنه إدارة المستخدمين أو الإعدادات العامة أو تصدير/استيراد كل البيانات أو تخصيص السمة)</li>
               </ul>
             </div>
             <p className="mt-6 text-sm text-amber-600 font-semibold border-t pt-4">
@@ -426,4 +658,5 @@ export default function SettingsPage() {
     </AlertDialog>
   );
 }
+
     
