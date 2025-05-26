@@ -94,10 +94,10 @@ export default function DashboardPage() {
 
     // Calculate upcoming events
     const allCalendarEvents = getCalendarEvents();
-    const today = startOfDay(new Date());
+    const now = new Date(); // Current date and time
     const futureEvents = allCalendarEvents.filter(event => {
         try {
-            return new Date(event.date) >= today;
+            return new Date(event.date) >= now; // Event date/time must be in the future
         } catch (e) {
             console.error("Invalid date in calendar event:", event);
             return false;
@@ -359,5 +359,5 @@ export default function DashboardPage() {
     </div>
   );
 }
-
     
+
