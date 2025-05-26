@@ -3,10 +3,11 @@ import { z } from 'zod';
 
 export const calendarEventFormSchema = z.object({
   title: z.string().min(1, { message: "عنوان الحدث مطلوب." }),
-  date: z.date({
+  date: z.date({ // This will be the date part from the Calendar component
     required_error: "تاريخ الحدث مطلوب.",
     invalid_type_error: "تاريخ الحدث غير صالح.",
   }),
+  eventTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: "الوقت غير صالح، يجب أن يكون بتنسيق HH:mm (مثال: 14:30)." }),
   description: z.string().optional(),
   reminderUnit: z.enum(["none", "days", "hours", "weeks"]).optional().default("none"),
   reminderValue: z.coerce

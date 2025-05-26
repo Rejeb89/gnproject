@@ -16,10 +16,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Save, BellRing } from "lucide-react";
+import { Calendar as CalendarIcon, Save, BellRing, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { arSA } from "date-fns/locale";
 import type { CalendarEvent } from "@/lib/types";
 import { calendarEventFormSchema, type CalendarEventFormValues } from "./calendar-event-form-schema";
@@ -30,15 +30,22 @@ interface CalendarEventFormProps {
   onSubmit: (values: CalendarEventFormValues) => void;
   onCancel: () => void;
   initialData?: CalendarEvent | null;
-  defaultDate?: Date | null; // New prop for pre-filling date on add
+  defaultDate?: Date | null;
 }
 
 export function CalendarEventForm({ onSubmit, onCancel, initialData, defaultDate }: CalendarEventFormProps) {
+  const getInitialTime = (): string => {
+    if (initialData?.date) return format(new Date(initialData.date), "HH:mm");
+    if (defaultDate) return format(defaultDate, "HH:mm");
+    return format(new Date(), "HH:mm");
+  };
+
   const form = useForm<CalendarEventFormValues>({
     resolver: zodResolver(calendarEventFormSchema),
     defaultValues: {
       title: initialData?.title || "",
       date: initialData?.date ? new Date(initialData.date) : (defaultDate || new Date()),
+      eventTime: getInitialTime(),
       description: initialData?.description || "",
       reminderUnit: initialData?.reminderUnit || "none",
       reminderValue: initialData?.reminderValue || undefined,
@@ -46,18 +53,21 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData, defaultDate
   });
 
   React.useEffect(() => {
-    if (initialData && initialData.id) { // Editing existing event (check for id)
+    if (initialData && initialData.id) {
       form.reset({
         title: initialData.title,
         date: new Date(initialData.date),
+        eventTime: format(new Date(initialData.date), "HH:mm"),
         description: initialData.description || "",
         reminderUnit: initialData.reminderUnit || "none",
         reminderValue: initialData.reminderValue || undefined,
       });
-    } else { // Adding new event or pre-filling with defaultDate
+    } else {
+      const newEventDate = defaultDate ? new Date(defaultDate) : new Date();
       form.reset({
         title: "",
-        date: defaultDate ? new Date(defaultDate) : new Date(),
+        date: newEventDate,
+        eventTime: format(newEventDate, "HH:mm"),
         description: "",
         reminderUnit: "none",
         reminderValue: undefined,
@@ -66,11 +76,8 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData, defaultDate
   }, [initialData, defaultDate, form]);
 
   const handleSubmit = (values: CalendarEventFormValues) => {
-    const finalValues = {
-        ...values,
-        reminderValue: values.reminderUnit === 'none' ? undefined : values.reminderValue,
-    };
-    onSubmit(finalValues);
+    // The parent component will handle combining date and eventTime
+    onSubmit(values);
   };
 
   const reminderUnit = form.watch("reminderUnit");
@@ -92,88 +99,73 @@ export function CalendarEventForm({ onSubmit, onCancel, initialData, defaultDate
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="date"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>تاريخ الحدث</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 pr-1 text-right font-normal justify-between",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP HH:mm", { locale: arSA }) 
-                      ) : (
-                        <span>اختر تاريخًا ووقتًا</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={(selectedDateOption) => {
-                        const selectedDate = selectedDateOption; // No need for undefined check, DayPicker handles it.
-                        if (!selectedDate) {
-                            field.onChange(undefined); // Or handle as per your logic for unsetting date
-                            return;
-                        }
-                        
-                        const currentHours = field.value instanceof Date ? field.value.getHours() : 0;
-                        const currentMinutes = field.value instanceof Date ? field.value.getMinutes() : 0;
-
-                        const newDateTime = new Date(selectedDate);
-                        newDateTime.setHours(currentHours, currentMinutes, 0, 0);
-                        
-                        field.onChange(newDateTime);
-                    }}
-                    initialFocus
-                    locale={arSA}
-                    dir="rtl"
-                  />
-                  <div className="p-3 border-t border-border">
-                    <FormLabel htmlFor="event-time">وقت الحدث</FormLabel>
-                    <Input
-                        id="event-time"
-                        type="time"
-                        className="mt-1"
-                        defaultValue={field.value ? format(new Date(field.value), "HH:mm") : "00:00"}
-                        onChange={(e) => {
-                            const [hoursStr, minutesStr] = e.target.value.split(':');
-                            const hours = parseInt(hoursStr, 10);
-                            const minutes = parseInt(minutesStr, 10);
-
-                            if (!isNaN(hours) && !isNaN(minutes)) {
-                                const baseDate = field.value instanceof Date ? new Date(field.value.getTime()) : new Date();
-                                
-                                const newDateTime = new Date(
-                                    baseDate.getFullYear(),
-                                    baseDate.getMonth(),
-                                    baseDate.getDate(),
-                                    hours,
-                                    minutes
-                                );
-                                newDateTime.setSeconds(0,0); 
-                                field.onChange(newDateTime);
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                <FormLabel>تاريخ الحدث</FormLabel>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <FormControl>
+                        <Button
+                        variant={"outline"}
+                        className={cn(
+                            "w-full pl-3 pr-1 text-right font-normal justify-between",
+                            !field.value && "text-muted-foreground"
+                        )}
+                        >
+                        {field.value ? (
+                            format(field.value, "PPP", { locale: arSA }) 
+                        ) : (
+                            <span>اختر تاريخًا</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50 mr-2" />
+                        </Button>
+                    </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={(selectedCalDate) => {
+                            if (selectedCalDate) {
+                                field.onChange(selectedCalDate);
                             }
                         }}
+                        initialFocus
+                        locale={arSA}
+                        dir="rtl"
                     />
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                    </PopoverContent>
+                </Popover>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+
+            <FormField
+            control={form.control}
+            name="eventTime"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel className="flex items-center">
+                    <Clock className="ml-1 h-4 w-4 text-muted-foreground" />
+                    وقت الحدث
+                </FormLabel>
+                <FormControl>
+                    <Input 
+                        type="time" 
+                        {...field} 
+                        className="w-full"
+                    />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        </div>
         
         <div className="space-y-2 rounded-md border p-4">
             <FormLabel className="flex items-center gap-2 text-base">

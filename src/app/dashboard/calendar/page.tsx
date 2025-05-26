@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, parse } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar"; // Shadcn Calendar for display
@@ -44,7 +44,7 @@ export default function CalendarPage() {
   useEffect(() => {
     const uniqueEventDays = Array.from(
       new Set(events.map(event => format(new Date(event.date), 'yyyy-MM-dd')))
-    ).map(dateStr => new Date(dateStr + 'T00:00:00')); // Ensure correct date parsing for comparison
+    ).map(dateStr => new Date(dateStr + 'T00:00:00')); 
     setDaysWithEvents(uniqueEventDays);
   }, [events]);
 
@@ -59,9 +59,9 @@ export default function CalendarPage() {
   };
 
   const handleCalendarDayClick = (day: Date | undefined) => {
-    setSelectedDay(day); // For filtering list
+    setSelectedDay(day); 
     if (day) {
-      setDayToConfirmForNewEvent(day); // Set day for confirmation
+      setDayToConfirmForNewEvent(day); 
     }
   };
 
@@ -70,7 +70,7 @@ export default function CalendarPage() {
     setEditingEvent(null);
     setDefaultDateForNewEvent(dayToConfirmForNewEvent);
     setIsFormDialogOpen(true);
-    setDayToConfirmForNewEvent(null); // Close confirmation dialog
+    setDayToConfirmForNewEvent(null); 
   };
 
   const handleOpenEditDialog = (event: CalendarEvent) => {
@@ -81,9 +81,14 @@ export default function CalendarPage() {
 
   const handleFormSubmit = (values: CalendarEventFormValues) => {
     try {
+      // Combine date and time
+      const [hours, minutes] = values.eventTime.split(':').map(Number);
+      const combinedDate = new Date(values.date);
+      combinedDate.setHours(hours, minutes, 0, 0);
+
       const eventData: Omit<CalendarEvent, 'id'> = {
         title: values.title,
-        date: values.date.toISOString(),
+        date: combinedDate.toISOString(),
         description: values.description,
         reminderUnit: values.reminderUnit === "none" ? undefined : values.reminderUnit,
         reminderValue: values.reminderUnit === "none" || !values.reminderValue ? undefined : values.reminderValue,
@@ -269,6 +274,7 @@ export default function CalendarPage() {
               <li><span className="font-semibold text-green-600">[تم]</span> عرض روزنامة شهرية أساسية مع تمييز أيام الأحداث وتصفية القائمة.</li>
               <li><span className="font-semibold text-green-600">[تم]</span> النقر على يوم في الروزنامة يفتح نافذة إضافة حدث جديد لذلك اليوم (مع تأكيد).</li>
               <li><span className="font-semibold text-green-600">[تم]</span> تنبيهات وتذكيرات بالأحداث القادمة (تعمل عندما يكون التطبيق مفتوحًا).</li>
+              <li><span className="font-semibold text-green-600">[تم]</span> إدخال تاريخ ووقت الحدث بشكل منفصل.</li>
               <li>عرض روزنامة شهرية/أسبوعية/يومية مرئية متقدمة مع عرض تفاصيل الأحداث مباشرة على خلايا الروزنامة.</li>
               <li>إمكانية ربط الأحداث بالتجهيزات أو وسائل النقل.</li>
             </ul>
@@ -347,4 +353,3 @@ export default function CalendarPage() {
     </>
   );
 }
-    
