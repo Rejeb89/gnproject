@@ -8,7 +8,7 @@ const PARTIES_KEY = 'equipTrack_parties_v1';
 const EQUIPMENT_SETTINGS_KEY = 'equipTrack_equipment_settings_v1'; // Key for equipment settings
 const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key for equipment definitions
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
-const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
+export const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
 const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
 
 const ALL_APP_DATA_KEYS = [
@@ -238,7 +238,7 @@ export function getEquipmentDefinitions(): EquipmentDefinition[] {
 }
 
 export function addEquipmentDefinition(definition: Omit<EquipmentDefinition, 'id'>): EquipmentDefinition {
-  if (typeof window === 'undefined') {
+   if (typeof window === 'undefined') {
     const newDef = { ...definition, id: crypto.randomUUID() };
     console.warn("addEquipmentDefinition called on server, returning fallback. This may indicate an issue.");
     return newDef;
@@ -658,3 +658,5 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
     reader.readAsText(file);
   });
 }
+
+    
