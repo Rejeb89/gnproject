@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as DialogDesc } from "@/components/ui/dialog";
-import { Calendar as CalendarIconUI, PlusCircle, Edit2, Trash2, ListChecks, BellRing, Clock, Eye } from "lucide-react";
+import { Calendar as CalendarIconUI, Edit2, Trash2, ListChecks, BellRing, Clock, Eye } from "lucide-react";
 import type { CalendarEvent } from "@/lib/types";
 import { getCalendarEvents, addCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "@/lib/store";
 import { CalendarEventForm, type CalendarEventFormValues } from "@/components/forms/calendar-event-form";
@@ -52,11 +52,11 @@ export default function CalendarPage() {
     setEvents(getCalendarEvents().sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
   };
 
-  const handleOpenAddDialog = () => {
-    setEditingEvent(null);
-    setDefaultDateForNewEvent(selectedDay || null);
-    setIsFormDialogOpen(true);
-  };
+  // const handleOpenAddDialog = () => {
+  //   setEditingEvent(null);
+  //   setDefaultDateForNewEvent(selectedDay || null);
+  //   setIsFormDialogOpen(true);
+  // };
 
   const handleCalendarDayClick = (day: Date | undefined) => {
     setSelectedDay(day); 
@@ -161,10 +161,10 @@ export default function CalendarPage() {
             <CalendarIconUI className="h-8 w-8" />
             الروزنامة
           </h1>
-          <Button onClick={handleOpenAddDialog} className="w-full sm:w-auto">
+          {/* <Button onClick={handleOpenAddDialog} className="w-full sm:w-auto">
             <PlusCircle className="ml-2 h-5 w-5" />
             إضافة حدث جديد
-          </Button>
+          </Button> */}
         </div>
 
         <Card>
@@ -253,11 +253,9 @@ export default function CalendarPage() {
               </p>
             )}
           </CardContent>
-           {displayedEvents.length > 0 && (
-            <CardFooter className="text-sm text-muted-foreground pt-4">
+           <CardFooter className="text-sm text-muted-foreground pt-4">
               يتم عرض {displayedEvents.length} {displayedEvents.length === 1 ? 'حدث' : displayedEvents.length === 2 ? 'حدثين' : displayedEvents.length <=10 ? 'أحداث' : 'حدث'}.
             </CardFooter>
-          )}
         </Card>
 
         <Card>
@@ -290,7 +288,7 @@ export default function CalendarPage() {
               setDefaultDateForNewEvent(null);
           }
       }}>
-        <DialogContent className="sm:max-w-[525px]">
+        <DialogContent className="sm:max-w-[525px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingEvent && editingEvent.id ? 'تعديل الحدث' : 'إضافة حدث جديد'}</DialogTitle>
             <DialogDesc>
