@@ -10,7 +10,7 @@ const EQUIPMENT_DEFINITIONS_KEY = 'equipTrack_equipment_definitions_v1'; // Key 
 const PARTY_EMPLOYEES_KEY = 'equipTrack_party_employees_v1'; // Key for party employees
 export const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notifications
 const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
-const VEHICLES_KEY = 'equipTrack_vehicles_v1'; // Key for vehicles
+const VEHICLES_KEY = 'equipTrack_vehicles_v2'; // Updated for fuelType
 const FIXED_FURNITURE_KEY = 'equipTrack_fixed_furniture_v1'; // Key for fixed furniture
 const APPROPRIATIONS_KEY = 'equipTrack_appropriations_v1'; // Key for appropriations
 const SPENDINGS_KEY = 'equipTrack_spendings_v1'; // Key for spendings
@@ -62,8 +62,10 @@ const isVehicle = (item: any): item is Vehicle =>
   'id' in item && 
   'type' in item && 
   'registrationNumber' in item &&
-  Array.isArray(item.fuelEntries) && // Ensure arrays exist
-  Array.isArray(item.maintenanceRecords);
+  Array.isArray(item.fuelEntries) && 
+  Array.isArray(item.maintenanceRecords) &&
+  (item.fuelType === undefined || typeof item.fuelType === 'string'); // Added fuelType check
+
 const isAppropriation = (item: any): item is Appropriation => typeof item === 'object' && item !== null && 'id' in item && 'name' in item && 'allocatedAmount' in item;
 const isSpending = (item: any): item is Spending => 
   typeof item === 'object' && 
@@ -901,7 +903,7 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
             if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key) && importedData[key] === undefined) {
                 console.warn(`Key ${key} missing in import file, will default to empty object.`);
                 importedData[key] = {};
-            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY, TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY].includes(key) && importedData[key] === undefined) { // Expanded this condition
+            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY, TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY].includes(key) && importedData[key] === undefined) { 
                  console.warn(`Key ${key} missing in import file, will default to empty array.`);
                 importedData[key] = [];
             }
@@ -963,3 +965,4 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
     reader.readAsText(file);
   });
 }
+

@@ -24,7 +24,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Save, ChevronsUpDown, Check, Building, Car, Fuel } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save, ChevronsUpDown, Check, Building, Car, Fuel, Droplet } from "lucide-react";
 import { vehicleFormSchema, type VehicleFormValues } from "./vehicle-form-schema";
 import type { Vehicle, Party } from "@/lib/types";
 import { getParties, addParty } from "@/lib/store";
@@ -72,6 +73,7 @@ export function VehicleForm({
       type: initialData?.type || "",
       registrationNumber: initialData?.registrationNumber || "",
       owningParty: initialData?.owningParty || "",
+      fuelType: initialData?.fuelType || undefined,
       fuelAllowanceLiters: initialData?.fuelAllowanceLiters || undefined,
     },
   });
@@ -82,6 +84,7 @@ export function VehicleForm({
         type: initialData.type,
         registrationNumber: initialData.registrationNumber,
         owningParty: initialData.owningParty,
+        fuelType: initialData.fuelType || undefined,
         fuelAllowanceLiters: initialData.fuelAllowanceLiters || undefined,
       });
       setPartySearchTerm(initialData.owningParty || "");
@@ -90,6 +93,7 @@ export function VehicleForm({
         type: "",
         registrationNumber: "",
         owningParty: "",
+        fuelType: undefined,
         fuelAllowanceLiters: undefined,
       });
       setPartySearchTerm("");
@@ -234,6 +238,31 @@ export function VehicleForm({
                   </Command>
                 </PopoverContent>
               </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="fuelType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-1">
+                <Droplet className="h-4 w-4 text-muted-foreground" />
+                نوع الوقود (اختياري)
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="اختر نوع الوقود" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="petrol">بنزين</SelectItem>
+                  <SelectItem value="diesel">غازوال</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

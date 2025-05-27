@@ -91,10 +91,11 @@ export interface Vehicle {
   type: string; // e.g., 'سيارة خفيفة', 'شاحنة'
   registrationNumber: string; // الرقم المنجمي
   owningParty: string; // الجهة التابعة لها (اسم الجهة)
+  fuelType?: 'petrol' | 'diesel'; // نوع الوقود
   fuelAllowanceLiters?: number; // مقرر المحروقات باللتر
   status?: 'available' | 'on_mission' | 'maintenance'; // (للتطوير المستقبلي)
-  fuelEntries: FuelEntry[]; // Changed to non-optional, initialized as empty array
-  maintenanceRecords: MaintenanceRecord[]; // Changed to non-optional, initialized as empty array
+  fuelEntries: FuelEntry[]; 
+  maintenanceRecords: MaintenanceRecord[];
 }
 
 export interface FixedFurnitureItem {

@@ -42,7 +42,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Car, PlusCircle, Edit2, Trash2, PackageSearch, Wrench, Route, Fuel, ListChecks, ChevronDown, StickyNote, Thermometer, DollarSign, SprayCan, ClipboardList, CalendarClock } from "lucide-react";
+import { Car, PlusCircle, Edit2, Trash2, PackageSearch, Wrench, Route, Fuel, ListChecks, ChevronDown, StickyNote, Thermometer, DollarSign, SprayCan, ClipboardList, CalendarClock, Droplet } from "lucide-react";
 import type { Vehicle, FuelEntry, MaintenanceRecord } from "@/lib/types";
 import { getVehicles, addVehicle, updateVehicle, deleteVehicle, addFuelEntryToVehicle, addMaintenanceRecordToVehicle } from "@/lib/store";
 import { VehicleForm, type VehicleFormValues } from "@/components/forms/vehicle-form";
@@ -160,16 +160,11 @@ export default function VehiclesPage() {
   const handleMaintenanceFormSubmit = (values: MaintenanceRecordFormValues) => {
     if (!selectedVehicleForEntry) return;
     try {
-      // Cost is no longer directly passed from the form
       const maintenanceData: Omit<MaintenanceRecord, 'id' | 'cost'> & { cost?: number } = {
         ...values,
         date: values.date.toISOString(),
         nextDueDate: values.nextDueDate ? values.nextDueDate.toISOString() : undefined,
       };
-      // If cost was part of the form values and we wanted to keep it optional
-      // if (values.cost !== undefined) {
-      //   maintenanceData.cost = values.cost;
-      // }
       addMaintenanceRecordToVehicle(selectedVehicleForEntry.id, maintenanceData as Omit<MaintenanceRecord, 'id'>);
       toast({ title: "تمت إضافة سجل الصيانة بنجاح."});
       loadVehicles();
@@ -189,6 +184,7 @@ export default function VehiclesPage() {
             <TableHead><Skeleton className="h-5 w-8" /></TableHead>
             <TableHead><Skeleton className="h-5 w-32" /></TableHead>
             <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+            <TableHead><Skeleton className="h-5 w-20" /></TableHead> 
             <TableHead><Skeleton className="h-5 w-32" /></TableHead>
             <TableHead className="text-center"><Skeleton className="h-5 w-20 mx-auto" /></TableHead>
             <TableHead className="text-center"><Skeleton className="h-5 w-28 mx-auto" /></TableHead>
@@ -200,6 +196,7 @@ export default function VehiclesPage() {
               <TableCell><Skeleton className="h-8 w-8" /></TableCell>
               <TableCell><Skeleton className="h-5 w-full" /></TableCell>
               <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-full" /></TableCell> 
               <TableCell><Skeleton className="h-5 w-full" /></TableCell>
               <TableCell className="text-center"><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
               <TableCell className="text-center space-x-1 rtl:space-x-reverse">
@@ -227,6 +224,11 @@ export default function VehiclesPage() {
     return Math.max(...allReadings);
   }
 
+  const getFuelTypeName = (fuelType?: 'petrol' | 'diesel'): string => {
+    if (fuelType === 'petrol') return 'بنزين';
+    if (fuelType === 'diesel') return 'غازوال';
+    return '-';
+  }
 
   return (
     <>
@@ -252,15 +254,16 @@ export default function VehiclesPage() {
           <CardContent className="p-0">
             {isLoading ? <TableSkeleton/> :
             vehicles.length > 0 ? (
-            <div className="border-t"> {/* Add top border for the accordion container */}
+            <div className="border-t"> 
               <Accordion type="single" collapsible className="w-full">
                 {vehicles.map((vehicle) => (
                   <AccordionItem value={vehicle.id} key={vehicle.id} className="border-b last:border-b-0">
                     <AccordionTrigger className="hover:no-underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm">
-                       <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] items-center w-full p-4 gap-x-4 text-sm">
+                       <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] items-center w-full p-4 gap-x-4 text-sm">
                             <ChevronDown className="h-4 w-4 text-muted-foreground group-data-[state=open]:rotate-180 transition-transform duration-200" />
                             <span className="font-medium truncate" title={vehicle.type}>{vehicle.type}</span>
                             <span className="truncate" title={vehicle.registrationNumber}>{vehicle.registrationNumber}</span>
+                            <span className="truncate" title={getFuelTypeName(vehicle.fuelType)}>{getFuelTypeName(vehicle.fuelType)}</span>
                             <span className="truncate" title={vehicle.owningParty}>{vehicle.owningParty}</span>
                             <span className="text-center truncate" title={vehicle.fuelAllowanceLiters?.toLocaleString()}>{vehicle.fuelAllowanceLiters?.toLocaleString() || "-"} لتر</span>
                             <div className="flex justify-end items-center gap-1">
@@ -330,7 +333,6 @@ export default function VehiclesPage() {
                                                     <TableHead>نوع الصيانة</TableHead>
                                                     <TableHead>الوصف</TableHead>
                                                     <TableHead className="text-center">عداد الكيلومترات</TableHead>
-                                                    {/* <TableHead className="text-center">التكلفة (د.ت)</TableHead> */} {/* Cost column removed */}
                                                     <TableHead>الصيانة القادمة</TableHead>
                                                     <TableHead>ملاحظات</TableHead>
                                                 </TableRow>
@@ -342,7 +344,6 @@ export default function VehiclesPage() {
                                                         <TableCell className="font-medium truncate max-w-[150px]" title={record.type}>{record.type}</TableCell>
                                                         <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={record.description}>{record.description}</TableCell>
                                                         <TableCell className="text-center">{record.odometerReading?.toLocaleString() || "-"}</TableCell>
-                                                        {/* <TableCell className="text-center">{formatCurrency(record.cost)}</TableCell> */} {/* Cost cell removed */}
                                                         <TableCell className="text-xs">
                                                             {record.nextDueDate && <div>تاريخ: {format(parseISO(record.nextDueDate), "dd/MM/yy", { locale: arSA })}</div>}
                                                             {record.nextDueOdometer && <div>عداد: {record.nextDueOdometer.toLocaleString()} كم</div>}
@@ -471,4 +472,3 @@ export default function VehiclesPage() {
     </>
   );
 }
-
