@@ -20,6 +20,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle as AlertTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Table,
@@ -100,8 +101,9 @@ export default function AppropriationsPage() {
   };
 
   const appropriationsWithDetails = useMemo(() => {
+    const safeAllSpendings = Array.isArray(allSpendings) ? allSpendings : [];
     return appropriations.map(approp => {
-      const spentOnThisAppropriation = allSpendings
+      const spentOnThisAppropriation = safeAllSpendings
         .filter(s => s.appropriationId === approp.id)
         .reduce((sum, s) => sum + s.spentAmount, 0);
       const remainingAmount = approp.allocatedAmount - spentOnThisAppropriation;
@@ -122,8 +124,8 @@ export default function AppropriationsPage() {
 
   const filteredReportSpendings = useMemo(() => {
     if (!showReportResults) return [];
-
-    let filtered = [...allSpendings];
+    const safeAllSpendings = Array.isArray(allSpendings) ? allSpendings : [];
+    let filtered = [...safeAllSpendings];
 
     if (reportFilters.appropriationId && reportFilters.appropriationId !== "all") {
       filtered = filtered.filter(s => s.appropriationId === reportFilters.appropriationId);
@@ -298,7 +300,8 @@ export default function AppropriationsPage() {
                 
                 <Accordion type="single" collapsible className="w-full">
                 {appropriationsWithDetails.map((appropriation) => {
-                  const spendingsForThisAppropriation = allSpendings.filter(s => s.appropriationId === appropriation.id)
+                  const safeAllSpendings = Array.isArray(allSpendings) ? allSpendings : [];
+                  const spendingsForThisAppropriation = safeAllSpendings.filter(s => s.appropriationId === appropriation.id)
                                                           .sort((a,b) => parseISO(b.spendingDate).getTime() - parseISO(a.spendingDate).getTime());
                   return (
                     <AccordionItem value={appropriation.id} key={appropriation.id} className="border-b last:border-b-0">
@@ -628,7 +631,7 @@ export default function AppropriationsPage() {
               <AlertTitle>تأكيد الحذف</AlertTitle>
               <AlertDesc>
                   هل أنت متأكد أنك تريد حذف الاعتماد "{appropriationToDelete.name}"؟ لا يمكن التراجع عن هذا الإجراء.
-                  {allSpendings.some(s => s.appropriationId === appropriationToDelete.id) && 
+                  {(Array.isArray(allSpendings) ? allSpendings : []).some(s => s.appropriationId === appropriationToDelete.id) && 
                     <span className="block mt-2 text-destructive font-semibold">تحذير: هذا الاعتماد لديه عمليات صرف مسجلة. حذف الاعتماد لن يحذف عمليات الصرف المرتبطة به حاليًا.</span>
                   }
               </AlertDesc>
@@ -648,4 +651,3 @@ export default function AppropriationsPage() {
     </>
   );
 }
-
