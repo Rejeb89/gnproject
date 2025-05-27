@@ -3,7 +3,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } // Import buttonVariants
+  from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -282,7 +283,7 @@ export default function AppropriationsPage() {
             </CardHeader>
             <CardContent className="p-0">
               {appropriationsWithDetails.length > 0 ? (
-                  <>
+                <>
                   <div className="hidden md:block border-b">
                       <Table>
                           <TableHeader>
@@ -316,10 +317,34 @@ export default function AppropriationsPage() {
                                     <div className="text-sm"><span className="font-medium">المتبقي:</span> <span className={appropriation.remainingAmount < 0 ? "text-destructive" : ""}>{formatCurrency(appropriation.remainingAmount)}</span></div>
                                     {appropriation.description && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">الوصف:</span> {appropriation.description}</div>}
                                     <div className="flex flex-col sm:flex-row gap-1 mt-2 justify-end">
-                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}} className="w-full sm:w-auto"><Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل</Button>
-                                        <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}} className="w-full sm:w-auto"><HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف</Button>
+                                        <div
+                                          role="button"
+                                          tabIndex={0}
+                                          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), "w-full sm:w-auto flex items-center justify-center")}
+                                          onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}}
+                                        >
+                                          <Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل
+                                        </div>
+                                        <div
+                                          role="button"
+                                          tabIndex={0}
+                                          className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), "w-full sm:w-auto flex items-center justify-center")}
+                                          onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}}
+                                        >
+                                          <HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف
+                                        </div>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}} className="w-full sm:w-auto"><Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف</Button>
+                                            <div
+                                              role="button"
+                                              tabIndex={0}
+                                              className={cn(buttonVariants({ variant: 'destructive', size: 'sm' }), "w-full sm:w-auto flex items-center justify-center")}
+                                              onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}
+                                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setAppropriationToDelete(appropriation);}}}
+                                            >
+                                              <Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف
+                                            </div>
                                         </AlertDialogTrigger>
                                     </div>
                                 </div>
@@ -339,17 +364,38 @@ export default function AppropriationsPage() {
                                 <div className="hidden md:flex md:items-center md:w-[25%] text-xs text-muted-foreground truncate md:pr-4" title={appropriation.description}>{appropriation.description || "-"}</div>
                                 <div className="hidden md:flex md:items-center md:justify-center text-center w-[150px]">
                                     <div className="flex justify-center gap-1">
-                                    <Button variant="ghost" size="icon" title="تعديل الاعتماد" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}>
+                                      <div
+                                        role="button"
+                                        tabIndex={0}
+                                        title="تعديل الاعتماد"
+                                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                                        onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}}
+                                      >
                                         <Edit2 className="h-4 w-4 text-blue-600" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" title="إضافة صرف" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}>
+                                      </div>
+                                      <div
+                                        role="button"
+                                        tabIndex={0}
+                                        title="إضافة صرف"
+                                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}
+                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}}
+                                      >
                                         <HandCoins className="h-4 w-4 text-green-600" />
-                                    </Button>
-                                    <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="icon" title="حذف الاعتماد" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </AlertDialogTrigger>
+                                      </div>
+                                      <AlertDialogTrigger asChild>
+                                        <div
+                                          role="button"
+                                          tabIndex={0}
+                                          title="حذف الاعتماد"
+                                          className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}
+                                          onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setAppropriationToDelete(appropriation);}}}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                        </div>
+                                      </AlertDialogTrigger>
                                     </div>
                                 </div>
                             </div>
