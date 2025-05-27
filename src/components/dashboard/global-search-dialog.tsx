@@ -72,7 +72,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
           type: 'transaction',
           title: `${tx.type === 'receive' ? 'استلام' : 'تسليم'}: ${tx.equipmentName}`,
           description: `الكمية: ${tx.quantity}, الجهة: ${tx.party}, الوصل: ${tx.receiptNumber}`,
-          link: `/dashboard/reports`, 
+          link: `/dashboard/equipment`, // Updated link
           category: tx.category,
           date: format(new Date(tx.date), "d MMM yyyy", { locale: arSA }),
           partyName: tx.party,
@@ -241,4 +241,3 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
     </Dialog>
   );
 }
-

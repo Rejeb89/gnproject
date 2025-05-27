@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, FileText, Settings, Building, Package, Car, CalendarDays, Landmark } from 'lucide-react'; // Added Landmark
+import { Home, Settings, Building, Package, Car, CalendarDays, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   SidebarMenu,
@@ -19,9 +19,8 @@ const links = [
   { name: 'التجهيزات', href: '/dashboard/equipment', icon: Package },
   { name: 'وسائل النقل الادارية', href: '/dashboard/vehicles', icon: Car },
   { name: 'الروزنامة', href: '/dashboard/calendar', icon: CalendarDays },
-  { name: 'التقارير', href: '/dashboard/reports', icon: FileText },
   { name: 'إدارة الجهات', href: '/dashboard/parties', icon: Building },
-  { name: 'الاعتمادات', href: '/dashboard/appropriations', icon: Landmark }, // New link for Appropriations
+  { name: 'الاعتمادات', href: '/dashboard/appropriations', icon: Landmark },
   { name: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ];
 

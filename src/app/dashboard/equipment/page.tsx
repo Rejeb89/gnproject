@@ -28,7 +28,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft, Filter } from "lucide-react";
+import { PlusCircle, Package, Edit2, Trash2, PackageSearch, CheckCircle, XCircle, LogIn, ArrowRightLeft, Filter, History } from "lucide-react";
 import type { EquipmentDefinition, Transaction, Equipment } from "@/lib/types";
 import { getEquipmentDefinitions, addEquipmentDefinition, updateEquipmentDefinition, deleteEquipmentDefinition, getTransactions, calculateStock } from "@/lib/store";
 import { EquipmentDefinitionForm, type EquipmentDefinitionFormValues } from "@/components/forms/equipment-definition-form";
@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HistoryTable } from '@/components/history/history-table';
+import { Separator } from '@/components/ui/separator';
 
 const NO_CATEGORY_VALUE = "_EMPTY_CATEGORY_";
 
@@ -69,7 +71,7 @@ export default function EquipmentManagementPage() {
   const loadData = () => {
     setIsLoading(true);
     const currentDefinitions = getEquipmentDefinitions();
-    setDefinitions(currentDefinitions);
+    setDefinitions(currentDefinitions.sort((a, b) => a.name.localeCompare(b.name)));
     const transactions = getTransactions();
     setAllTransactions(transactions);
     setCurrentStock(calculateStock(transactions));
@@ -348,6 +350,19 @@ export default function EquipmentManagementPage() {
           )}
         </Card>
 
+        <Separator className="my-8" />
+
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <History className="h-7 w-7 text-primary" />
+                سجل عمليات التجهيزات
+            </h2>
+          </div>
+          <HistoryTable />
+        </div>
+
+
         <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
           <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
@@ -388,14 +403,3 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
-    
-
-    
-
-    
-
-    
-
-    
-
-
