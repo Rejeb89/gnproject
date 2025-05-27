@@ -6,14 +6,20 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
 
 const fileSchema = z
-  .instanceof(FileList)
+  .any() // Changed from z.instanceof(FileList)
   .optional()
   .refine(
-    (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE_BYTES,
+    (files) => {
+      if (!files || typeof FileList === 'undefined' || !(files instanceof FileList) || files.length === 0) return true;
+      return files[0].size <= MAX_FILE_SIZE_BYTES;
+    },
     `حجم الملف يجب أن لا يتجاوز ${MAX_FILE_SIZE_MB} ميغابايت.`
   )
   .refine(
-    (files) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type),
+    (files) => {
+      if (!files || typeof FileList === 'undefined' || !(files instanceof FileList) || files.length === 0) return true;
+      return ACCEPTED_FILE_TYPES.includes(files[0].type);
+    },
     "صيغة الملف يجب أن تكون PDF."
   );
 
