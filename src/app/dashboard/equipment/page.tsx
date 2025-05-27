@@ -216,10 +216,13 @@ export default function EquipmentManagementPage() {
                 تسليم تجهيزات
               </Link>
             </Button>
+            {/* The button below was removed as per user request */}
+            {/* 
             <Button onClick={handleOpenAddDialog}>
               <PlusCircle className="ml-2 h-5 w-5" />
               إضافة نوع تجهيز جديد
-            </Button>
+            </Button> 
+            */}
           </div>
         </div>
 
@@ -334,12 +337,15 @@ export default function EquipmentManagementPage() {
                 <p className="text-sm">
                   {nameFilter || categoryFilter ? "حاول تعديل معايير البحث أو إزالتها." : "ابدأ بإضافة نوع تجهيز جديد لتنظيم مخزونك."}
                 </p>
+                {/* The button below was removed as per user request */}
+                {/* 
                 {!(nameFilter || categoryFilter) && (
                     <Button onClick={handleOpenAddDialog} className="mt-4">
                         <PlusCircle className="ml-2 h-5 w-5" />
                         إضافة نوع تجهيز جديد
                     </Button>
                 )}
+                */}
               </div>
             )}
           </CardContent>
@@ -403,3 +409,4 @@ export default function EquipmentManagementPage() {
     </AlertDialog>
   );
 }
+
