@@ -64,7 +64,7 @@ export interface CalendarEvent {
 }
 
 export interface FuelEntry {
-  id: string;
+  id: string; // Unique ID for the entry
   date: string; // ISO date string
   odometerReading: number;
   litersFilled: number;
@@ -74,10 +74,10 @@ export interface FuelEntry {
 }
 
 export interface MaintenanceRecord {
-  id: string;
+  id: string; // Unique ID for the record
   date: string; // ISO date string
   type: string; // e.g., "تغيير زيت", "فحص دوري"
-  odometerReading: number;
+  odometerReading?: number; // Optional odometer reading
   cost?: number;
   description: string;
   nextDueDate?: string; // ISO date string
@@ -92,8 +92,8 @@ export interface Vehicle {
   owningParty: string; // الجهة التابعة لها (اسم الجهة)
   fuelAllowanceLiters?: number; // مقرر المحروقات باللتر
   status?: 'available' | 'on_mission' | 'maintenance'; // (للتطوير المستقبلي)
-  fuelEntries?: FuelEntry[];
-  maintenanceRecords?: MaintenanceRecord[];
+  fuelEntries: FuelEntry[]; // Changed to non-optional, initialized as empty array
+  maintenanceRecords: MaintenanceRecord[]; // Changed to non-optional, initialized as empty array
 }
 
 export interface FixedFurnitureItem {

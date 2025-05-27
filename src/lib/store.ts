@@ -62,8 +62,8 @@ const isVehicle = (item: any): item is Vehicle =>
   'id' in item && 
   'type' in item && 
   'registrationNumber' in item &&
-  (!item.fuelEntries || Array.isArray(item.fuelEntries)) && // Ensure arrays if they exist
-  (!item.maintenanceRecords || Array.isArray(item.maintenanceRecords));
+  Array.isArray(item.fuelEntries) && // Ensure arrays exist
+  Array.isArray(item.maintenanceRecords);
 const isAppropriation = (item: any): item is Appropriation => typeof item === 'object' && item !== null && 'id' in item && 'name' in item && 'allocatedAmount' in item;
 const isSpending = (item: any): item is Spending => 
   typeof item === 'object' && 
@@ -601,7 +601,7 @@ export function updateVehicle(updatedVehicle: Vehicle): boolean {
   const vehicles = getVehicles();
   const index = vehicles.findIndex(v => v.id === updatedVehicle.id);
   if (index === -1) return false;
-  // Ensure that fuelEntries and maintenanceRecords are arrays if they are undefined in updatedVehicle
+  
   vehicles[index] = {
     ...updatedVehicle,
     fuelEntries: updatedVehicle.fuelEntries || [],
@@ -618,6 +618,37 @@ export function deleteVehicle(vehicleId: string): boolean {
   localStorage.setItem(VEHICLES_KEY, JSON.stringify(updatedVehicles));
   return vehicles.length !== updatedVehicles.length;
 }
+
+export function addFuelEntryToVehicle(vehicleId: string, fuelEntryData: Omit<FuelEntry, 'id'>): Vehicle | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const vehicles = getVehicles();
+  const vehicleIndex = vehicles.findIndex(v => v.id === vehicleId);
+  if (vehicleIndex === -1) return undefined;
+
+  const newFuelEntry: FuelEntry = { ...fuelEntryData, id: crypto.randomUUID() };
+  vehicles[vehicleIndex].fuelEntries.push(newFuelEntry);
+  // Sort entries by date, most recent first
+  vehicles[vehicleIndex].fuelEntries.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
+  return vehicles[vehicleIndex];
+}
+
+export function addMaintenanceRecordToVehicle(vehicleId: string, maintenanceRecordData: Omit<MaintenanceRecord, 'id'>): Vehicle | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const vehicles = getVehicles();
+  const vehicleIndex = vehicles.findIndex(v => v.id === vehicleId);
+  if (vehicleIndex === -1) return undefined;
+
+  const newMaintenanceRecord: MaintenanceRecord = { ...maintenanceRecordData, id: crypto.randomUUID() };
+  vehicles[vehicleIndex].maintenanceRecords.push(newMaintenanceRecord);
+  // Sort entries by date, most recent first
+  vehicles[vehicleIndex].maintenanceRecords.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
+  return vehicles[vehicleIndex];
+}
+
 
 // Fixed Furniture
 export function getFixedFurniture(partyId: string): FixedFurnitureItem[] {
@@ -768,9 +799,7 @@ export function deleteAppropriation(appropriationId: string): { success: boolean
   const spendings = getSpendings();
   const isAppropriationUsed = spendings.some(s => s.appropriationId === appropriationId);
   if (isAppropriationUsed) {
-    // This message might need to be adjusted based on how you want to handle this case.
-    // For now, it prevents deletion if there are linked spendings.
-    return { success: false, message: "لا يمكن حذف هذا الاعتماد لأنه يحتوي على عمليات صرف مسجلة. يرجى حذف عمليات الصرف المرتبطة أولاً أو ربطها باعتماد آخر." };
+    return { success: false, message: "لا يمكن حذف هذا الاعتماد لأنه يحتوي على عمليات صرف مسجلة." };
   }
 
   let appropriations = getAppropriations();
