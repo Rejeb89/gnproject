@@ -43,8 +43,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
   const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
-  const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
-  const [upcomingToDoEvents, setUpcomingToDoEvents] = useState<CalendarEvent[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
 
 
   useEffect(() => {
@@ -94,16 +93,17 @@ export default function DashboardPage() {
 
     const allCalendarEvents = getCalendarEvents();
     const now = new Date();
-    const futureEvents = allCalendarEvents.filter(event => {
-        try {
-            return new Date(event.date) >= now;
-        } catch (e) {
-            console.error("Invalid date in calendar event:", event);
-            return false;
-        }
-    });
-    setUpcomingEventsCount(futureEvents.length);
-    setUpcomingToDoEvents(futureEvents.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5)); // Limit to 5 for the to-do list
+    const futureEvents = allCalendarEvents
+        .filter(event => {
+            try {
+                return new Date(event.date) >= now;
+            } catch (e) {
+                console.error("Invalid date in calendar event:", event);
+                return false;
+            }
+        })
+        .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    setUpcomingEvents(futureEvents);
 
     setIsLoading(false);
   }, []);
@@ -120,6 +120,9 @@ export default function DashboardPage() {
     })), [displayChartData]
   );
 
+  const upcomingEventsCount = upcomingEvents.length;
+  const nextFiveUpcomingEvents = upcomingEvents.slice(0, 5);
+
 
   if (isLoading) {
     return (
@@ -132,8 +135,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> {/* Adjusted lg:grid-cols */}
+          {[...Array(3)].map((_, i) => ( // Changed to 3 for initial summary cards
             <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-3/4" />
@@ -147,44 +150,36 @@ export default function DashboardPage() {
           ))}
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2">
-            {/* Skeleton for Low Stock Alert Card */}
-            <Card className="border-destructive">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                <Skeleton className="h-6 w-6 rounded-sm" />
-                <Skeleton className="h-6 w-40" />
-                </CardTitle>
-                <Skeleton className="h-4 w-full mt-1" />
-                <Skeleton className="h-4 w-3/4 mt-1" />
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-2 text-sm">
-                {[...Array(2)].map((_, i) => (
-                    <li key={i} className="flex justify-between">
-                    <Skeleton className="h-4 w-1/3" />
-                    <Skeleton className="h-4 w-1/4" />
-                    </li>
-                ))}
+        {/* Skeleton for Enhanced Upcoming Events Card / Low Stock Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-1/2 mb-1" />
+                <Skeleton className="h-4 w-3/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-6 w-1/4 mb-2" />
+                <ul className="space-y-2">
+                    {[...Array(2)].map((_, i) => (
+                        <li key={i} className="flex flex-col p-2 border-b last:border-b-0">
+                            <Skeleton className="h-5 w-2/3 mb-1" />
+                            <Skeleton className="h-4 w-1/2" />
+                        </li>
+                    ))}
                 </ul>
-            </CardContent>
+              </CardContent>
             </Card>
-
-            {/* Skeleton for To-Do List Card */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Skeleton className="h-6 w-6 rounded-sm" />
-                        <Skeleton className="h-6 w-52" />
-                    </CardTitle>
-                    <Skeleton className="h-4 w-full mt-1" />
+                  <Skeleton className="h-5 w-1/2 mb-1" />
+                  <Skeleton className="h-4 w-3/4" />
                 </CardHeader>
-                <CardContent className="pt-2">
-                    <ul className="space-y-3">
-                        {[...Array(3)].map((_, i) => (
-                            <li key={i} className="flex flex-col p-2 border-b last:border-b-0">
-                                <Skeleton className="h-5 w-2/3 mb-1" />
-                                <Skeleton className="h-4 w-1/2" />
+                <CardContent>
+                    <ul className="space-y-2">
+                        {[...Array(2)].map((_, i) => (
+                            <li key={i} className="flex justify-between">
+                                <Skeleton className="h-4 w-1/3" />
+                                <Skeleton className="h-4 w-1/4" />
                             </li>
                         ))}
                     </ul>
@@ -224,7 +219,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> {/* Adjusted lg:grid-cols */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">إجمالي التجهيزات المستلمة</CardTitle>
@@ -246,25 +241,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <Link href="/dashboard/calendar">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">الأحداث القادمة</CardTitle>
-              <CalendarClock className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{upcomingEventsCount.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                {upcomingEventsCount === 0 ? "لا توجد أحداث قادمة" :
-                 upcomingEventsCount === 1 ? "حدث واحد مجدول" :
-                 upcomingEventsCount === 2 ? "حدثان مجدولان" :
-                 upcomingEventsCount > 2 && upcomingEventsCount <= 10 ? `${upcomingEventsCount} أحداث مجدولة` :
-                 `${upcomingEventsCount} حدث مجدول`
-                }
-              </p>
-            </CardContent>
-          </Link>
-        </Card>
-        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">تجهيزات بمخزون منخفض</CardTitle>
             <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -284,6 +260,42 @@ export default function DashboardPage() {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+            <CardHeader>
+                <Link href="/dashboard/calendar" className="hover:text-primary transition-colors">
+                    <CardTitle className="flex items-center gap-2">
+                        <CalendarClock className="h-6 w-6 text-primary" />
+                        الأحداث القادمة ({upcomingEventsCount})
+                    </CardTitle>
+                </Link>
+                <CardDescription>
+                    {upcomingEventsCount === 0 ? "لا توجد أحداث قادمة مجدولة." :
+                     upcomingEventsCount === 1 ? "حدث واحد مجدول." :
+                     upcomingEventsCount === 2 ? "حدثان مجدولان." :
+                     upcomingEventsCount > 2 && upcomingEventsCount <= 10 ? `${upcomingEventsCount} أحداث مجدولة.` :
+                     `${upcomingEventsCount} حدث مجدول.`
+                    }
+                    {nextFiveUpcomingEvents.length > 0 && " أهم 5 أحداث تالية:"}
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+                {nextFiveUpcomingEvents.length > 0 ? (
+                    <ul className="space-y-2 text-sm">
+                        {nextFiveUpcomingEvents.map(event => (
+                            <li key={event.id} className="flex flex-col p-2 border-b last:border-b-0 hover:bg-muted/50 rounded-md">
+                                <span className="font-semibold">{event.title}</span>
+                                <span className="text-xs text-muted-foreground">
+                                    {format(new Date(event.date), "eeee, d MMMM yyyy 'الساعة' HH:mm", { locale: arSA })}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    upcomingEventsCount > 0 && <p className="text-sm text-muted-foreground">سيتم عرض قائمة بأهم الأحداث هنا.</p>
+                )}
+            </CardContent>
+        </Card>
+
         {lowStockItems.length > 0 && (
             <Card className="border-destructive">
             <CardHeader>
@@ -305,36 +317,6 @@ export default function DashboardPage() {
             </CardContent>
             </Card>
         )}
-
-        <Card>
-            <CardHeader>
-                <Link href="/dashboard/calendar" className="hover:text-primary transition-colors">
-                    <CardTitle className="flex items-center gap-2">
-                        <ListChecks className="h-6 w-6 text-primary" />
-                        قائمة المهام (الأحداث القادمة)
-                    </CardTitle>
-                </Link>
-                <CardDescription>
-                    أهم 5 أحداث قادمة مجدولة في الروزنامة.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-                {upcomingToDoEvents.length > 0 ? (
-                    <ul className="space-y-3">
-                        {upcomingToDoEvents.map(event => (
-                            <li key={event.id} className="flex flex-col p-2 border-b last:border-b-0 hover:bg-muted/50 rounded-md">
-                                <span className="font-semibold text-sm">{event.title}</span>
-                                <span className="text-xs text-muted-foreground">
-                                    {format(new Date(event.date), "eeee, d MMMM yyyy 'الساعة' HH:mm", { locale: arSA })}
-                                </span>
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p className="text-center text-muted-foreground py-4">لا توجد مهام أو أحداث قادمة مجدولة.</p>
-                )}
-            </CardContent>
-        </Card>
       </div>
 
 
@@ -413,4 +395,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+    
+
     
