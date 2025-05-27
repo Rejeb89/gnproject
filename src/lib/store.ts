@@ -28,7 +28,6 @@ const ALL_APP_DATA_KEYS = [
   FIXED_FURNITURE_KEY,
   APPROPRIATIONS_KEY,
   SPENDINGS_KEY,
-  // APP_THEME_KEY is handled separately in export/import as it's a direct string, not JSON
 ];
 
 // Helper function to get and validate array data from localStorage
@@ -58,7 +57,13 @@ const isAppNotification = (item: any): item is AppNotification => typeof item ==
 const isCalendarEvent = (item: any): item is CalendarEvent => typeof item === 'object' && item !== null && 'id' in item && 'title' in item && 'date' in item;
 const isVehicle = (item: any): item is Vehicle => typeof item === 'object' && item !== null && 'id' in item && 'type' in item && 'registrationNumber' in item;
 const isAppropriation = (item: any): item is Appropriation => typeof item === 'object' && item !== null && 'id' in item && 'name' in item && 'allocatedAmount' in item;
-const isSpending = (item: any): item is Spending => typeof item === 'object' && item !== null && 'id' in item && 'appropriationId' in item && 'spentAmount' in item && 'spendingDate' in item;
+const isSpending = (item: any): item is Spending => 
+  typeof item === 'object' && 
+  item !== null && 
+  'id' in item && 
+  'appropriationId' in item && 
+  'spentAmount' in item && 
+  'spendingDate' in item;
 
 
 // Transactions
@@ -79,11 +84,11 @@ export function addTransaction(transaction: Transaction): void {
 
 // Stock Calculation
 export function calculateStock(transactions: Transaction[]): Equipment[] {
-  const stockMap = new Map<string, number>(); // Key: "equipmentName-category", Value: quantity
+  const stockMap = new Map<string, number>(); 
   const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   for (const tx of sortedTransactions) {
-    const categoryKey = tx.category || 'N/A'; // Use 'N/A' or similar for items without a category
+    const categoryKey = tx.category || 'N/A'; 
     const stockKey = `${tx.equipmentName}-${categoryKey}`;
     const currentQuantity = stockMap.get(stockKey) || 0;
 
@@ -98,7 +103,7 @@ export function calculateStock(transactions: Transaction[]): Equipment[] {
     .map(([key, quantity]) => {
       const parts = key.split('-');
       const category = parts.length > 1 ? parts.pop() : undefined;
-      const name = parts.join('-'); // In case equipment name itself had a hyphen
+      const name = parts.join('-'); 
       return { name, category: category === 'N/A' ? undefined : category, quantity };
     })
     .sort((a,b) => {
@@ -133,7 +138,7 @@ export function addParty(partyName: string): Party {
   };
 
   parties.push(newParty);
-  parties.sort((a, b) => a.name.localeCompare(b.name)); // Keep sorted
+  parties.sort((a, b) => a.name.localeCompare(b.name)); 
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
   } catch (error) {
@@ -156,19 +161,17 @@ export function updateParty(partyId: string, newName: string): { success: boolea
     return { success: false, message: "الجهة غير موجودة." };
   }
 
-  // Check for uniqueness, excluding the current party being edited
   if (parties.some(p => p.id !== partyId && p.name.toLowerCase() === newName.trim().toLowerCase())) {
     return { success: false, message: `اسم الجهة "${newName.trim()}" موجود بالفعل.` };
   }
 
   const oldName = parties[partyIndex].name;
   parties[partyIndex].name = newName.trim();
-  parties.sort((a, b) => a.name.localeCompare(b.name)); // Keep sorted
+  parties.sort((a, b) => a.name.localeCompare(b.name)); 
 
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(parties));
 
-    // Update party name in transactions
     const transactions = getTransactions();
     let transactionsUpdated = false;
     const updatedTransactions = transactions.map(tx => {
@@ -209,14 +212,12 @@ export function deleteParty(partyId: string): { success: boolean, message?: stri
   const updatedParties = parties.filter(p => p.id !== partyId);
   try {
     localStorage.setItem(PARTIES_KEY, JSON.stringify(updatedParties));
-    // Also delete associated party employees
     const allPartyEmployeesData = localStorage.getItem(PARTY_EMPLOYEES_KEY);
     if (allPartyEmployeesData) {
       const allEmployees = JSON.parse(allPartyEmployeesData);
       delete allEmployees[partyId];
       localStorage.setItem(PARTY_EMPLOYEES_KEY, JSON.stringify(allEmployees));
     }
-    // Also delete associated fixed furniture
     const allFixedFurnitureData = localStorage.getItem(FIXED_FURNITURE_KEY);
     if (allFixedFurnitureData) {
       const allFurniture = JSON.parse(allFixedFurnitureData);
@@ -237,11 +238,10 @@ export function getEquipmentSettings(): Record<string, EquipmentSetting> {
   try {
     const data = localStorage.getItem(EQUIPMENT_SETTINGS_KEY);
     const parsedData = data ? JSON.parse(data) : {};
-    // Basic validation to ensure it's an object
     if (typeof parsedData === 'object' && parsedData !== null && !Array.isArray(parsedData)) {
       return parsedData;
     }
-    if (data) { // If data exists but is not a valid object
+    if (data) { 
       console.warn(`Data for key ${EQUIPMENT_SETTINGS_KEY} in localStorage is not a valid object. Clearing corrupted data.`);
       localStorage.removeItem(EQUIPMENT_SETTINGS_KEY);
     }
@@ -762,8 +762,7 @@ export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
     ALL_APP_DATA_KEYS.forEach(key => localStorage.removeItem(key));
-    localStorage.removeItem(APP_THEME_KEY); // Clear theme separately
-    // Clear any reminder sent flags
+    localStorage.removeItem(APP_THEME_KEY); 
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('reminder_sent_')) {
             localStorage.removeItem(key);
@@ -797,7 +796,6 @@ export function exportAllData(): void {
       appData[key] = null;
     }
   });
-  // Handle theme separately as it's a direct string
   appData[APP_THEME_KEY] = localStorage.getItem(APP_THEME_KEY) || 'default';
 
 
@@ -807,7 +805,7 @@ export function exportAllData(): void {
   const link = document.createElement('a');
   link.href = url;
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19);
-  link.download = `app_data_backup_${timestamp}.json`;
+  link.download = `EquipSupplyMetlaoui_Backup_${timestamp}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -833,7 +831,7 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
             if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key) && importedData[key] === undefined) {
                 console.warn(`Key ${key} missing in import file, will default to empty object.`);
                 importedData[key] = {};
-            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY].includes(key) && importedData[key] === undefined) {
+            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY, TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY].includes(key) && importedData[key] === undefined) { // Expanded this condition
                  console.warn(`Key ${key} missing in import file, will default to empty array.`);
                 importedData[key] = [];
             }
@@ -844,7 +842,6 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
             }
           }
         }
-         // Check for theme key specifically
         if (!Object.prototype.hasOwnProperty.call(importedData, APP_THEME_KEY)) {
             console.warn(`Theme key ${APP_THEME_KEY} missing in import file, will default to 'default'.`);
             importedData[APP_THEME_KEY] = 'default';
@@ -871,7 +868,6 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
             }
           }
         });
-        // Handle theme separately
         if (importedData[APP_THEME_KEY] && typeof importedData[APP_THEME_KEY] === 'string') {
             localStorage.setItem(APP_THEME_KEY, importedData[APP_THEME_KEY]);
         } else {
@@ -897,4 +893,3 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
     reader.readAsText(file);
   });
 }
-

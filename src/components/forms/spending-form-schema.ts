@@ -6,7 +6,7 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
 
 const fileSchema = z
-  .any() // Changed from z.instanceof(FileList)
+  .any() 
   .optional()
   .refine(
     (files) => {
@@ -35,6 +35,7 @@ export const baseSpendingFormSchema = z.object({
     invalid_type_error: "تاريخ الصرف غير صالح.",
   }),
   description: z.string().optional(),
+  supplier: z.string().optional(), // اسم المزود
   supplyRequestNumber: z.string().optional(),
   supplyRequestDate: z.date().optional().nullable(),
   supplyRequestFile: fileSchema,

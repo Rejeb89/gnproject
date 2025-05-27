@@ -17,10 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Save, Coins, FileText, FileUp } from "lucide-react";
+import { CalendarIcon, Save, Coins, FileText, FileUp, Truck } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 import { baseSpendingFormSchema, type SpendingFormValues } from "./spending-form-schema";
 import type { Spending } from "@/lib/types";
@@ -31,7 +31,7 @@ const formatCurrency = (amount: number) => {
 
 interface SpendingFormProps {
   onSubmit: (values: SpendingFormValues) => void;
-  initialData?: Partial<Spending> | null; // Made initialData partial to allow for new forms
+  initialData?: Partial<Spending> | null;
   appropriationName: string;
   maxSpendableAmount: number;
   onCancel: () => void;
@@ -53,7 +53,7 @@ export function SpendingForm({
         }
         return true;
       },
-      (data) => ({ // Return an object for the second argument of refine
+      (data) => ({
         message: `المبلغ المصروف (${formatCurrency(data.spentAmount || 0)}) يتجاوز الرصيد المتبقي لهذا الاعتماد (${formatCurrency(maxSpendableAmount || 0)}).`,
         path: ["spentAmount"],
       })
@@ -66,6 +66,7 @@ export function SpendingForm({
       spentAmount: initialData?.spentAmount || 0,
       spendingDate: initialData?.spendingDate ? new Date(initialData.spendingDate) : new Date(),
       description: initialData?.description || "",
+      supplier: initialData?.supplier || "",
       supplyRequestNumber: initialData?.supplyRequestNumber || "",
       supplyRequestDate: initialData?.supplyRequestDate ? new Date(initialData.supplyRequestDate) : undefined,
       supplyRequestFile: undefined,
@@ -80,9 +81,10 @@ export function SpendingForm({
       spentAmount: initialData?.spentAmount || 0,
       spendingDate: initialData?.spendingDate ? new Date(initialData.spendingDate) : new Date(),
       description: initialData?.description || "",
+      supplier: initialData?.supplier || "",
       supplyRequestNumber: initialData?.supplyRequestNumber || "",
       supplyRequestDate: initialData?.supplyRequestDate ? new Date(initialData.supplyRequestDate) : undefined,
-      supplyRequestFile: undefined, // Files are not typically part of initialData in this way
+      supplyRequestFile: undefined,
       invoiceNumber: initialData?.invoiceNumber || "",
       invoiceDate: initialData?.invoiceDate ? new Date(initialData.invoiceDate) : undefined,
       invoiceFile: undefined,
@@ -91,11 +93,8 @@ export function SpendingForm({
 
   const handleSubmit = (values: SpendingFormValues) => {
     onSubmit(values);
-    // Do not reset form here, let the parent component decide
-    // For example, if it's an add form, the parent closes the dialog and might reset.
   };
   
-  // Watch file fields to display selected file names
   const supplyRequestFile = form.watch("supplyRequestFile");
   const invoiceFile = form.watch("invoiceFile");
 
@@ -170,6 +169,24 @@ export function SpendingForm({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="supplier"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center">
+                <Truck className="ml-1 h-4 w-4 text-muted-foreground" />
+                المزود (اختياري)
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="أدخل اسم المزود" {...field} value={field.value ?? ""} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="description"

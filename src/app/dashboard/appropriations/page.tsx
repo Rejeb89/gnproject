@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button, buttonVariants } // Import buttonVariants
+import { Button, buttonVariants } 
   from "@/components/ui/button";
 import {
   Dialog,
@@ -37,7 +37,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Landmark, PlusCircle, Edit2, Trash2, HandCoins, FileText, Sigma, Banknote, Coins, Scale, Filter, Eraser, ChevronsUpDown, Check, CalendarIcon, ChevronDown } from "lucide-react";
+import { Landmark, PlusCircle, Edit2, Trash2, HandCoins, FileText, Sigma, Banknote, Coins, Scale, Filter, Eraser, ChevronsUpDown, Check, CalendarIcon, ChevronDown, Truck } from "lucide-react";
 import type { Appropriation, Spending } from "@/lib/types";
 import {
   getAppropriations,
@@ -86,7 +86,6 @@ export default function AppropriationsPage() {
     appropriationId: string | "all";
     dateRange: DateRange | undefined;
   }>({ appropriationId: "all", dateRange: undefined });
-  const [generatedReportSpendings, setGeneratedReportSpendings] = useState<Spending[]>([]);
   const [showReportResults, setShowReportResults] = useState(false);
   const [appropriationSelectOpen, setAppropriationSelectOpen] = useState(false);
   const [appropriationSearchTerm, setAppropriationSearchTerm] = useState("");
@@ -184,6 +183,7 @@ export default function AppropriationsPage() {
         spentAmount: values.spentAmount,
         spendingDate: values.spendingDate.toISOString(),
         description: values.description,
+        supplier: values.supplier,
         supplyRequestNumber: values.supplyRequestNumber,
         supplyRequestDate: values.supplyRequestDate?.toISOString(),
         supplyRequestFileName: values.supplyRequestFile?.[0]?.name,
@@ -210,7 +210,6 @@ export default function AppropriationsPage() {
     setReportFilters({ appropriationId: "all", dateRange: undefined });
     setAppropriationSearchTerm("");
     setShowReportResults(false);
-    setGeneratedReportSpendings([]);
   };
   
   const reportAppropriationOptions = useMemo(() => {
@@ -309,7 +308,6 @@ export default function AppropriationsPage() {
                       <AccordionItem value={appropriation.id} key={appropriation.id} className="border-b last:border-b-0">
                         <AccordionTrigger className="p-0 hover:no-underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm">
                            <div className="flex items-center w-full hover:bg-muted/50 cursor-pointer p-4 md:p-0 md:grid md:grid-cols-[50px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_150px] md:gap-x-4">
-                                {/* Mobile View - inside the div that AccordionTrigger wraps */}
                                 <div className="flex-grow md:hidden">
                                     <div className="font-semibold text-base mb-1">{appropriation.name}</div>
                                     <div className="text-sm"><span className="font-medium">المرصود:</span> {formatCurrency(appropriation.allocatedAmount)}</div>
@@ -349,9 +347,7 @@ export default function AppropriationsPage() {
                                     </div>
                                 </div>
 
-                                {/* Desktop View - direct children of the grid div */}
                                 <div className="hidden md:flex md:items-center md:justify-center md:w-[50px] md:pl-4">
-                                  {/* Chevron is now part of AccordionTrigger */}
                                 </div>
                                 <div className="hidden md:flex md:items-center md:w-[25%] font-medium md:pr-4">{appropriation.name}</div>
                                 <div className="hidden md:flex md:items-center md:justify-center text-center md:pr-4">{formatCurrency(appropriation.allocatedAmount)}</div>
@@ -410,6 +406,7 @@ export default function AppropriationsPage() {
                                   <TableRow>
                                     <TableHead>المبلغ</TableHead>
                                     <TableHead>التاريخ</TableHead>
+                                    <TableHead>المزود</TableHead>
                                     <TableHead>الوصف</TableHead>
                                     <TableHead>طلب التزود</TableHead>
                                     <TableHead>الفاتورة</TableHead>
@@ -420,6 +417,7 @@ export default function AppropriationsPage() {
                                     <TableRow key={spending.id}>
                                       <TableCell className="font-medium">{formatCurrency(spending.spentAmount)}</TableCell>
                                       <TableCell>{format(parseISO(spending.spendingDate), "dd/MM/yyyy", { locale: arSA })}</TableCell>
+                                      <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]" title={spending.supplier}>{spending.supplier || "-"}</TableCell>
                                       <TableCell className="text-xs text-muted-foreground truncate max-w-xs" title={spending.description}>{spending.description || "-"}</TableCell>
                                       <TableCell className="text-xs">
                                         {spending.supplyRequestNumber && <div>رقم: {spending.supplyRequestNumber}</div>}
@@ -581,6 +579,7 @@ export default function AppropriationsPage() {
                                           {reportFilters.appropriationId === "all" && <TableHead>بند الاعتماد</TableHead>}
                                           <TableHead>المبلغ المصروف</TableHead>
                                           <TableHead>تاريخ الصرف</TableHead>
+                                          <TableHead>المزود</TableHead>
                                           <TableHead>الوصف</TableHead>
                                           <TableHead>طلب التزود</TableHead>
                                           <TableHead>الفاتورة</TableHead>
@@ -594,6 +593,7 @@ export default function AppropriationsPage() {
                                               {reportFilters.appropriationId === "all" && <TableCell>{appropriationName}</TableCell>}
                                               <TableCell className="font-medium">{formatCurrency(spending.spentAmount)}</TableCell>
                                               <TableCell>{format(parseISO(spending.spendingDate), "dd/MM/yyyy", { locale: arSA })}</TableCell>
+                                              <TableCell className="text-xs text-muted-foreground truncate max-w-[120px]" title={spending.supplier}>{spending.supplier || "-"}</TableCell>
                                               <TableCell className="text-xs text-muted-foreground truncate max-w-xs" title={spending.description}>{spending.description || "-"}</TableCell>
                                               <TableCell className="text-xs">
                                                   {spending.supplyRequestNumber && <div>رقم: {spending.supplyRequestNumber}</div>}
@@ -627,7 +627,6 @@ export default function AppropriationsPage() {
 
         </div>
 
-        {/* Appropriation Form Dialog */}
         <Dialog open={isAppropriationFormOpen} onOpenChange={(isOpen) => {
             setIsAppropriationFormOpen(isOpen);
             if (!isOpen) setEditingAppropriation(null);
@@ -647,7 +646,6 @@ export default function AppropriationsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Spending Form Dialog */}
         <Dialog open={isSpendingFormOpen} onOpenChange={(isOpen) => {
             setIsSpendingFormOpen(isOpen);
             if (!isOpen) setSelectedAppropriationForSpending(null);
@@ -674,7 +672,6 @@ export default function AppropriationsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog Content - Rendered conditionally by AlertDialog's open state */}
         {appropriationToDelete && (
           <AlertDialogContent>
               <AlertDialogHeader>

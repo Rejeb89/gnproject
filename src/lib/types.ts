@@ -81,3 +81,25 @@ export interface FixedFurnitureItem {
   location?: string;
   status?: string; // e.g., 'جيد', 'متوسط', 'تالف'
 }
+
+export interface Appropriation {
+  id: string;
+  name: string;
+  allocatedAmount: number;
+  description?: string;
+}
+
+export interface Spending {
+  id: string;
+  appropriationId: string;
+  spentAmount: number;
+  spendingDate: string; // ISO Date String
+  description?: string;
+  supplier?: string; // اسم المزود
+  supplyRequestNumber?: string;
+  supplyRequestDate?: string; // ISO Date String
+  supplyRequestFileName?: string;
+  invoiceNumber?: string;
+  invoiceDate?: string; // ISO Date String
+  invoiceFileName?: string;
+}
