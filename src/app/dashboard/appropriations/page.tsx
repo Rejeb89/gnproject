@@ -115,14 +115,13 @@ export default function AppropriationsPage() {
 
   const summaryTotals = useMemo(() => {
     const totalAllocated = appropriations.reduce((sum, apr) => sum + apr.allocatedAmount, 0);
-    // Calculate total spent directly from allSpendings to avoid double counting if an appropriation is deleted but its spendings remain (though delete logic prevents this)
     const totalSpentOnExistingAppropriations = appropriationsWithDetails.reduce((sum, apr) => sum + apr.spentAmount, 0);
     const totalRemaining = totalAllocated - totalSpentOnExistingAppropriations;
     return { totalAllocated, totalSpent: totalSpentOnExistingAppropriations, totalRemaining };
   }, [appropriations, appropriationsWithDetails]);
 
   const filteredReportSpendings = useMemo(() => {
-    if (!showReportResults) return []; // Only compute if report is shown
+    if (!showReportResults) return [];
 
     let filtered = [...allSpendings];
 
@@ -167,7 +166,7 @@ export default function AppropriationsPage() {
     const result = deleteAppropriation(appropriationToDelete.id);
     if (result.success) {
       toast({ title: "تم الحذف بنجاح", description: `تم حذف الاعتماد: ${appropriationToDelete.name}` });
-      loadData(); // Reload data to reflect deletion and recalculate summaries
+      loadData();
     } else {
       toast({ title: "لا يمكن الحذف", description: result.message, variant: "destructive" });
     }
@@ -191,7 +190,7 @@ export default function AppropriationsPage() {
       };
       addSpending(spendingData);
       toast({ title: "تمت إضافة الصرف بنجاح", description: `تم إضافة صرف للاعتماد: ${selectedAppropriationForSpending.name}` });
-      loadData(); // Reload data to update summaries and spending lists
+      loadData(); 
       setIsSpendingFormOpen(false);
       setSelectedAppropriationForSpending(null);
     } catch (error) {
@@ -202,7 +201,6 @@ export default function AppropriationsPage() {
 
   const handleGenerateReport = () => {
     setShowReportResults(true);
-    // The actual filtering is done by filteredReportSpendings useMemo
   };
 
   const handleClearReportFilters = () => {
@@ -241,13 +239,13 @@ export default function AppropriationsPage() {
             <Landmark className="h-8 w-8" />
             إدارة الاعتمادات المالية
           </h1>
-          <Button onClick={() => { setEditingAppropriation(null); setIsAppropriationFormOpen(true); }}>
+          <Button onClick={() => { setEditingAppropriation(null); setIsAppropriationFormOpen(true); }} className="w-full sm:w-auto">
             <PlusCircle className="ml-2 h-5 w-5" />
             إضافة اعتماد جديد
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-1"><Sigma className="h-4 w-4"/>إجمالي المرصود</CardTitle>
@@ -282,12 +280,11 @@ export default function AppropriationsPage() {
           <CardContent className="p-0">
             {appropriationsWithDetails.length > 0 ? (
                 <>
-                {/* Static Table Header for md+ screens */}
                 <div className="hidden md:block border-b">
                     <Table>
                         <TableHeader>
                         <TableRow>
-                            <TableHead className="w-10"></TableHead> {/* For Accordion Trigger Icon */}
+                            <TableHead className="w-10"></TableHead> 
                             <TableHead className="w-[25%]">اسم البند/المشروع</TableHead>
                             <TableHead className="text-center">المبلغ المرصود</TableHead>
                             <TableHead className="text-center">المبلغ المستهلك</TableHead>
@@ -307,7 +304,6 @@ export default function AppropriationsPage() {
                     <AccordionItem value={appropriation.id} key={appropriation.id} className="border-b last:border-b-0">
                       <AccordionTrigger className="p-0 hover:no-underline">
                         <TableRow className="w-full hover:bg-muted/50 cursor-pointer border-b-0">
-                            {/* Mobile View: Stacked */}
                             <TableCell className="md:hidden p-3 w-full">
                                 <div className="flex flex-col gap-1 text-sm">
                                     <div className="font-semibold text-base">{appropriation.name}</div>
@@ -315,16 +311,15 @@ export default function AppropriationsPage() {
                                     <div><span className="font-medium">المستهلك:</span> <span className={appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive" : ""}>{formatCurrency(appropriation.spentAmount)}</span></div>
                                     <div><span className="font-medium">المتبقي:</span> <span className={appropriation.remainingAmount < 0 ? "text-destructive" : ""}>{formatCurrency(appropriation.remainingAmount)}</span></div>
                                     {appropriation.description && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">الوصف:</span> {appropriation.description}</div>}
-                                    <div className="flex gap-1 mt-2 justify-end">
-                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}><Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل</Button>
-                                        <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}><HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف</Button>
+                                    <div className="flex flex-col sm:flex-row gap-1 mt-2 justify-end">
+                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}} className="w-full sm:w-auto"><Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل</Button>
+                                        <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}} className="w-full sm:w-auto"><HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف</Button>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}><Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف</Button>
+                                            <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}} className="w-full sm:w-auto"><Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف</Button>
                                         </AlertDialogTrigger>
                                     </div>
                                 </div>
                             </TableCell>
-                            {/* Desktop View: Tabular */}
                             <TableCell className="hidden md:table-cell w-[25%] font-medium">{appropriation.name}</TableCell>
                             <TableCell className="hidden md:table-cell text-center">{formatCurrency(appropriation.allocatedAmount)}</TableCell>
                             <TableCell className={`hidden md:table-cell text-center ${appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive font-semibold" : ""}`}>
@@ -413,7 +408,7 @@ export default function AppropriationsPage() {
                 <CardDescription>عرض تقارير مفصلة حول استهلاك الاعتمادات حسب البنود والفترات الزمنية.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                     <div>
                         <Label htmlFor="reportAppropriation" className="mb-1 block">بند الاعتماد</Label>
                          <Popover open={appropriationSelectOpen} onOpenChange={setAppropriationSelectOpen}>
@@ -504,11 +499,11 @@ export default function AppropriationsPage() {
                             </PopoverContent>
                         </Popover>
                     </div>
-                    <div className="flex gap-2">
-                        <Button onClick={handleGenerateReport} className="flex-1">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button onClick={handleGenerateReport} className="flex-1 w-full sm:w-auto">
                             <Filter className="ml-2 h-4 w-4"/> عرض التقرير
                         </Button>
-                        <Button onClick={handleClearReportFilters} variant="outline" className="flex-1">
+                        <Button onClick={handleClearReportFilters} variant="outline" className="flex-1 w-full sm:w-auto">
                             <Eraser className="ml-2 h-4 w-4"/> مسح
                         </Button>
                     </div>
@@ -612,7 +607,7 @@ export default function AppropriationsPage() {
           </DialogHeader>
           {selectedAppropriationForSpending && (
             <SpendingForm
-              key={selectedAppropriationForSpending.id} // Ensures form remounts with fresh state
+              key={selectedAppropriationForSpending.id} 
               onSubmit={handleSpendingFormSubmit}
               appropriationName={selectedAppropriationForSpending.name}
               maxSpendableAmount={appropriationsWithDetails.find(a => a.id === selectedAppropriationForSpending.id)?.remainingAmount || 0}

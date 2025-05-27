@@ -40,7 +40,6 @@ import { useToast } from "@/hooks/use-toast";
 import { exportAllData, importAllData } from "@/lib/store";
 import { cn } from '@/lib/utils';
 
-// Mock user type for local state demonstration
 interface MockUser {
   id: string;
   name: string;
@@ -77,15 +76,13 @@ interface ThemeColorSet {
 }
 
 interface AppTheme {
-  name: string; // e.g., "default", "ocean"
+  name: string; 
   displayName: string;
-  // Colors are kept here for PalettePreview, but actual styling is done via CSS.
   colors: Partial<ThemeColorSet>; 
 }
 
-const THEME_STORAGE_KEY = 'equipTrack_selected_app_theme_v1'; // Changed key slightly
+const THEME_STORAGE_KEY = 'equipTrack_selected_app_theme_v1'; 
 
-// These color values are for PalettePreview. Actual theme values are in globals.css
 const defaultPreviewColors: Partial<ThemeColorSet> = {
   background: "0 0% 100%",
   foreground: "210 15% 20%",
@@ -103,7 +100,7 @@ const availableThemes: AppTheme[] = [
   {
     name: "ocean",
     displayName: "أعماق المحيط",
-    colors: { // For PalettePreview
+    colors: { 
       background: "210 40% 98%",
       foreground: "210 30% 15%",
       primary: "200 90% 55%",
@@ -114,7 +111,7 @@ const availableThemes: AppTheme[] = [
   {
     name: "forest",
     displayName: "غابة خضراء",
-    colors: { // For PalettePreview
+    colors: { 
       background: "120 10% 98%", 
       foreground: "120 25% 15%", 
       primary: "130 50% 45%",   
@@ -167,7 +164,6 @@ export default function SettingsPage() {
 
   const [activeAppTheme, setActiveAppTheme] = useState<string>('default');
 
-  // Apply theme by setting data-attribute on HTML element
   const applyAppTheme = (themeName: string) => {
     document.documentElement.setAttribute('data-app-theme', themeName);
     localStorage.setItem(THEME_STORAGE_KEY, themeName);
@@ -178,7 +174,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Load saved theme on mount
   useEffect(() => {
     const savedThemeName = localStorage.getItem(THEME_STORAGE_KEY) || 'default';
     document.documentElement.setAttribute('data-app-theme', savedThemeName);
@@ -272,7 +267,6 @@ export default function SettingsPage() {
       variant: result.success ? "default" : "destructive",
     });
     if (result.success) {
-      // Reload to apply imported theme and other settings
       window.location.reload(); 
     }
     setSelectedFile(null);
@@ -289,7 +283,6 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold tracking-tight">إعدادات النظام</h1>
         </div>
 
-        {/* Theme Customization Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -328,8 +321,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-
-        {/* User Management Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -341,8 +332,8 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="flex justify-end">
-              <Button onClick={openAddDialogClean}>
+            <div className="flex flex-col sm:flex-row sm:justify-end">
+              <Button onClick={openAddDialogClean} className="w-full sm:w-auto">
                 <PlusCircle className="ml-2 h-5 w-5" />
                 إضافة موظف جديد
               </Button>
@@ -383,7 +374,7 @@ export default function SettingsPage() {
                 <Users className="mx-auto h-12 w-12 mb-4" />
                 <p className="text-lg">لا يوجد مستخدمون معرفون حاليًا.</p>
                 <p className="text-sm">ابدأ بإضافة موظف جديد.</p>
-                <Button onClick={openAddDialogClean} className="mt-4">
+                <Button onClick={openAddDialogClean} className="mt-4 w-full sm:w-auto">
                   <PlusCircle className="ml-2 h-5 w-5" />
                   إضافة موظف جديد
                 </Button>
@@ -397,7 +388,6 @@ export default function SettingsPage() {
           )}
         </Card>
 
-        {/* App Data Management Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -448,7 +438,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Permissions Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -485,7 +474,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
         
-        {/* Password Reset Card */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
@@ -503,7 +491,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Add/Edit User Dialog */}
         <Dialog open={isAddUserDialogOpen || isEditUserDialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
             setIsAddUserDialogOpen(false);
@@ -565,7 +552,6 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Import Confirmation Dialog */}
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>تأكيد الاستيراد</AlertDialogTitle>
