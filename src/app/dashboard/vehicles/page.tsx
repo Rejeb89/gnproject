@@ -36,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Car, PlusCircle, Edit2, Trash2, PackageSearch, Wrench, Route, Fuel } from "lucide-react";
+import { Car, PlusCircle, Edit2, Trash2, PackageSearch, Wrench, Route, Fuel, ListChecks } from "lucide-react";
 import type { Vehicle } from "@/lib/types";
 import { getVehicles, addVehicle, updateVehicle, deleteVehicle } from "@/lib/store";
 import { VehicleForm, type VehicleFormValues } from "@/components/forms/vehicle-form";
@@ -74,7 +74,12 @@ export default function VehiclesPage() {
   const handleFormSubmit = (values: VehicleFormValues) => {
     try {
       if (editingVehicle) {
-        updateVehicle({ ...editingVehicle, ...values });
+        updateVehicle({ 
+            ...editingVehicle, 
+            ...values, 
+            fuelEntries: editingVehicle.fuelEntries || [], // Preserve existing entries
+            maintenanceRecords: editingVehicle.maintenanceRecords || [] // Preserve existing entries
+        });
         toast({
           title: "تم التحديث بنجاح",
           description: `تم تحديث بيانات المركبة: ${values.type} - ${values.registrationNumber}`,
@@ -244,25 +249,29 @@ export default function VehiclesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+            <ul className="list-disc list-inside mt-2 space-y-2 text-muted-foreground">
               <li>
                 <span className="font-semibold text-green-600">[تم]</span> تسجيل معلومات المركبات (النوع، الرقم المنجمي، الجهة التابعة لها، مقرر المحروقات).
               </li>
-              <li>
-                <Wrench className="inline-block h-4 w-4 ml-1 text-primary" />
+              <li className="flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-primary" />
                 تتبع حالة المركبات (متوفرة، في مهمة، صيانة).
+                {/* مستقبلاً: يمكن عرض قائمة بحالات المركبات أو فلترتها */}
               </li>
-              <li>
-                <Fuel className="inline-block h-4 w-4 ml-1 text-primary" />
+              <li className="flex items-center gap-2">
+                <Fuel className="h-4 w-4 text-primary" />
                 إدارة استهلاك الوقود.
+                 {/* مستقبلاً: زر لإضافة سجل تعبئة وقود للمركبة المختارة، وعرض سجلات التعبئة */}
               </li>
-              <li>
-                <Wrench className="inline-block h-4 w-4 ml-1 text-primary" />
-                تسجيل الصيانة الدورية.
+              <li className="flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-primary" />
+                تسجيل الصيانة الدورية والطارئة.
+                {/* مستقبلاً: زر لإضافة سجل صيانة، وعرض سجلات الصيانة والتنبيه بالصيانة القادمة */}
               </li>
-              <li>
-                <Route className="inline-block h-4 w-4 ml-1 text-primary" />
-                إدارة مهام المركبات.
+              <li className="flex items-center gap-2">
+                <Route className="h-4 w-4 text-primary" />
+                إدارة مهام المركبات (أوامر المهمات).
+                 {/* مستقبلاً: ربط المركبات بمهام معينة، تتبع المسافات المقطوعة */}
               </li>
             </ul>
           </CardContent>

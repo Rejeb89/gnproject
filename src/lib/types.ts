@@ -63,6 +63,28 @@ export interface CalendarEvent {
   reminderUnit?: 'none' | 'days' | 'hours' | 'weeks';
 }
 
+export interface FuelEntry {
+  id: string;
+  date: string; // ISO date string
+  odometerReading: number;
+  litersFilled: number;
+  costPerLiter?: number;
+  totalCost: number;
+  notes?: string;
+}
+
+export interface MaintenanceRecord {
+  id: string;
+  date: string; // ISO date string
+  type: string; // e.g., "تغيير زيت", "فحص دوري"
+  odometerReading: number;
+  cost?: number;
+  description: string;
+  nextDueDate?: string; // ISO date string
+  nextDueOdometer?: number;
+  notes?: string;
+}
+
 export interface Vehicle {
   id: string;
   type: string; // e.g., 'سيارة خفيفة', 'شاحنة'
@@ -70,6 +92,8 @@ export interface Vehicle {
   owningParty: string; // الجهة التابعة لها (اسم الجهة)
   fuelAllowanceLiters?: number; // مقرر المحروقات باللتر
   status?: 'available' | 'on_mission' | 'maintenance'; // (للتطوير المستقبلي)
+  fuelEntries?: FuelEntry[];
+  maintenanceRecords?: MaintenanceRecord[];
 }
 
 export interface FixedFurnitureItem {

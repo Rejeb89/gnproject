@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle, FixedFurnitureItem, Appropriation, Spending } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle, FixedFurnitureItem, Appropriation, Spending, FuelEntry, MaintenanceRecord } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -45,6 +45,7 @@ function getStoredArray<T>(key: string, validator: (item: any) => item is T): T[
     return parsedData.filter(validator);
   } catch (error) {
     console.error(`Error reading or parsing ${key} from localStorage:`, error);
+    localStorage.removeItem(key); // Clear corrupted data
     return [];
   }
 }
@@ -55,7 +56,14 @@ const isParty = (item: any): item is Party => typeof item === 'object' && item !
 const isEquipmentDefinition = (item: any): item is EquipmentDefinition => typeof item === 'object' && item !== null && 'id' in item && 'name' in item;
 const isAppNotification = (item: any): item is AppNotification => typeof item === 'object' && item !== null && 'id' in item && 'message' in item;
 const isCalendarEvent = (item: any): item is CalendarEvent => typeof item === 'object' && item !== null && 'id' in item && 'title' in item && 'date' in item;
-const isVehicle = (item: any): item is Vehicle => typeof item === 'object' && item !== null && 'id' in item && 'type' in item && 'registrationNumber' in item;
+const isVehicle = (item: any): item is Vehicle => 
+  typeof item === 'object' && 
+  item !== null && 
+  'id' in item && 
+  'type' in item && 
+  'registrationNumber' in item &&
+  (!item.fuelEntries || Array.isArray(item.fuelEntries)) && // Ensure arrays if they exist
+  (!item.maintenanceRecords || Array.isArray(item.maintenanceRecords));
 const isAppropriation = (item: any): item is Appropriation => typeof item === 'object' && item !== null && 'id' in item && 'name' in item && 'allocatedAmount' in item;
 const isSpending = (item: any): item is Spending => 
   typeof item === 'object' && 
@@ -64,6 +72,11 @@ const isSpending = (item: any): item is Spending =>
   'appropriationId' in item && 
   'spentAmount' in item && 
   'spendingDate' in item;
+const isPartyEmployee = (item: any): item is PartyEmployee => 
+    typeof item === 'object' && item !== null && 'id' in item && 'rank' in item && 'firstName' in item && 'lastName' in item && 'employeeNumber' in item;
+
+const isFixedFurnitureItem = (item: any): item is FixedFurnitureItem =>
+    typeof item === 'object' && item !== null && 'id' in item && 'equipmentType' in item && 'quantity' in item;
 
 
 // Transactions
@@ -239,6 +252,14 @@ export function getEquipmentSettings(): Record<string, EquipmentSetting> {
     const data = localStorage.getItem(EQUIPMENT_SETTINGS_KEY);
     const parsedData = data ? JSON.parse(data) : {};
     if (typeof parsedData === 'object' && parsedData !== null && !Array.isArray(parsedData)) {
+      // Validate structure of each setting
+      for (const key in parsedData) {
+        if (typeof parsedData[key] !== 'object' || parsedData[key] === null || typeof parsedData[key].lowStockThreshold !== 'number') {
+          console.warn(`Invalid structure for equipment setting '${key}'. Clearing corrupted data.`);
+          localStorage.removeItem(EQUIPMENT_SETTINGS_KEY);
+          return {};
+        }
+      }
       return parsedData;
     }
     if (data) { 
@@ -248,6 +269,7 @@ export function getEquipmentSettings(): Record<string, EquipmentSetting> {
     return {};
   } catch (error) {
     console.error("Error reading equipment settings from localStorage:", error);
+    localStorage.removeItem(EQUIPMENT_SETTINGS_KEY); // Clear corrupted data
     return {};
   }
 }
@@ -331,7 +353,7 @@ export function getPartyEmployees(partyId: string): PartyEmployee[] {
     const allEmployees = allPartyEmployeesData ? JSON.parse(allPartyEmployeesData) : {};
     const partyData = allEmployees[partyId];
     if (Array.isArray(partyData)) {
-      return (partyData as PartyEmployee[]).sort((a: PartyEmployee, b: PartyEmployee) => {
+      return partyData.filter(isPartyEmployee).sort((a: PartyEmployee, b: PartyEmployee) => {
         const lastNameCompare = a.lastName.localeCompare(b.lastName);
         if (lastNameCompare !== 0) return lastNameCompare;
         return a.firstName.localeCompare(b.firstName);
@@ -549,14 +571,26 @@ export function getVehicles(): Vehicle[] {
   return getStoredArray(VEHICLES_KEY, isVehicle);
 }
 
-export function addVehicle(vehicle: Omit<Vehicle, 'id' | 'status'>): Vehicle {
+export function addVehicle(vehicleData: Omit<Vehicle, 'id' | 'status' | 'fuelEntries' | 'maintenanceRecords'>): Vehicle {
   if (typeof window === 'undefined') {
-    const newVeh = { ...vehicle, id: crypto.randomUUID(), status: 'available' as const };
+    const newVeh: Vehicle = { 
+      ...vehicleData, 
+      id: crypto.randomUUID(), 
+      status: 'available' as const,
+      fuelEntries: [],
+      maintenanceRecords: [],
+    };
     console.warn("addVehicle called on server, returning fallback.");
     return newVeh;
   }
   const vehicles = getVehicles();
-  const newVehicleWithId: Vehicle = { ...vehicle, id: crypto.randomUUID(), status: 'available' };
+  const newVehicleWithId: Vehicle = { 
+    ...vehicleData, 
+    id: crypto.randomUUID(), 
+    status: 'available',
+    fuelEntries: [],
+    maintenanceRecords: [],
+  };
   vehicles.push(newVehicleWithId);
   localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
   return newVehicleWithId;
@@ -567,7 +601,12 @@ export function updateVehicle(updatedVehicle: Vehicle): boolean {
   const vehicles = getVehicles();
   const index = vehicles.findIndex(v => v.id === updatedVehicle.id);
   if (index === -1) return false;
-  vehicles[index] = updatedVehicle;
+  // Ensure that fuelEntries and maintenanceRecords are arrays if they are undefined in updatedVehicle
+  vehicles[index] = {
+    ...updatedVehicle,
+    fuelEntries: updatedVehicle.fuelEntries || [],
+    maintenanceRecords: updatedVehicle.maintenanceRecords || [],
+  };
   localStorage.setItem(VEHICLES_KEY, JSON.stringify(vehicles));
   return true;
 }
@@ -588,7 +627,7 @@ export function getFixedFurniture(partyId: string): FixedFurnitureItem[] {
     const allFurniture = allFixedFurnitureData ? JSON.parse(allFixedFurnitureData) : {};
     const partyData = allFurniture[partyId];
     if (Array.isArray(partyData)) {
-        return (partyData as FixedFurnitureItem[]).sort((a: FixedFurnitureItem, b: FixedFurnitureItem) => 
+        return partyData.filter(isFixedFurnitureItem).sort((a: FixedFurnitureItem, b: FixedFurnitureItem) => 
           a.equipmentType.localeCompare(b.equipmentType)
         );
     }
@@ -729,7 +768,9 @@ export function deleteAppropriation(appropriationId: string): { success: boolean
   const spendings = getSpendings();
   const isAppropriationUsed = spendings.some(s => s.appropriationId === appropriationId);
   if (isAppropriationUsed) {
-    return { success: false, message: "لا يمكن حذف هذا الاعتماد لأنه يحتوي على عمليات صرف مسجلة. يجب حذف عمليات الصرف أولاً أو ربطها باعتماد آخر." };
+    // This message might need to be adjusted based on how you want to handle this case.
+    // For now, it prevents deletion if there are linked spendings.
+    return { success: false, message: "لا يمكن حذف هذا الاعتماد لأنه يحتوي على عمليات صرف مسجلة. يرجى حذف عمليات الصرف المرتبطة أولاً أو ربطها باعتماد آخر." };
   }
 
   let appropriations = getAppropriations();
