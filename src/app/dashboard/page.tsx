@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowRightLeft, AlertTriangle, Package, BarChart as BarChartIcon, CalendarClock } from 'lucide-react';
+import { ArrowRightLeft, AlertTriangle, Package, BarChart as BarChartIcon, CalendarClock, ListChecks } from 'lucide-react';
 import type { Transaction, Equipment, CalendarEvent } from '@/lib/types';
 import { getTransactions, calculateStock, getEquipmentSettings, addNotification, getCalendarEvents } from '@/lib/store';
 import Link from 'next/link';
@@ -21,7 +21,8 @@ import {
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { startOfDay } from 'date-fns';
+import { format } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
 const chartConfig = {
   quantity: {
@@ -43,6 +44,8 @@ export default function DashboardPage() {
   const [lowStockItems, setLowStockItems] = useState<Equipment[]>([]);
   const [displayChartData, setDisplayChartData] = useState<Array<{name: string; quantity: number; fill: string}>>([]);
   const [upcomingEventsCount, setUpcomingEventsCount] = useState(0);
+  const [upcomingToDoEvents, setUpcomingToDoEvents] = useState<CalendarEvent[]>([]);
+
 
   useEffect(() => {
     setIsLoading(true);
@@ -70,9 +73,6 @@ export default function DashboardPage() {
 
     if (lowStockItemsForAlert.length > 0) {
       const message = `يوجد ${lowStockItemsForAlert.length} ${lowStockItemsForAlert.length === 1 ? 'تجهيز' : lowStockItemsForAlert.length === 2 ? 'تجهيزين' : 'تجهيزات'} بمخزون منخفض.`;
-      // Check if a similar notification already exists and is unread
-      // This specific check is better handled within addNotification or a dedicated service
-      // For now, we rely on addNotification's internal check
       addNotification({
         message: message,
         type: 'low_stock',
@@ -92,18 +92,18 @@ export default function DashboardPage() {
       }));
     setDisplayChartData(chartDataFilteredAndColored);
 
-    // Calculate upcoming events
     const allCalendarEvents = getCalendarEvents();
-    const now = new Date(); // Current date and time
+    const now = new Date();
     const futureEvents = allCalendarEvents.filter(event => {
         try {
-            return new Date(event.date) >= now; // Event date/time must be in the future
+            return new Date(event.date) >= now;
         } catch (e) {
             console.error("Invalid date in calendar event:", event);
             return false;
         }
     });
     setUpcomingEventsCount(futureEvents.length);
+    setUpcomingToDoEvents(futureEvents.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5)); // Limit to 5 for the to-do list
 
     setIsLoading(false);
   }, []);
@@ -146,28 +146,52 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+        
+        <div className="grid gap-4 md:grid-cols-2">
+            {/* Skeleton for Low Stock Alert Card */}
+            <Card className="border-destructive">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                <Skeleton className="h-6 w-6 rounded-sm" />
+                <Skeleton className="h-6 w-40" />
+                </CardTitle>
+                <Skeleton className="h-4 w-full mt-1" />
+                <Skeleton className="h-4 w-3/4 mt-1" />
+            </CardHeader>
+            <CardContent>
+                <ul className="space-y-2 text-sm">
+                {[...Array(2)].map((_, i) => (
+                    <li key={i} className="flex justify-between">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-4 w-1/4" />
+                    </li>
+                ))}
+                </ul>
+            </CardContent>
+            </Card>
 
-        {/* Skeleton for Low Stock Alert Card */}
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <Skeleton className="h-6 w-6 rounded-sm" />
-              <Skeleton className="h-6 w-40" />
-            </CardTitle>
-            <Skeleton className="h-4 w-full mt-1" />
-             <Skeleton className="h-4 w-3/4 mt-1" />
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {[...Array(2)].map((_, i) => (
-                <li key={i} className="flex justify-between">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="h-4 w-1/4" />
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+            {/* Skeleton for To-Do List Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Skeleton className="h-6 w-6 rounded-sm" />
+                        <Skeleton className="h-6 w-52" />
+                    </CardTitle>
+                    <Skeleton className="h-4 w-full mt-1" />
+                </CardHeader>
+                <CardContent className="pt-2">
+                    <ul className="space-y-3">
+                        {[...Array(3)].map((_, i) => (
+                            <li key={i} className="flex flex-col p-2 border-b last:border-b-0">
+                                <Skeleton className="h-5 w-2/3 mb-1" />
+                                <Skeleton className="h-4 w-1/2" />
+                            </li>
+                        ))}
+                    </ul>
+                </CardContent>
+            </Card>
+        </div>
+
 
         {/* Skeleton for Chart Card */}
         <Card>
@@ -258,66 +282,101 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {lowStockItems.length > 0 && (
+            <Card className="border-destructive">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-6 w-6" />
+                تنبيه نقص مخزون
+                </CardTitle>
+                <CardDescription>التجهيزات التالية مجموع كمياتها (بكل أصنافها) منخفض في المستودع (أقل من الحد المعين لاسم التجهيز):</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ul className="space-y-1 text-sm">
+                {lowStockItems.map(item => (
+                    <li key={item.name} className="flex justify-between">
+                    <span>{item.name}</span>
+                    <span className="font-semibold text-destructive">{item.quantity.toLocaleString()} وحدات متبقية (إجمالي)</span>
+                    </li>
+                ))}
+                </ul>
+            </CardContent>
+            </Card>
+        )}
 
-      {lowStockItems.length > 0 && (
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-6 w-6" />
-              تنبيه نقص مخزون
-            </CardTitle>
-            <CardDescription>التجهيزات التالية مجموع كمياتها (بكل أصنافها) منخفض في المستودع (أقل من الحد المعين لاسم التجهيز):</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1 text-sm">
-              {lowStockItems.map(item => (
-                <li key={item.name} className="flex justify-between">
-                  <span>{item.name}</span>
-                  <span className="font-semibold text-destructive">{item.quantity.toLocaleString()} وحدات متبقية (إجمالي)</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
+        <Card>
+            <CardHeader>
+                <Link href="/dashboard/calendar" className="hover:text-primary transition-colors">
+                    <CardTitle className="flex items-center gap-2">
+                        <ListChecks className="h-6 w-6 text-primary" />
+                        قائمة المهام (الأحداث القادمة)
+                    </CardTitle>
+                </Link>
+                <CardDescription>
+                    أهم 5 أحداث قادمة مجدولة في الروزنامة.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-2">
+                {upcomingToDoEvents.length > 0 ? (
+                    <ul className="space-y-3">
+                        {upcomingToDoEvents.map(event => (
+                            <li key={event.id} className="flex flex-col p-2 border-b last:border-b-0 hover:bg-muted/50 rounded-md">
+                                <span className="font-semibold text-sm">{event.title}</span>
+                                <span className="text-xs text-muted-foreground">
+                                    {format(new Date(event.date), "eeee, d MMMM yyyy 'الساعة' HH:mm", { locale: arSA })}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-center text-muted-foreground py-4">لا توجد مهام أو أحداث قادمة مجدولة.</p>
+                )}
+            </CardContent>
         </Card>
-      )}
+      </div>
+
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChartIcon className="h-6 w-6 text-primary" /> 
-            تحليل مخزون التجهيزات المنخفض (رسم بياني شريطي)
+            تحليل مخزون التجهيزات المنخفض (رسم بياني شعاعي)
           </CardTitle>
-          <CardDescription>رسم بياني شريطي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
+          <CardDescription>رسم بياني شعاعي يوضح كميات التجهيزات (بأصنافها) التي وصلت لحد التنبيه.</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           {displayChartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="h-[450px] w-full">
-              <BarChart
+             <ChartContainer
+              config={chartConfig}
+              className="mx-auto aspect-square h-[450px] w-full sm:w-4/5 md:w-3/5 lg:w-2/5"
+            >
+              <RadialBarChart
                 data={displayChartData}
-                layout="vertical"
-                margin={{
-                  top: 20, 
-                  right: 30,
-                  left: 20,
-                  bottom: 20,
-                }}
+                startAngle={90}
+                endAngle={-270}
+                innerRadius="30%"
+                outerRadius="80%"
+                barSize={24}
+                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    tickFormatter={(value) => value.toLocaleString()}
-                    tick={{fontSize: '0.75rem'}}
+                <PolarAngleAxis
+                  type="number"
+                  domain={[0, Math.max(...displayChartData.map(d => d.quantity), 0)]} // Adjusted domain
+                  angleAxisId={0}
+                  tick={false}
                 />
-                <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={120}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{fontSize: '0.75rem'}}
-                    interval={0}
-                />
+                <RadialBar
+                  dataKey="quantity"
+                  cornerRadius={5}
+                  background={{ fill: "hsl(var(--muted) / 0.3)" }}
+                  angleAxisId={0}
+                >
+                  {displayChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </RadialBar>
                 <ChartTooltip
                   cursor={{ fill: "hsl(var(--accent) / 0.2)" }}
                   content={<ChartTooltipContent
@@ -337,19 +396,14 @@ export default function DashboardPage() {
                   payload={legendPayload}
                   iconSize={10}
                   layout="horizontal"
-                  verticalAlign="top"
+                  verticalAlign="bottom"
                   align="center"
-                  wrapperStyle={{paddingBottom: "20px"}}
+                  wrapperStyle={{paddingTop: "20px"}}
                   formatter={(value, entry) => (
                     <span style={{ color: entry.color }}>{value}</span>
                   )}
                 />
-                <Bar dataKey="quantity" radius={[0, 4, 4, 0]}>
-                  {displayChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
+              </RadialBarChart>
             </ChartContainer>
           ) : (
             <p className="text-muted-foreground text-center py-8">لا توجد تجهيزات بمخزون منخفض لعرضها حاليًا.</p>
@@ -360,4 +414,3 @@ export default function DashboardPage() {
   );
 }
     
-
