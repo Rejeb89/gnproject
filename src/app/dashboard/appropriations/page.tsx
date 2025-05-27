@@ -36,7 +36,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Landmark, PlusCircle, Edit2, Trash2, HandCoins, FileText, Sigma, Banknote, Coins, Scale, Filter, Eraser, ChevronsUpDown, Check, CalendarIcon } from "lucide-react";
+import { Landmark, PlusCircle, Edit2, Trash2, HandCoins, FileText, Sigma, Banknote, Coins, Scale, Filter, Eraser, ChevronsUpDown, Check, CalendarIcon, ChevronDown } from "lucide-react";
 import type { Appropriation, Spending } from "@/lib/types";
 import {
   getAppropriations,
@@ -287,7 +287,7 @@ export default function AppropriationsPage() {
                       <Table>
                           <TableHeader>
                           <TableRow>
-                              <TableHead className="w-10"></TableHead> 
+                              <TableHead className="w-[50px] text-center"><ChevronDown className="h-4 w-4 inline-block text-muted-foreground" /></TableHead>
                               <TableHead className="w-[25%]">اسم البند/المشروع</TableHead>
                               <TableHead className="text-center">المبلغ المرصود</TableHead>
                               <TableHead className="text-center">المبلغ المستهلك</TableHead>
@@ -306,49 +306,53 @@ export default function AppropriationsPage() {
                                                             .sort((a,b) => parseISO(b.spendingDate).getTime() - parseISO(a.spendingDate).getTime());
                     return (
                       <AccordionItem value={appropriation.id} key={appropriation.id} className="border-b last:border-b-0">
-                        <AccordionTrigger className="p-0 hover:no-underline">
-                          <TableRow className="w-full hover:bg-muted/50 cursor-pointer border-b-0">
-                              <TableCell className="md:hidden p-3 w-full">
-                                  <div className="flex flex-col gap-1 text-sm">
-                                      <div className="font-semibold text-base">{appropriation.name}</div>
-                                      <div><span className="font-medium">المرصود:</span> {formatCurrency(appropriation.allocatedAmount)}</div>
-                                      <div><span className="font-medium">المستهلك:</span> <span className={appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive" : ""}>{formatCurrency(appropriation.spentAmount)}</span></div>
-                                      <div><span className="font-medium">المتبقي:</span> <span className={appropriation.remainingAmount < 0 ? "text-destructive" : ""}>{formatCurrency(appropriation.remainingAmount)}</span></div>
-                                      {appropriation.description && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">الوصف:</span> {appropriation.description}</div>}
-                                      <div className="flex flex-col sm:flex-row gap-1 mt-2 justify-end">
-                                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}} className="w-full sm:w-auto"><Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل</Button>
-                                          <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}} className="w-full sm:w-auto"><HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف</Button>
-                                          <AlertDialogTrigger asChild>
-                                              <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}} className="w-full sm:w-auto"><Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف</Button>
-                                          </AlertDialogTrigger>
-                                      </div>
-                                  </div>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell w-[25%] font-medium">{appropriation.name}</TableCell>
-                              <TableCell className="hidden md:table-cell text-center">{formatCurrency(appropriation.allocatedAmount)}</TableCell>
-                              <TableCell className={`hidden md:table-cell text-center ${appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive font-semibold" : ""}`}>
-                                  {formatCurrency(appropriation.spentAmount)}
-                              </TableCell>
-                              <TableCell className={`hidden md:table-cell text-center ${appropriation.remainingAmount < 0 ? "text-destructive font-semibold" : ""}`}>
-                                  {formatCurrency(appropriation.remainingAmount)}
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell w-[25%] text-xs text-muted-foreground truncate" title={appropriation.description}>{appropriation.description || "-"}</TableCell>
-                              <TableCell className="hidden md:table-cell text-center w-[150px]">
-                                  <div className="flex justify-center gap-1">
-                                  <Button variant="ghost" size="icon" title="تعديل الاعتماد" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}>
-                                      <Edit2 className="h-4 w-4 text-blue-600" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" title="إضافة صرف" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}>
-                                      <HandCoins className="h-4 w-4 text-green-600" />
-                                  </Button>
-                                  <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon" title="حذف الاعتماد" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}>
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                  </AlertDialogTrigger>
-                                  </div>
-                              </TableCell>
-                          </TableRow>
+                        <AccordionTrigger className="p-0 hover:no-underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm">
+                           <div className="flex items-center w-full hover:bg-muted/50 cursor-pointer p-4 md:p-0 md:grid md:grid-cols-[50px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_150px] md:gap-x-4">
+                                {/* Mobile View - inside the div that AccordionTrigger wraps */}
+                                <div className="flex-grow md:hidden">
+                                    <div className="font-semibold text-base mb-1">{appropriation.name}</div>
+                                    <div className="text-sm"><span className="font-medium">المرصود:</span> {formatCurrency(appropriation.allocatedAmount)}</div>
+                                    <div className="text-sm"><span className="font-medium">المستهلك:</span> <span className={appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive" : ""}>{formatCurrency(appropriation.spentAmount)}</span></div>
+                                    <div className="text-sm"><span className="font-medium">المتبقي:</span> <span className={appropriation.remainingAmount < 0 ? "text-destructive" : ""}>{formatCurrency(appropriation.remainingAmount)}</span></div>
+                                    {appropriation.description && <div className="text-xs text-muted-foreground mt-1"><span className="font-medium">الوصف:</span> {appropriation.description}</div>}
+                                    <div className="flex flex-col sm:flex-row gap-1 mt-2 justify-end">
+                                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}} className="w-full sm:w-auto"><Edit2 className="h-3 w-3 mr-1 md:mr-0"/> تعديل</Button>
+                                        <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}} className="w-full sm:w-auto"><HandCoins className="h-3 w-3 mr-1 md:mr-0"/> إضافة صرف</Button>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}} className="w-full sm:w-auto"><Trash2 className="h-3 w-3 mr-1 md:mr-0"/> حذف</Button>
+                                        </AlertDialogTrigger>
+                                    </div>
+                                </div>
+
+                                {/* Desktop View - direct children of the grid div */}
+                                <div className="hidden md:flex md:items-center md:justify-center md:w-[50px] md:pl-4">
+                                  {/* Chevron is now part of AccordionTrigger */}
+                                </div>
+                                <div className="hidden md:flex md:items-center md:w-[25%] font-medium md:pr-4">{appropriation.name}</div>
+                                <div className="hidden md:flex md:items-center md:justify-center text-center md:pr-4">{formatCurrency(appropriation.allocatedAmount)}</div>
+                                <div className={`hidden md:flex md:items-center md:justify-center text-center md:pr-4 ${appropriation.spentAmount > appropriation.allocatedAmount ? "text-destructive font-semibold" : ""}`}>
+                                    {formatCurrency(appropriation.spentAmount)}
+                                </div>
+                                <div className={`hidden md:flex md:items-center md:justify-center text-center md:pr-4 ${appropriation.remainingAmount < 0 ? "text-destructive font-semibold" : ""}`}>
+                                    {formatCurrency(appropriation.remainingAmount)}
+                                </div>
+                                <div className="hidden md:flex md:items-center md:w-[25%] text-xs text-muted-foreground truncate md:pr-4" title={appropriation.description}>{appropriation.description || "-"}</div>
+                                <div className="hidden md:flex md:items-center md:justify-center text-center w-[150px]">
+                                    <div className="flex justify-center gap-1">
+                                    <Button variant="ghost" size="icon" title="تعديل الاعتماد" onClick={(e) => { e.stopPropagation(); setEditingAppropriation(appropriation); setIsAppropriationFormOpen(true);}}>
+                                        <Edit2 className="h-4 w-4 text-blue-600" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title="إضافة صرف" onClick={(e) => { e.stopPropagation(); setSelectedAppropriationForSpending(appropriation); setIsSpendingFormOpen(true);}}>
+                                        <HandCoins className="h-4 w-4 text-green-600" />
+                                    </Button>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" title="حذف الاعتماد" onClick={(e) => { e.stopPropagation(); setAppropriationToDelete(appropriation);}}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    </div>
+                                </div>
+                            </div>
                         </AccordionTrigger>
                         <AccordionContent className="bg-muted/30 p-0">
                           {spendingsForThisAppropriation.length > 0 ? (
