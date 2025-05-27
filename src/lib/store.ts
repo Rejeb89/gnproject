@@ -1,6 +1,6 @@
 
 // This file should only be imported and used on the client-side.
-import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle, FixedFurnitureItem } from '@/lib/types';
+import type { Transaction, Equipment, Party, EquipmentSetting, EquipmentDefinition, PartyEmployee, AppNotification, CalendarEvent, Vehicle, FixedFurnitureItem, Appropriation, Spending } from '@/lib/types';
 import * as XLSX from 'xlsx'; // Required for actual Excel parsing
 
 const TRANSACTIONS_KEY = 'equipTrack_transactions_v1';
@@ -12,6 +12,9 @@ export const NOTIFICATIONS_KEY = 'equipTrack_notifications_v1'; // Key for notif
 const CALENDAR_EVENTS_KEY = 'equipTrack_calendar_events_v2'; // Updated key for calendar events with reminders
 const VEHICLES_KEY = 'equipTrack_vehicles_v1'; // Key for vehicles
 const FIXED_FURNITURE_KEY = 'equipTrack_fixed_furniture_v1'; // Key for fixed furniture
+const APPROPRIATIONS_KEY = 'equipTrack_appropriations_v1'; // Key for appropriations
+const SPENDINGS_KEY = 'equipTrack_spendings_v1'; // Key for spendings
+const APP_THEME_KEY = 'equipTrack_selected_app_theme_v1'; // For storing the selected theme name
 
 const ALL_APP_DATA_KEYS = [
   TRANSACTIONS_KEY,
@@ -23,18 +26,44 @@ const ALL_APP_DATA_KEYS = [
   CALENDAR_EVENTS_KEY,
   VEHICLES_KEY,
   FIXED_FURNITURE_KEY,
+  APPROPRIATIONS_KEY,
+  SPENDINGS_KEY,
+  // APP_THEME_KEY is handled separately in export/import as it's a direct string, not JSON
 ];
+
+// Helper function to get and validate array data from localStorage
+function getStoredArray<T>(key: string, validator: (item: any) => item is T): T[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(key);
+    if (!data) return [];
+    const parsedData = JSON.parse(data);
+    if (!Array.isArray(parsedData)) {
+      console.warn(`Data for key ${key} in localStorage is not an array. Clearing corrupted data.`);
+      localStorage.removeItem(key);
+      return [];
+    }
+    return parsedData.filter(validator);
+  } catch (error) {
+    console.error(`Error reading or parsing ${key} from localStorage:`, error);
+    return [];
+  }
+}
+
+// Type Guards
+const isTransaction = (item: any): item is Transaction => typeof item === 'object' && item !== null && 'id' in item && 'type' in item && 'equipmentName' in item;
+const isParty = (item: any): item is Party => typeof item === 'object' && item !== null && 'id' in item && 'name' in item;
+const isEquipmentDefinition = (item: any): item is EquipmentDefinition => typeof item === 'object' && item !== null && 'id' in item && 'name' in item;
+const isAppNotification = (item: any): item is AppNotification => typeof item === 'object' && item !== null && 'id' in item && 'message' in item;
+const isCalendarEvent = (item: any): item is CalendarEvent => typeof item === 'object' && item !== null && 'id' in item && 'title' in item && 'date' in item;
+const isVehicle = (item: any): item is Vehicle => typeof item === 'object' && item !== null && 'id' in item && 'type' in item && 'registrationNumber' in item;
+const isAppropriation = (item: any): item is Appropriation => typeof item === 'object' && item !== null && 'id' in item && 'name' in item && 'allocatedAmount' in item;
+const isSpending = (item: any): item is Spending => typeof item === 'object' && item !== null && 'id' in item && 'appropriationId' in item && 'spentAmount' in item && 'spendingDate' in item;
+
 
 // Transactions
 export function getTransactions(): Transaction[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(TRANSACTIONS_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error("Error reading transactions from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(TRANSACTIONS_KEY, isTransaction);
 }
 
 export function addTransaction(transaction: Transaction): void {
@@ -81,14 +110,7 @@ export function calculateStock(transactions: Transaction[]): Equipment[] {
 
 // Parties
 export function getParties(): Party[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(PARTIES_KEY);
-    return data ? (JSON.parse(data) as Party[]).sort((a, b) => a.name.localeCompare(b.name)) : [];
-  } catch (error) {
-    console.error("Error reading parties from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(PARTIES_KEY, isParty).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function addParty(partyName: string): Party {
@@ -214,7 +236,16 @@ export function getEquipmentSettings(): Record<string, EquipmentSetting> {
   if (typeof window === 'undefined') return {};
   try {
     const data = localStorage.getItem(EQUIPMENT_SETTINGS_KEY);
-    return data ? JSON.parse(data) : {};
+    const parsedData = data ? JSON.parse(data) : {};
+    // Basic validation to ensure it's an object
+    if (typeof parsedData === 'object' && parsedData !== null && !Array.isArray(parsedData)) {
+      return parsedData;
+    }
+    if (data) { // If data exists but is not a valid object
+      console.warn(`Data for key ${EQUIPMENT_SETTINGS_KEY} in localStorage is not a valid object. Clearing corrupted data.`);
+      localStorage.removeItem(EQUIPMENT_SETTINGS_KEY);
+    }
+    return {};
   } catch (error) {
     console.error("Error reading equipment settings from localStorage:", error);
     return {};
@@ -238,14 +269,7 @@ export function setEquipmentThreshold(equipmentName: string, threshold?: number)
 
 // Equipment Definitions
 export function getEquipmentDefinitions(): EquipmentDefinition[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(EQUIPMENT_DEFINITIONS_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error("Error reading equipment definitions from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(EQUIPMENT_DEFINITIONS_KEY, isEquipmentDefinition);
 }
 
 export function addEquipmentDefinition(definition: Omit<EquipmentDefinition, 'id'>): EquipmentDefinition {
@@ -305,11 +329,15 @@ export function getPartyEmployees(partyId: string): PartyEmployee[] {
   try {
     const allPartyEmployeesData = localStorage.getItem(PARTY_EMPLOYEES_KEY);
     const allEmployees = allPartyEmployeesData ? JSON.parse(allPartyEmployeesData) : {};
-    return (allEmployees[partyId] || []).sort((a: PartyEmployee, b: PartyEmployee) => {
-      const lastNameCompare = a.lastName.localeCompare(b.lastName);
-      if (lastNameCompare !== 0) return lastNameCompare;
-      return a.firstName.localeCompare(b.firstName);
-    });
+    const partyData = allEmployees[partyId];
+    if (Array.isArray(partyData)) {
+      return (partyData as PartyEmployee[]).sort((a: PartyEmployee, b: PartyEmployee) => {
+        const lastNameCompare = a.lastName.localeCompare(b.lastName);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.firstName.localeCompare(b.firstName);
+      });
+    }
+    return [];
   } catch (error) {
     console.error(`Error reading employees for party ${partyId} from localStorage:`, error);
     return [];
@@ -411,27 +439,18 @@ export async function importPartyEmployeesFromExcel(partyId: string, file: File)
 
 // Notifications
 export function getNotifications(): AppNotification[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(NOTIFICATIONS_KEY);
-    const notifications: AppNotification[] = data ? JSON.parse(data) : [];
-    return notifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  } catch (error) {
-    console.error("Error reading notifications from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(NOTIFICATIONS_KEY, isAppNotification).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
 export function addNotification(notificationData: Omit<AppNotification, 'id' | 'timestamp' | 'isRead'>): AppNotification | null {
   if (typeof window === 'undefined') return null;
 
   const notifications = getNotifications();
-  // Prevent adding duplicate unread notifications of the same type, message and eventId (if present)
   const existingUnread = notifications.find(
     n => !n.isRead &&
          n.type === notificationData.type &&
          n.message === notificationData.message &&
-         n.eventId === notificationData.eventId // Check eventId for event_reminders
+         n.eventId === notificationData.eventId
   );
   if (existingUnread) {
     return existingUnread;
@@ -443,10 +462,9 @@ export function addNotification(notificationData: Omit<AppNotification, 'id' | '
     timestamp: new Date().toISOString(),
     isRead: false,
   };
-  notifications.unshift(newNotification); // Add to the beginning
+  notifications.unshift(newNotification);
   try {
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications.slice(0, 50))); // Limit to 50 notifications
-    // Dispatch a custom event to notify layout to reload notifications
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications.slice(0, 50)));
     window.dispatchEvent(new CustomEvent('notificationsUpdated'));
     return newNotification;
   } catch (error) {
@@ -490,15 +508,7 @@ export function clearAllNotifications(): void {
 
 // Calendar Events
 export function getCalendarEvents(): CalendarEvent[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(CALENDAR_EVENTS_KEY);
-    const events: CalendarEvent[] = data ? JSON.parse(data) : [];
-    return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  } catch (error) {
-    console.error("Error reading calendar events from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(CALENDAR_EVENTS_KEY, isCalendarEvent).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 export function addCalendarEvent(event: Omit<CalendarEvent, 'id'>): CalendarEvent {
@@ -536,14 +546,7 @@ export function deleteCalendarEvent(eventId: string): boolean {
 
 // Vehicles
 export function getVehicles(): Vehicle[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const data = localStorage.getItem(VEHICLES_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error("Error reading vehicles from localStorage:", error);
-    return [];
-  }
+  return getStoredArray(VEHICLES_KEY, isVehicle);
 }
 
 export function addVehicle(vehicle: Omit<Vehicle, 'id' | 'status'>): Vehicle {
@@ -572,7 +575,6 @@ export function updateVehicle(updatedVehicle: Vehicle): boolean {
 export function deleteVehicle(vehicleId: string): boolean {
   if (typeof window === 'undefined') return false;
   const vehicles = getVehicles();
-  // In the future, add checks if vehicle is used in missions before deleting
   const updatedVehicles = vehicles.filter(v => v.id !== vehicleId);
   localStorage.setItem(VEHICLES_KEY, JSON.stringify(updatedVehicles));
   return vehicles.length !== updatedVehicles.length;
@@ -584,9 +586,13 @@ export function getFixedFurniture(partyId: string): FixedFurnitureItem[] {
   try {
     const allFixedFurnitureData = localStorage.getItem(FIXED_FURNITURE_KEY);
     const allFurniture = allFixedFurnitureData ? JSON.parse(allFixedFurnitureData) : {};
-    return (allFurniture[partyId] || []).sort((a: FixedFurnitureItem, b: FixedFurnitureItem) => 
-      a.equipmentType.localeCompare(b.equipmentType)
-    );
+    const partyData = allFurniture[partyId];
+    if (Array.isArray(partyData)) {
+        return (partyData as FixedFurnitureItem[]).sort((a: FixedFurnitureItem, b: FixedFurnitureItem) => 
+          a.equipmentType.localeCompare(b.equipmentType)
+        );
+    }
+    return [];
   } catch (error) {
     console.error(`Error reading fixed furniture for party ${partyId} from localStorage:`, error);
     return [];
@@ -689,12 +695,74 @@ export async function importFixedFurnitureFromExcel(partyId: string, file: File)
   });
 }
 
+// Appropriations
+export function getAppropriations(): Appropriation[] {
+  return getStoredArray(APPROPRIATIONS_KEY, isAppropriation);
+}
+
+export function addAppropriation(appropriation: Omit<Appropriation, 'id'>): Appropriation {
+  if (typeof window === 'undefined') {
+    const newApprop = { ...appropriation, id: crypto.randomUUID() };
+    console.warn("addAppropriation called on server, returning fallback.");
+    return newApprop;
+  }
+  const appropriations = getAppropriations();
+  const newAppropriationWithId: Appropriation = { ...appropriation, id: crypto.randomUUID() };
+  appropriations.push(newAppropriationWithId);
+  localStorage.setItem(APPROPRIATIONS_KEY, JSON.stringify(appropriations));
+  return newAppropriationWithId;
+}
+
+export function updateAppropriation(updatedAppropriation: Appropriation): boolean {
+  if (typeof window === 'undefined') return false;
+  const appropriations = getAppropriations();
+  const index = appropriations.findIndex(a => a.id === updatedAppropriation.id);
+  if (index === -1) return false;
+  appropriations[index] = updatedAppropriation;
+  localStorage.setItem(APPROPRIATIONS_KEY, JSON.stringify(appropriations));
+  return true;
+}
+
+export function deleteAppropriation(appropriationId: string): { success: boolean, message?: string } {
+  if (typeof window === 'undefined') return { success: false, message: "لا يمكن حذف الاعتماد من الخادم."};
+  
+  const spendings = getSpendings();
+  const isAppropriationUsed = spendings.some(s => s.appropriationId === appropriationId);
+  if (isAppropriationUsed) {
+    return { success: false, message: "لا يمكن حذف هذا الاعتماد لأنه يحتوي على عمليات صرف مسجلة. يجب حذف عمليات الصرف أولاً أو ربطها باعتماد آخر." };
+  }
+
+  let appropriations = getAppropriations();
+  appropriations = appropriations.filter(a => a.id !== appropriationId);
+  localStorage.setItem(APPROPRIATIONS_KEY, JSON.stringify(appropriations));
+  return { success: true };
+}
+
+// Spendings
+export function getSpendings(): Spending[] {
+    return getStoredArray(SPENDINGS_KEY, isSpending);
+}
+
+export function addSpending(spending: Omit<Spending, 'id'>): Spending {
+  if (typeof window === 'undefined') {
+     const newSpending = { ...spending, id: crypto.randomUUID() };
+    console.warn("addSpending called on server, returning fallback.");
+    return newSpending;
+  }
+  const spendings = getSpendings();
+  const newSpendingWithId: Spending = { ...spending, id: crypto.randomUUID() };
+  spendings.push(newSpendingWithId);
+  localStorage.setItem(SPENDINGS_KEY, JSON.stringify(spendings));
+  return newSpendingWithId;
+}
+
 
 // Clear All Data
 export function clearAllData(): void {
   if (typeof window === 'undefined') return;
   try {
     ALL_APP_DATA_KEYS.forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem(APP_THEME_KEY); // Clear theme separately
     // Clear any reminder sent flags
     Object.keys(localStorage).forEach(key => {
         if (key.startsWith('reminder_sent_')) {
@@ -716,27 +784,29 @@ export function exportAllData(): void {
       if (data) {
         appData[key] = JSON.parse(data);
       } else {
-        // Use appropriate default empty state based on key
-        if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key)) {
+        if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY].includes(key)) {
           appData[key] = [];
         } else if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key)) {
            appData[key] = {};
         } else {
-          appData[key] = null; // Default for unknown keys
+          appData[key] = null;
         }
       }
     } catch (error) {
       console.error(`Error reading ${key} from localStorage during export:`, error);
-      appData[key] = null; // Indicate error or missing data
+      appData[key] = null;
     }
   });
+  // Handle theme separately as it's a direct string
+  appData[APP_THEME_KEY] = localStorage.getItem(APP_THEME_KEY) || 'default';
+
 
   const jsonString = JSON.stringify(appData, null, 2);
   const blob = new Blob([jsonString], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').substring(0, 19);
   link.download = `app_data_backup_${timestamp}.json`;
   document.body.appendChild(link);
   link.click();
@@ -757,41 +827,42 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
         const jsonString = event.target?.result as string;
         const importedData = JSON.parse(jsonString);
 
-        // Basic validation: check if all expected keys exist
         let allKeysPresent = true;
         for (const key of ALL_APP_DATA_KEYS) {
           if (!Object.prototype.hasOwnProperty.call(importedData, key)) {
-            // Allow some keys to be missing and default them
-             if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key) && importedData[key] === undefined) {
+            if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key) && importedData[key] === undefined) {
                 console.warn(`Key ${key} missing in import file, will default to empty object.`);
                 importedData[key] = {};
-            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key) && importedData[key] === undefined) {
+            } else if ([NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY].includes(key) && importedData[key] === undefined) {
                  console.warn(`Key ${key} missing in import file, will default to empty array.`);
                 importedData[key] = [];
             }
             else if (!Object.prototype.hasOwnProperty.call(importedData, key)){
-                 allKeysPresent = false; // If critical key is missing and not handled above
+                 allKeysPresent = false;
                  console.error(`Critical key ${key} is missing in import file.`);
                  break;
             }
           }
         }
+         // Check for theme key specifically
+        if (!Object.prototype.hasOwnProperty.call(importedData, APP_THEME_KEY)) {
+            console.warn(`Theme key ${APP_THEME_KEY} missing in import file, will default to 'default'.`);
+            importedData[APP_THEME_KEY] = 'default';
+        }
+
 
         if (!allKeysPresent) {
           resolve({ success: false, message: "ملف البيانات غير صالح أو لا يحتوي على جميع الأقسام المطلوبة." });
           return;
         }
 
-        clearAllData(); // Clear existing data first, including reminder flags
+        clearAllData();
 
-        // Import new data
         ALL_APP_DATA_KEYS.forEach(key => {
            if (importedData[key] !== undefined && importedData[key] !== null) {
             localStorage.setItem(key, JSON.stringify(importedData[key]));
           } else {
-            // If a key is present in ALL_APP_DATA_KEYS but data is null/undefined in imported file,
-            // ensure it's appropriately cleared or set to default empty state
-            if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY].includes(key)) {
+            if ([TRANSACTIONS_KEY, PARTIES_KEY, EQUIPMENT_DEFINITIONS_KEY, NOTIFICATIONS_KEY, CALENDAR_EVENTS_KEY, VEHICLES_KEY, APPROPRIATIONS_KEY, SPENDINGS_KEY].includes(key)) {
               localStorage.setItem(key, JSON.stringify([]));
             } else if ([EQUIPMENT_SETTINGS_KEY, PARTY_EMPLOYEES_KEY, FIXED_FURNITURE_KEY].includes(key)) {
               localStorage.setItem(key, JSON.stringify({}));
@@ -800,7 +871,13 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
             }
           }
         });
-        // After importing, clear any old reminder sent flags as new events are in place
+        // Handle theme separately
+        if (importedData[APP_THEME_KEY] && typeof importedData[APP_THEME_KEY] === 'string') {
+            localStorage.setItem(APP_THEME_KEY, importedData[APP_THEME_KEY]);
+        } else {
+            localStorage.setItem(APP_THEME_KEY, 'default');
+        }
+
         Object.keys(localStorage).forEach(k => {
             if (k.startsWith('reminder_sent_')) {
                 localStorage.removeItem(k);
@@ -820,3 +897,4 @@ export async function importAllData(file: File): Promise<{ success: boolean; mes
     reader.readAsText(file);
   });
 }
+
