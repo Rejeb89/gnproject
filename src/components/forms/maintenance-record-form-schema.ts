@@ -12,10 +12,7 @@ export const maintenanceRecordFormSchema = z.object({
     .positive({ message: "قراءة العداد يجب أن تكون رقمًا موجبًا." })
     .int({ message: "قراءة العداد يجب أن تكون رقمًا صحيحًا." })
     .optional(),
-  cost: z.coerce
-    .number({ invalid_type_error: "التكلفة يجب أن تكون رقمًا." })
-    .nonnegative({ message: "التكلفة لا يمكن أن تكون سالبة."})
-    .optional(),
+  // cost field removed from schema validation
   description: z.string().min(1, { message: "وصف الصيانة مطلوب." }),
   nextDueDate: z.date().optional().nullable(),
   nextDueOdometer: z.coerce
@@ -27,3 +24,4 @@ export const maintenanceRecordFormSchema = z.object({
 });
 
 export type MaintenanceRecordFormValues = z.infer<typeof maintenanceRecordFormSchema>;
+

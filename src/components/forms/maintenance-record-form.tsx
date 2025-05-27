@@ -37,7 +37,7 @@ export function MaintenanceRecordForm({ onSubmit, onCancel, initialOdometer }: M
       date: new Date(),
       type: "",
       odometerReading: initialOdometer || undefined,
-      cost: undefined,
+      // cost: undefined, // Default value for cost removed
       description: "",
       nextDueDate: undefined,
       nextDueOdometer: undefined,
@@ -134,8 +134,7 @@ export function MaintenanceRecordForm({ onSubmit, onCancel, initialOdometer }: M
           )}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
+        <FormField
             control={form.control}
             name="odometerReading"
             render={({ field }) => (
@@ -151,23 +150,7 @@ export function MaintenanceRecordForm({ onSubmit, onCancel, initialOdometer }: M
                 </FormItem>
             )}
             />
-            <FormField
-            control={form.control}
-            name="cost"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel className="flex items-center gap-1">
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    التكلفة (د.ت - اختياري)
-                </FormLabel>
-                <FormControl>
-                    <Input type="number" placeholder="مثال: 120.000" step="0.001" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : +e.target.value)} value={field.value ?? ""} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
+            {/* Removed cost field FormField */}
 
         <div className="space-y-2 rounded-md border p-4">
             <FormLabel className="flex items-center gap-2 text-base mb-2">
@@ -269,3 +252,4 @@ export function MaintenanceRecordForm({ onSubmit, onCancel, initialOdometer }: M
     </Form>
   );
 }
+

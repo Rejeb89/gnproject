@@ -78,6 +78,7 @@ export interface MaintenanceRecord {
   date: string; // ISO date string
   type: string; // e.g., "تغيير زيت", "فحص دوري"
   odometerReading?: number; // Optional odometer reading
+  // cost field is now optional
   cost?: number;
   description: string;
   nextDueDate?: string; // ISO date string
@@ -127,3 +128,4 @@ export interface Spending {
   invoiceDate?: string; // ISO Date String
   invoiceFileName?: string;
 }
+

@@ -160,11 +160,17 @@ export default function VehiclesPage() {
   const handleMaintenanceFormSubmit = (values: MaintenanceRecordFormValues) => {
     if (!selectedVehicleForEntry) return;
     try {
-      addMaintenanceRecordToVehicle(selectedVehicleForEntry.id, {
+      // Cost is no longer directly passed from the form
+      const maintenanceData: Omit<MaintenanceRecord, 'id' | 'cost'> & { cost?: number } = {
         ...values,
         date: values.date.toISOString(),
         nextDueDate: values.nextDueDate ? values.nextDueDate.toISOString() : undefined,
-      });
+      };
+      // If cost was part of the form values and we wanted to keep it optional
+      // if (values.cost !== undefined) {
+      //   maintenanceData.cost = values.cost;
+      // }
+      addMaintenanceRecordToVehicle(selectedVehicleForEntry.id, maintenanceData as Omit<MaintenanceRecord, 'id'>);
       toast({ title: "تمت إضافة سجل الصيانة بنجاح."});
       loadVehicles();
       setIsMaintenanceFormOpen(false);
@@ -324,7 +330,7 @@ export default function VehiclesPage() {
                                                     <TableHead>نوع الصيانة</TableHead>
                                                     <TableHead>الوصف</TableHead>
                                                     <TableHead className="text-center">عداد الكيلومترات</TableHead>
-                                                    <TableHead className="text-center">التكلفة (د.ت)</TableHead>
+                                                    {/* <TableHead className="text-center">التكلفة (د.ت)</TableHead> */} {/* Cost column removed */}
                                                     <TableHead>الصيانة القادمة</TableHead>
                                                     <TableHead>ملاحظات</TableHead>
                                                 </TableRow>
@@ -336,7 +342,7 @@ export default function VehiclesPage() {
                                                         <TableCell className="font-medium truncate max-w-[150px]" title={record.type}>{record.type}</TableCell>
                                                         <TableCell className="text-xs text-muted-foreground truncate max-w-[200px]" title={record.description}>{record.description}</TableCell>
                                                         <TableCell className="text-center">{record.odometerReading?.toLocaleString() || "-"}</TableCell>
-                                                        <TableCell className="text-center">{formatCurrency(record.cost)}</TableCell>
+                                                        {/* <TableCell className="text-center">{formatCurrency(record.cost)}</TableCell> */} {/* Cost cell removed */}
                                                         <TableCell className="text-xs">
                                                             {record.nextDueDate && <div>تاريخ: {format(parseISO(record.nextDueDate), "dd/MM/yy", { locale: arSA })}</div>}
                                                             {record.nextDueOdometer && <div>عداد: {record.nextDueOdometer.toLocaleString()} كم</div>}
@@ -465,3 +471,4 @@ export default function VehiclesPage() {
     </>
   );
 }
+
