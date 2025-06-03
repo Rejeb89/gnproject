@@ -45,3 +45,4 @@ export const baseSpendingFormSchema = z.object({
 });
 
 export type SpendingFormValues = z.infer<typeof baseSpendingFormSchema>;
+
